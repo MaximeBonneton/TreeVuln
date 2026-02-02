@@ -1,0 +1,31 @@
+cve_id,cvss_score,epss_score,kev,exploit_type,asset_id,asset_name,asset_ip,asset_criticality,regulation,description
+CVE-2024-21762,9.8,0.97,true,RCE,srv-prod-001,Production Web Server,10.0.1.10,Critical,PCI-DSS,FortiOS SSL VPN - Remote Code Execution
+CVE-2024-3400,10.0,0.95,true,RCE,net-fw-001,Main Firewall,10.0.0.1,Critical,SOC2,Palo Alto PAN-OS Command Injection
+CVE-2024-1709,9.8,0.89,true,Auth Bypass,srv-prod-002,Production DB Server,10.0.1.20,Critical,RGPD,ConnectWise ScreenConnect Authentication Bypass
+CVE-2024-27198,9.8,0.82,true,Auth Bypass,srv-ci-001,CI/CD Server,10.0.2.50,High,ISO27001,JetBrains TeamCity Authentication Bypass
+CVE-2024-20353,8.6,0.75,true,DoS,net-fw-002,Secondary Firewall,10.0.0.2,High,PCI-DSS,Cisco ASA and FTD Denial of Service
+CVE-2024-4577,9.8,0.71,true,RCE,srv-prod-003,PHP Application Server,10.0.1.30,Critical,RGPD,PHP CGI Argument Injection
+CVE-2024-29988,8.8,0.65,true,RCE,ws-admin-001,Admin Workstation,10.0.5.10,High,SOC2,Windows SmartScreen Bypass
+CVE-2024-21887,9.1,0.58,true,RCE,vpn-001,VPN Gateway,10.0.0.5,Critical,PCI-DSS,Ivanti Connect Secure Command Injection
+CVE-2024-23897,9.8,0.52,false,Info Disclosure,srv-ci-001,CI/CD Server,10.0.2.50,High,ISO27001,Jenkins Arbitrary File Read
+CVE-2024-6387,8.1,0.45,false,RCE,srv-prod-001,Production Web Server,10.0.1.10,Critical,PCI-DSS,OpenSSH regreSSHion
+CVE-2024-38077,9.8,0.42,false,RCE,srv-ad-001,Active Directory Server,10.0.3.10,Critical,SOC2,Windows Remote Desktop Licensing RCE
+CVE-2024-28995,8.6,0.38,false,Path Traversal,srv-backup-001,Backup Server,10.0.4.10,High,RGPD,SolarWinds Serv-U Path Traversal
+CVE-2024-5806,9.1,0.35,false,Auth Bypass,srv-sftp-001,SFTP Server,10.0.4.20,Medium,ISO27001,MOVEit Transfer Authentication Bypass
+CVE-2024-4358,9.8,0.31,false,Auth Bypass,srv-report-001,Reporting Server,10.0.2.30,Medium,RGPD,Progress Telerik Report Server Auth Bypass
+CVE-2024-37085,7.2,0.28,true,Privilege Escalation,srv-vmware-001,VMware vCenter,10.0.3.50,Critical,PCI-DSS,VMware ESXi AD Integration Auth Bypass
+CVE-2024-0012,9.8,0.25,false,Auth Bypass,net-fw-001,Main Firewall,10.0.0.1,Critical,SOC2,Palo Alto PAN-OS Management Interface Auth Bypass
+CVE-2024-34102,9.8,0.22,false,XXE,srv-ecommerce-001,E-Commerce Server,10.0.1.40,High,PCI-DSS,Adobe Commerce XML External Entity
+CVE-2024-32896,7.8,0.18,false,Privilege Escalation,mobile-001,Mobile Device Fleet,N/A,Low,RGPD,Android Pixel Firmware Elevation of Privilege
+CVE-2024-38063,9.8,0.15,false,RCE,ws-user-001,User Workstation,10.0.5.100,Medium,ISO27001,Windows TCP/IP IPv6 Remote Code Execution
+CVE-2024-7593,9.8,0.12,false,Auth Bypass,srv-monitoring-001,Monitoring Server,10.0.2.40,Medium,SOC2,Ivanti vTM Authentication Bypass
+CVE-2024-6327,9.9,0.09,false,RCE,srv-report-001,Reporting Server,10.0.2.30,Medium,RGPD,Progress Telerik Report Server Deserialization
+CVE-2024-5910,9.3,0.08,false,Missing Auth,net-fw-001,Main Firewall,10.0.0.1,Critical,PCI-DSS,Palo Alto Expedition Missing Authentication
+CVE-2024-40711,9.8,0.07,false,RCE,srv-backup-001,Backup Server,10.0.4.10,High,ISO27001,Veeam Backup Deserialization RCE
+CVE-2024-8190,7.2,0.05,false,Command Injection,srv-ivanti-001,Ivanti CSA Server,10.0.3.30,Medium,SOC2,Ivanti Cloud Services Appliance OS Command Injection
+CVE-2024-43461,8.8,0.04,false,Spoofing,ws-user-002,User Workstation,10.0.5.101,Low,RGPD,Windows MSHTML Platform Spoofing
+CVE-2024-29824,9.6,0.03,false,SQLi,srv-itsm-001,ITSM Server,10.0.2.60,Medium,ISO27001,Ivanti EPM SQL Injection
+CVE-2024-38812,9.8,0.02,false,RCE,srv-vmware-001,VMware vCenter,10.0.3.50,Critical,PCI-DSS,VMware vCenter Server Heap Overflow
+CVE-2024-47575,9.8,0.01,false,Missing Auth,srv-fortinet-001,FortiManager Server,10.0.3.40,High,SOC2,Fortinet FortiManager Missing Authentication
+CVE-2024-9999,3.5,0.001,false,Info Disclosure,srv-dev-001,Development Server,10.0.6.10,Low,N/A,Test Low Severity Vulnerability
+CVE-2024-8888,5.5,0.02,false,DoS,srv-staging-001,Staging Web Server,10.0.6.20,Medium,N/A,Test Medium Severity Vulnerability

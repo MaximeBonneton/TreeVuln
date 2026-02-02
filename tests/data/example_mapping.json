@@ -1,0 +1,62 @@
+{
+  "fields": [
+    {
+      "name": "cve_id",
+      "label": "CVE ID",
+      "type": "string",
+      "description": "Identifiant unique de la vulnérabilité",
+      "examples": ["CVE-2024-1234", "CVE-2024-5678"],
+      "required": true
+    },
+    {
+      "name": "cvss_score",
+      "label": "Score CVSS",
+      "type": "number",
+      "description": "Score de sévérité CVSS (0-10)",
+      "examples": [9.8, 7.5, 4.0],
+      "required": true
+    },
+    {
+      "name": "epss_score",
+      "label": "Score EPSS",
+      "type": "number",
+      "description": "Probabilité d'exploitation (0-1)",
+      "examples": [0.95, 0.45, 0.02],
+      "required": false
+    },
+    {
+      "name": "kev",
+      "label": "Dans KEV",
+      "type": "boolean",
+      "description": "Présent dans le catalogue KEV de CISA",
+      "examples": [true, false],
+      "required": true
+    },
+    {
+      "name": "asset_id",
+      "label": "ID Asset",
+      "type": "string",
+      "description": "Identifiant de l'asset affecté",
+      "examples": ["srv-prod-001", "net-fw-001"],
+      "required": true
+    },
+    {
+      "name": "asset_criticality",
+      "label": "Criticité Asset",
+      "type": "string",
+      "description": "Niveau de criticité de l'asset",
+      "examples": ["Critical", "High", "Medium", "Low"],
+      "required": false
+    },
+    {
+      "name": "exploit_type",
+      "label": "Type d'exploit",
+      "type": "string",
+      "description": "Catégorie d'exploitation",
+      "examples": ["RCE", "Auth Bypass", "DoS", "SQLi"],
+      "required": false
+    }
+  ],
+  "source": "manual",
+  "version": 1
+}
