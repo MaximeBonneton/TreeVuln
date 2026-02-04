@@ -58,18 +58,28 @@ export const getHandleColor = (nodeId: string, handleIndex: number): string => {
 
 // Retourne une couleur pour un edge basée sur sa source (pour correspondre aux handles)
 export const getEdgeColorFromSource = (sourceNodeId: string, sourceHandle: string | null | undefined): string => {
-  const handleIndex = sourceHandle ? parseInt(sourceHandle.replace('handle-', ''), 10) || 0 : 0;
+  if (!sourceHandle) return getHandleColor(sourceNodeId, 0);
+
+  // Format multi-input: handle-{inputIdx}-{condIdx} → hash basé sur l'ID complet
+  // Format single-input: handle-{index}
+  const parts = sourceHandle.replace('handle-', '').split('-');
+  if (parts.length === 2) {
+    // Multi-input: utiliser inputIdx * 100 + condIdx pour un index unique
+    const inputIdx = parseInt(parts[0], 10) || 0;
+    const condIdx = parseInt(parts[1], 10) || 0;
+    return getHandleColor(sourceNodeId, inputIdx * 100 + condIdx);
+  }
+  // Single-input
+  const handleIndex = parseInt(parts[0], 10) || 0;
   return getHandleColor(sourceNodeId, handleIndex);
 };
 
 // Calcule un offset pour les points de contrôle (pas les extrémités)
-const getControlPointOffset = (edgeId: string, sourceHandle: string | null | undefined): number => {
-  const handleIndex = sourceHandle ? parseInt(sourceHandle.replace('handle-', ''), 10) || 0 : 0;
+const getControlPointOffset = (edgeId: string): number => {
+  // Utilise uniquement le hash de l'edge pour un offset léger et unique
   const hash = hashString(edgeId);
-  // Offset entre -40 et +40 pixels pour les points de contrôle
-  const baseOffset = (handleIndex - 1) * 20;
-  const randomOffset = ((hash % 30) - 15);
-  return baseOffset + randomOffset;
+  // Offset entre -25 et +25 pixels pour éviter la superposition des courbes
+  return ((hash % 50) - 25);
 };
 
 // Génère un path Bézier personnalisé avec offset sur les points de contrôle uniquement
@@ -135,7 +145,7 @@ function ColoredEdgeComponent({
   data,
 }: EdgeProps<ColoredEdge>) {
   // Calcule l'offset pour les points de contrôle (pas les extrémités)
-  const controlOffset = getControlPointOffset(id, sourceHandleId);
+  const controlOffset = getControlPointOffset(id);
 
   // Génère le path avec les extrémités alignées aux handles
   const edgePath = getCustomBezierPath(
@@ -159,14 +169,14 @@ function ColoredEdgeComponent({
 
   if (highlighted) {
     strokeOpacity = 1;
-    strokeWidth = 2.5;
+    strokeWidth = 3.5;
   } else if (dimmed) {
-    strokeOpacity = 0.12;
+    strokeOpacity = 0.08;
     strokeWidth = 1;
   }
 
   if (selected) {
-    strokeWidth = 3;
+    strokeWidth = 4;
     strokeOpacity = 1;
   }
 

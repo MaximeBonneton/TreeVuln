@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { Database, GitBranch, Flag } from 'lucide-react';
-import type { TreeNodeData } from '@/types';
+import type { TreeNodeData, InputNodeConfig, LookupNodeConfig } from '@/types';
 import { useTreeStore } from '@/stores/treeStore';
 import { getHandleColor } from '../edges';
 
@@ -31,21 +31,155 @@ const nodeStyles = {
   },
 };
 
+/** Get input_count from node config (defaults to 1) */
+function getInputCount(data: TreeNodeData): number {
+  if (data.nodeType === 'output') return 1;
+  const config = data.config as InputNodeConfig | LookupNodeConfig;
+  return config.input_count ?? 1;
+}
+
 function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   const selectNode = useTreeStore((state) => state.selectNode);
+  const setHoveredNode = useTreeStore((state) => state.setHoveredNode);
   const style = nodeStyles[data.nodeType];
   const Icon = style.icon;
+  const inputCount = getInputCount(data);
+  const isMultiInput = inputCount > 1;
 
   // Pour les nœuds output, utilise la couleur configurée
-  const headerBg =
-    data.nodeType === 'output' && 'decision' in data.config
-      ? undefined
-      : undefined;
   const headerStyle =
     data.nodeType === 'output' && 'color' in data.config
       ? { backgroundColor: (data.config as { color: string }).color }
       : undefined;
 
+  // Mode multi-input: layout complètement différent
+  if (isMultiInput && data.conditions.length > 0) {
+    const numConditions = data.conditions.length;
+    const rowHeight = 24; // hauteur d'une ligne de condition en px
+    const bandHeight = numConditions * rowHeight;
+    const headerHeight = 40; // header
+    const infoHeight = 28; // info champ
+    const totalBandsHeight = inputCount * bandHeight;
+
+    return (
+      <div
+        className={`
+          min-w-[160px] rounded-lg shadow-md border-2
+          ${style.bg} ${style.border}
+          ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+        `}
+        onClick={() => selectNode(id)}
+      >
+        {/* Header pleine largeur */}
+        <div
+          className={`${style.header} text-white px-3 py-2 flex items-center gap-2 rounded-t-md`}
+          style={{ ...headerStyle, height: `${headerHeight}px` }}
+        >
+          <Icon size={16} />
+          <span className="font-medium text-sm flex-1">{data.label}</span>
+          <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{inputCount} entrées</span>
+        </div>
+
+        {/* Info champ */}
+        <div
+          className="px-3 text-xs text-gray-600 border-b border-gray-200 bg-white/50 flex items-center"
+          style={{ height: `${infoHeight}px` }}
+        >
+          {data.nodeType === 'input' && 'field' in data.config && (
+            <span>
+              <span className="font-medium">Champ:</span>{' '}
+              {(data.config as { field: string }).field || '(non configuré)'}
+            </span>
+          )}
+          {data.nodeType === 'lookup' && 'lookup_table' in data.config && (
+            <span>
+              <span className="font-medium">Lookup:</span>{' '}
+              {(data.config as { lookup_table: string }).lookup_table}
+            </span>
+          )}
+        </div>
+
+        {/* Bandes entrée/sortie */}
+        <div
+          className="flex flex-col rounded-b-md overflow-hidden"
+          onMouseLeave={() => setHoveredNode(null)}
+        >
+          {Array.from({ length: inputCount }).map((_, inputIdx) => {
+            const bandBg = inputIdx % 2 === 0 ? 'bg-white' : 'bg-gray-100';
+            return (
+              <div
+                key={inputIdx}
+                className={`relative flex ${bandBg} ${inputIdx > 0 ? 'border-t border-gray-300' : ''} hover:bg-blue-50 transition-colors cursor-pointer`}
+                style={{ height: `${bandHeight}px` }}
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setHoveredNode(id, inputIdx);
+                }}
+              >
+                {/* Ligne pointillée centrée verticalement */}
+                <div className="flex-1 flex items-center px-3">
+                  <div className="w-full h-0 border-t-2 border-dashed border-gray-300" />
+                </div>
+
+                {/* Conditions en colonne */}
+                <div className="flex flex-col justify-center border-l border-gray-200">
+                  {data.conditions.map((condition, condIdx) => (
+                    <div
+                      key={`label-${inputIdx}-${condIdx}`}
+                      className="flex items-center justify-end px-2 pr-4"
+                      style={{ height: `${rowHeight}px` }}
+                    >
+                      <span className="text-[10px] text-gray-600">{condition.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Handles d'entrée - positionnés absolument */}
+        {Array.from({ length: inputCount }).map((_, inputIdx) => {
+          const bandTop = headerHeight + infoHeight + inputIdx * bandHeight;
+          const handleTop = bandTop + bandHeight / 2;
+          const topPercent = (handleTop / (headerHeight + infoHeight + totalBandsHeight)) * 100;
+          return (
+            <Handle
+              key={`input-${inputIdx}`}
+              type="target"
+              position={Position.Left}
+              id={`input-${inputIdx}`}
+              className="!bg-gray-500 !w-3 !h-3 !border-2 !border-white"
+              style={{ top: `${topPercent}%` }}
+            />
+          );
+        })}
+
+        {/* Handles de sortie - positionnés absolument */}
+        {Array.from({ length: inputCount }).map((_, inputIdx) =>
+          data.conditions.map((_, condIdx) => {
+            const handleId = `handle-${inputIdx}-${condIdx}`;
+            const handleColor = getHandleColor(id, inputIdx * 100 + condIdx);
+            const bandTop = headerHeight + infoHeight + inputIdx * bandHeight;
+            const handleTop = bandTop + (condIdx + 0.5) * rowHeight;
+            const topPercent = (handleTop / (headerHeight + infoHeight + totalBandsHeight)) * 100;
+            return (
+              <Handle
+                key={handleId}
+                type="source"
+                position={Position.Right}
+                id={handleId}
+                className="!w-3 !h-3 !border-2 !border-white"
+                style={{ backgroundColor: handleColor, top: `${topPercent}%` }}
+              />
+            );
+          })
+        )}
+      </div>
+    );
+  }
+
+  // Mode standard (single-input ou output)
   return (
     <div
       className={`
@@ -55,7 +189,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
       `}
       onClick={() => selectNode(id)}
     >
-      {/* Handle d'entrée à gauche */}
+      {/* Handle d'entrée unique */}
       <Handle
         type="target"
         position={Position.Left}
@@ -66,7 +200,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
       <div className="flex-1">
         {/* Header */}
         <div
-          className={`${headerBg || style.header} text-white px-3 py-2 rounded-tl-md ${data.nodeType === 'output' || data.conditions.length === 0 ? 'rounded-tr-md' : ''} flex items-center gap-2`}
+          className={`${style.header} text-white px-3 py-2 rounded-tl-md ${data.nodeType === 'output' || data.conditions.length === 0 ? 'rounded-tr-md' : ''} flex items-center gap-2`}
           style={headerStyle}
         >
           <Icon size={16} />
@@ -97,13 +231,12 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         </div>
       </div>
 
-      {/* Handles de sortie à droite pour les conditions */}
+      {/* Handles de sortie pour single-input */}
       {data.nodeType !== 'output' && data.conditions.length > 0 && (
         <div className="border-l border-gray-200 flex flex-col justify-around py-1 min-w-[60px] pr-3">
           {data.conditions.map((condition, index) => {
             const handleColor = getHandleColor(id, index);
             const totalConditions = data.conditions.length;
-            // Calcule la position verticale du handle (réparti uniformément)
             const topPercent = ((index + 0.5) / totalConditions) * 100;
             return (
               <div

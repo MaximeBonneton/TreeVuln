@@ -32,6 +32,7 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     onConnect,
     addNode,
     hoveredNodeId,
+    hoveredInputIndex,
     setHoveredNode,
   } = useTreeStore();
 
@@ -94,9 +95,32 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
   // Calcule les edges avec couleurs et highlighting
   const styledEdges = useMemo(() => {
     return edges.map((edge) => {
-      const isConnectedToHovered =
-        hoveredNodeId !== null &&
-        (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+      let isConnectedToHovered = false;
+
+      if (hoveredNodeId !== null) {
+        // Vérifie si l'edge est connecté au nœud survolé
+        const isSourceMatch = edge.source === hoveredNodeId;
+        const isTargetMatch = edge.target === hoveredNodeId;
+
+        if (hoveredInputIndex !== null) {
+          // Mode multi-input : filtrer par handle spécifique
+          if (isSourceMatch) {
+            // Edge sortant : vérifier si le sourceHandle correspond à l'entrée survolée
+            // Format: "handle-{inputIndex}-{conditionIndex}"
+            const handlePrefix = `handle-${hoveredInputIndex}-`;
+            isConnectedToHovered = edge.sourceHandle?.startsWith(handlePrefix) ?? false;
+          }
+          if (isTargetMatch) {
+            // Edge entrant : vérifier si le targetHandle correspond à l'entrée survolée
+            // Format: "input-{inputIndex}"
+            const expectedHandle = `input-${hoveredInputIndex}`;
+            isConnectedToHovered = isConnectedToHovered || edge.targetHandle === expectedHandle;
+          }
+        } else {
+          // Mode standard : highlighter tous les edges du nœud
+          isConnectedToHovered = isSourceMatch || isTargetMatch;
+        }
+      }
 
       return {
         ...edge,
@@ -108,7 +132,7 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
         },
       };
     });
-  }, [edges, hoveredNodeId]);
+  }, [edges, hoveredNodeId, hoveredInputIndex]);
 
   return (
     <div ref={reactFlowWrapper} className="flex-1 h-full">

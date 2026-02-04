@@ -46,6 +46,7 @@ interface TreeState {
   // État UI
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
+  hoveredInputIndex: number | null; // Pour les nœuds multi-input
   isLoading: boolean;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
@@ -64,7 +65,7 @@ interface TreeState {
   updateNodeData: (nodeId: string, data: Partial<TreeNodeData>) => void;
   deleteNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null) => void;
-  setHoveredNode: (nodeId: string | null) => void;
+  setHoveredNode: (nodeId: string | null, inputIndex?: number | null) => void;
 
   // Field mapping actions
   setFieldMapping: (mapping: FieldMapping | null) => void;
@@ -137,6 +138,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   fieldMapping: null,
   selectedNodeId: null,
   hoveredNodeId: null,
+  hoveredInputIndex: null,
   isLoading: false,
   isSaving: false,
   hasUnsavedChanges: false,
@@ -267,7 +269,10 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
   // Survole un nœud (pour le highlighting des edges)
-  setHoveredNode: (nodeId) => set({ hoveredNodeId: nodeId }),
+  setHoveredNode: (nodeId, inputIndex = null) => set({
+    hoveredNodeId: nodeId,
+    hoveredInputIndex: inputIndex ?? null,
+  }),
 
   // --- Field Mapping ---
 
@@ -506,6 +511,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       source: edge.source,
       target: edge.target,
       source_handle: edge.sourceHandle,
+      target_handle: edge.targetHandle,
       label: typeof edge.label === 'string' ? edge.label : undefined,
     }));
 
@@ -535,6 +541,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       source: apiEdge.source,
       target: apiEdge.target,
       sourceHandle: apiEdge.source_handle || undefined,
+      targetHandle: apiEdge.target_handle || undefined,
       label: apiEdge.label || undefined,
       type: 'colored',
     }));
