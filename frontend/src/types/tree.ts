@@ -46,6 +46,8 @@ export interface NodeCondition {
 export interface InputNodeConfig {
   field: string;
   default_branch?: number;
+  /** Nombre d'entrées (> 1 pour mode multi-input) */
+  input_count?: number;
 }
 
 export interface LookupNodeConfig {
@@ -53,6 +55,8 @@ export interface LookupNodeConfig {
   lookup_key: string;
   lookup_field: string;
   default_branch?: number;
+  /** Nombre d'entrées (> 1 pour mode multi-input) */
+  input_count?: number;
 }
 
 export interface OutputNodeConfig {
@@ -97,6 +101,8 @@ export interface ApiEdge {
   source: string;
   target: string;
   source_handle?: string | null;
+  /** Handle d'entrée pour les nœuds multi-input. Format: 'input-{index}' */
+  target_handle?: string | null;
   label?: string | null;
 }
 

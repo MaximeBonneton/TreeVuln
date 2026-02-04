@@ -51,150 +51,171 @@ CREATE TABLE IF NOT EXISTS assets (
 -- Index pour la recherche d'assets par arbre et asset_id
 CREATE INDEX IF NOT EXISTS idx_assets_tree_asset_id ON assets(tree_id, asset_id);
 
--- Insertion d'un arbre de décision SSVC (arbre par défaut)
+-- Insertion d'un arbre de décision SSVC OPTIMISE avec multi-input (arbre par défaut)
 -- Critères : Exploitation (KEV), Automatable (EPSS >= 0.2), Technical Impact (CVSS >= 9), Mission & Well-being (asset_criticality)
--- Structure simplifiée avec 4 nœuds Output partagés (Track, Track*, Attend, Act)
+-- Structure optimisée : 8 nœuds au lieu de 26 grâce aux entrées multiples
 INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
     'Default Tree',
-    'Arbre SSVC - Priorisation des vulnerabilites',
-    TRUE,  -- is_default
-    FALSE,  -- api_enabled (désactivé par défaut)
-    NULL,  -- api_slug
+    'Arbre SSVC optimise - Priorisation des vulnerabilites avec multi-input',
+    TRUE,
+    FALSE,
+    NULL,
     '{
         "nodes": [
-            {"id": "exploitation", "type": "input", "label": "Exploitation", "position": {"x": -720, "y": 225}, "config": {"field": "kev"}, "conditions": [{"operator": "is_null", "value": "none", "label": "None"}, {"operator": "eq", "value": false, "label": "PoC"}, {"operator": "eq", "value": true, "label": "Active"}]},
-            {"id": "automatable", "type": "input", "label": "Automatable", "position": {"x": -435, "y": 135}, "config": {"field": "epss_score"}, "conditions": [{"operator": "lt", "value": 0.2, "label": "No"}, {"operator": "gte", "value": 0.2, "label": "Yes"}]},
-            {"id": "automatable-active", "type": "input", "label": "Automatable", "position": {"x": -435, "y": 225}, "config": {"field": "epss_score"}, "conditions": [{"operator": "lt", "value": 0.2, "label": "No"}, {"operator": "gte", "value": 0.2, "label": "Yes"}]},
-            {"id": "automatable-poc", "type": "input", "label": "Automatable", "position": {"x": -435, "y": 315}, "config": {"field": "epss_score"}, "conditions": [{"operator": "lt", "value": 0.2, "label": "No"}, {"operator": "gte", "value": 0.2, "label": "Yes"}]},
-            {"id": "tech-impact-no", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 0}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "tech-impact-yes", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 90}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "tech-impact-active-no", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 180}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "tech-impact-active-yes", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 270}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "tech-impact-poc-no", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 360}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "tech-impact-poc-yes", "type": "input", "label": "Technical Impact", "position": {"x": -120, "y": 450}, "config": {"field": "cvss_score"}, "conditions": [{"operator": "lt", "value": 9, "label": "Partial"}, {"operator": "gte", "value": 9, "label": "Total"}]},
-            {"id": "mission-0", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": -270}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-1", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": -180}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-2", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": -90}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-3", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 270}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-4", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 360}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-5", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 0}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-6", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 90}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-7", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 180}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-8", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 450}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-9", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 630}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-10", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 720}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "mission-11", "type": "input", "label": "Mission & Well-being", "position": {"x": 240, "y": 540}, "config": {"field": "asset_criticality"}, "conditions": [{"operator": "eq", "value": "Low", "label": "Low"}, {"operator": "eq", "value": "Medium", "label": "Medium"}, {"operator": "in", "value": ["High", "Critical"], "label": "High"}]},
-            {"id": "output-track", "type": "output", "label": "Track", "position": {"x": 945, "y": -30}, "config": {"color": "#22c55e", "decision": "Track"}, "conditions": []},
-            {"id": "output-track-star", "type": "output", "label": "Track*", "position": {"x": 945, "y": 135}, "config": {"color": "#eab308", "decision": "Track*"}, "conditions": []},
-            {"id": "output-attend", "type": "output", "label": "Attend", "position": {"x": 945, "y": 300}, "config": {"color": "#f97316", "decision": "Attend"}, "conditions": []},
-            {"id": "output-act", "type": "output", "label": "Act", "position": {"x": 945, "y": 465}, "config": {"color": "#dc2626", "decision": "Act"}, "conditions": []}
+            {
+                "id": "exploitation",
+                "type": "input",
+                "label": "Exploitation",
+                "position": {"x": -465, "y": 300},
+                "config": {"field": "kev"},
+                "conditions": [
+                    {"operator": "is_null", "value": null, "label": "None"},
+                    {"operator": "eq", "value": false, "label": "PoC"},
+                    {"operator": "eq", "value": true, "label": "Active"}
+                ]
+            },
+            {
+                "id": "automatable",
+                "type": "input",
+                "label": "Automatable",
+                "position": {"x": -120, "y": 300},
+                "config": {"field": "epss_score", "input_count": 3},
+                "conditions": [
+                    {"operator": "lt", "value": 0.2, "label": "No"},
+                    {"operator": "gte", "value": 0.2, "label": "Yes"}
+                ]
+            },
+            {
+                "id": "tech-impact",
+                "type": "input",
+                "label": "Technical Impact",
+                "position": {"x": 225, "y": 300},
+                "config": {"field": "cvss_score", "input_count": 6},
+                "conditions": [
+                    {"operator": "lt", "value": 9, "label": "Partial"},
+                    {"operator": "gte", "value": 9, "label": "Total"}
+                ]
+            },
+            {
+                "id": "mission",
+                "type": "input",
+                "label": "Mission & Well-being",
+                "position": {"x": 660, "y": 300},
+                "config": {"field": "asset_criticality", "input_count": 12},
+                "conditions": [
+                    {"operator": "eq", "value": "Low", "label": "Low"},
+                    {"operator": "eq", "value": "Medium", "label": "Medium"},
+                    {"operator": "in", "value": ["High", "Critical"], "label": "High"}
+                ]
+            },
+            {
+                "id": "output-track",
+                "type": "output",
+                "label": "Track",
+                "position": {"x": 1170, "y": 330},
+                "config": {"decision": "Track", "color": "#22c55e"},
+                "conditions": []
+            },
+            {
+                "id": "output-track-star",
+                "type": "output",
+                "label": "Track*",
+                "position": {"x": 1170, "y": 525},
+                "config": {"decision": "Track*", "color": "#eab308"},
+                "conditions": []
+            },
+            {
+                "id": "output-attend",
+                "type": "output",
+                "label": "Attend",
+                "position": {"x": 1170, "y": 765},
+                "config": {"decision": "Attend", "color": "#f97316"},
+                "conditions": []
+            },
+            {
+                "id": "output-act",
+                "type": "output",
+                "label": "Act",
+                "position": {"x": 1170, "y": 1005},
+                "config": {"decision": "Act", "color": "#dc2626"},
+                "conditions": []
+            }
         ],
         "edges": [
-            {"id": "e-exploit-none", "source": "exploitation", "target": "automatable", "source_handle": "handle-0"},
-            {"id": "e-exploit-poc", "source": "exploitation", "target": "automatable-active", "source_handle": "handle-1"},
-            {"id": "e-exploit-active", "source": "exploitation", "target": "automatable-poc", "source_handle": "handle-2"},
-            {"id": "e-auto-no", "source": "automatable", "target": "tech-impact-no", "source_handle": "handle-0"},
-            {"id": "e-auto-yes", "source": "automatable", "target": "tech-impact-yes", "source_handle": "handle-1"},
-            {"id": "e-active-no", "source": "automatable-active", "target": "tech-impact-active-no", "source_handle": "handle-0"},
-            {"id": "e-active-yes", "source": "automatable-active", "target": "tech-impact-active-yes", "source_handle": "handle-1"},
-            {"id": "e-poc-no", "source": "automatable-poc", "target": "tech-impact-poc-no", "source_handle": "handle-0"},
-            {"id": "e-poc-yes", "source": "automatable-poc", "target": "tech-impact-poc-yes", "source_handle": "handle-1"},
-            {"id": "e-tech-no-partial", "source": "tech-impact-no", "target": "mission-0", "source_handle": "handle-0"},
-            {"id": "e-tech-no-total", "source": "tech-impact-no", "target": "mission-1", "source_handle": "handle-1"},
-            {"id": "e-tech-yes-partial", "source": "tech-impact-yes", "target": "mission-2", "source_handle": "handle-0"},
-            {"id": "e-tech-yes-total", "source": "tech-impact-yes", "target": "mission-5", "source_handle": "handle-1"},
-            {"id": "e-tech-active-no-partial", "source": "tech-impact-active-no", "target": "mission-6", "source_handle": "handle-0"},
-            {"id": "e-tech-active-no-total", "source": "tech-impact-active-no", "target": "mission-7", "source_handle": "handle-1"},
-            {"id": "e-tech-active-yes-partial", "source": "tech-impact-active-yes", "target": "mission-3", "source_handle": "handle-0"},
-            {"id": "e-tech-active-yes-total", "source": "tech-impact-active-yes", "target": "mission-4", "source_handle": "handle-1"},
-            {"id": "e-tech-poc-no-partial", "source": "tech-impact-poc-no", "target": "mission-8", "source_handle": "handle-0"},
-            {"id": "e-tech-poc-no-total", "source": "tech-impact-poc-no", "target": "mission-11", "source_handle": "handle-1"},
-            {"id": "e-tech-poc-yes-partial", "source": "tech-impact-poc-yes", "target": "mission-9", "source_handle": "handle-0"},
-            {"id": "e-tech-poc-yes-total", "source": "tech-impact-poc-yes", "target": "mission-10", "source_handle": "handle-1"},
-            {"id": "e-m0-low", "source": "mission-0", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m0-med", "source": "mission-0", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m0-high", "source": "mission-0", "target": "output-track", "source_handle": "handle-2"},
-            {"id": "e-m1-low", "source": "mission-1", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m1-med", "source": "mission-1", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m1-high", "source": "mission-1", "target": "output-track-star", "source_handle": "handle-2"},
-            {"id": "e-m2-low", "source": "mission-2", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m2-med", "source": "mission-2", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m2-high", "source": "mission-2", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m5-low", "source": "mission-5", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m5-med", "source": "mission-5", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m5-high", "source": "mission-5", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m6-low", "source": "mission-6", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m6-med", "source": "mission-6", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m6-high", "source": "mission-6", "target": "output-track-star", "source_handle": "handle-2"},
-            {"id": "e-m7-low", "source": "mission-7", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m7-med", "source": "mission-7", "target": "output-track-star", "source_handle": "handle-1"},
-            {"id": "e-m7-high", "source": "mission-7", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m3-low", "source": "mission-3", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m3-med", "source": "mission-3", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m3-high", "source": "mission-3", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m4-low", "source": "mission-4", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m4-med", "source": "mission-4", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m4-high", "source": "mission-4", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m8-low", "source": "mission-8", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m8-med", "source": "mission-8", "target": "output-track", "source_handle": "handle-1"},
-            {"id": "e-m8-high", "source": "mission-8", "target": "output-attend", "source_handle": "handle-2"},
-            {"id": "e-m11-low", "source": "mission-11", "target": "output-track", "source_handle": "handle-0"},
-            {"id": "e-m11-med", "source": "mission-11", "target": "output-attend", "source_handle": "handle-1"},
-            {"id": "e-m11-high", "source": "mission-11", "target": "output-act", "source_handle": "handle-2"},
-            {"id": "e-m9-low", "source": "mission-9", "target": "output-attend", "source_handle": "handle-0"},
-            {"id": "e-m9-med", "source": "mission-9", "target": "output-attend", "source_handle": "handle-1"},
-            {"id": "e-m9-high", "source": "mission-9", "target": "output-act", "source_handle": "handle-2"},
-            {"id": "e-m10-low", "source": "mission-10", "target": "output-attend", "source_handle": "handle-0"},
-            {"id": "e-m10-med", "source": "mission-10", "target": "output-act", "source_handle": "handle-1"},
-            {"id": "e-m10-high", "source": "mission-10", "target": "output-act", "source_handle": "handle-2"}
+            {"id": "e-exp-none", "source": "exploitation", "target": "automatable", "source_handle": "handle-0", "target_handle": "input-0"},
+            {"id": "e-exp-poc", "source": "exploitation", "target": "automatable", "source_handle": "handle-1", "target_handle": "input-1"},
+            {"id": "e-exp-active", "source": "exploitation", "target": "automatable", "source_handle": "handle-2", "target_handle": "input-2"},
+
+            {"id": "e-auto-0-no", "source": "automatable", "target": "tech-impact", "source_handle": "handle-0-0", "target_handle": "input-0"},
+            {"id": "e-auto-0-yes", "source": "automatable", "target": "tech-impact", "source_handle": "handle-0-1", "target_handle": "input-1"},
+            {"id": "e-auto-1-no", "source": "automatable", "target": "tech-impact", "source_handle": "handle-1-0", "target_handle": "input-2"},
+            {"id": "e-auto-1-yes", "source": "automatable", "target": "tech-impact", "source_handle": "handle-1-1", "target_handle": "input-3"},
+            {"id": "e-auto-2-no", "source": "automatable", "target": "tech-impact", "source_handle": "handle-2-0", "target_handle": "input-4"},
+            {"id": "e-auto-2-yes", "source": "automatable", "target": "tech-impact", "source_handle": "handle-2-1", "target_handle": "input-5"},
+
+            {"id": "e-tech-0-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-0-0", "target_handle": "input-0"},
+            {"id": "e-tech-0-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-0-1", "target_handle": "input-1"},
+            {"id": "e-tech-1-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-1-0", "target_handle": "input-2"},
+            {"id": "e-tech-1-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-1-1", "target_handle": "input-3"},
+            {"id": "e-tech-2-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-2-0", "target_handle": "input-4"},
+            {"id": "e-tech-2-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-2-1", "target_handle": "input-5"},
+            {"id": "e-tech-3-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-3-0", "target_handle": "input-6"},
+            {"id": "e-tech-3-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-3-1", "target_handle": "input-7"},
+            {"id": "e-tech-4-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-4-0", "target_handle": "input-8"},
+            {"id": "e-tech-4-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-4-1", "target_handle": "input-9"},
+            {"id": "e-tech-5-p", "source": "tech-impact", "target": "mission", "source_handle": "handle-5-0", "target_handle": "input-10"},
+            {"id": "e-tech-5-t", "source": "tech-impact", "target": "mission", "source_handle": "handle-5-1", "target_handle": "input-11"},
+
+            {"id": "e-m0-l", "source": "mission", "target": "output-track", "source_handle": "handle-0-0"},
+            {"id": "e-m0-m", "source": "mission", "target": "output-track", "source_handle": "handle-0-1"},
+            {"id": "e-m0-h", "source": "mission", "target": "output-track", "source_handle": "handle-0-2"},
+            {"id": "e-m1-l", "source": "mission", "target": "output-track", "source_handle": "handle-1-0"},
+            {"id": "e-m1-m", "source": "mission", "target": "output-track", "source_handle": "handle-1-1"},
+            {"id": "e-m1-h", "source": "mission", "target": "output-track-star", "source_handle": "handle-1-2"},
+            {"id": "e-m2-l", "source": "mission", "target": "output-track", "source_handle": "handle-2-0"},
+            {"id": "e-m2-m", "source": "mission", "target": "output-track", "source_handle": "handle-2-1"},
+            {"id": "e-m2-h", "source": "mission", "target": "output-attend", "source_handle": "handle-2-2"},
+            {"id": "e-m3-l", "source": "mission", "target": "output-track", "source_handle": "handle-3-0"},
+            {"id": "e-m3-m", "source": "mission", "target": "output-track", "source_handle": "handle-3-1"},
+            {"id": "e-m3-h", "source": "mission", "target": "output-attend", "source_handle": "handle-3-2"},
+            {"id": "e-m4-l", "source": "mission", "target": "output-track", "source_handle": "handle-4-0"},
+            {"id": "e-m4-m", "source": "mission", "target": "output-track", "source_handle": "handle-4-1"},
+            {"id": "e-m4-h", "source": "mission", "target": "output-track-star", "source_handle": "handle-4-2"},
+            {"id": "e-m5-l", "source": "mission", "target": "output-track", "source_handle": "handle-5-0"},
+            {"id": "e-m5-m", "source": "mission", "target": "output-track-star", "source_handle": "handle-5-1"},
+            {"id": "e-m5-h", "source": "mission", "target": "output-attend", "source_handle": "handle-5-2"},
+            {"id": "e-m6-l", "source": "mission", "target": "output-track", "source_handle": "handle-6-0"},
+            {"id": "e-m6-m", "source": "mission", "target": "output-track", "source_handle": "handle-6-1"},
+            {"id": "e-m6-h", "source": "mission", "target": "output-attend", "source_handle": "handle-6-2"},
+            {"id": "e-m7-l", "source": "mission", "target": "output-track", "source_handle": "handle-7-0"},
+            {"id": "e-m7-m", "source": "mission", "target": "output-track", "source_handle": "handle-7-1"},
+            {"id": "e-m7-h", "source": "mission", "target": "output-attend", "source_handle": "handle-7-2"},
+            {"id": "e-m8-l", "source": "mission", "target": "output-track", "source_handle": "handle-8-0"},
+            {"id": "e-m8-m", "source": "mission", "target": "output-track", "source_handle": "handle-8-1"},
+            {"id": "e-m8-h", "source": "mission", "target": "output-attend", "source_handle": "handle-8-2"},
+            {"id": "e-m9-l", "source": "mission", "target": "output-track", "source_handle": "handle-9-0"},
+            {"id": "e-m9-m", "source": "mission", "target": "output-attend", "source_handle": "handle-9-1"},
+            {"id": "e-m9-h", "source": "mission", "target": "output-act", "source_handle": "handle-9-2"},
+            {"id": "e-m10-l", "source": "mission", "target": "output-attend", "source_handle": "handle-10-0"},
+            {"id": "e-m10-m", "source": "mission", "target": "output-attend", "source_handle": "handle-10-1"},
+            {"id": "e-m10-h", "source": "mission", "target": "output-act", "source_handle": "handle-10-2"},
+            {"id": "e-m11-l", "source": "mission", "target": "output-attend", "source_handle": "handle-11-0"},
+            {"id": "e-m11-m", "source": "mission", "target": "output-act", "source_handle": "handle-11-1"},
+            {"id": "e-m11-h", "source": "mission", "target": "output-act", "source_handle": "handle-11-2"}
         ],
         "metadata": {
-            "viewport": {"x": 0, "y": 0, "zoom": 1},
+            "viewport": {"x": 0, "y": 0, "zoom": 0.8},
             "field_mapping": {
                 "fields": [
-                    {
-                        "name": "cve_id",
-                        "label": "CVE ID",
-                        "type": "string",
-                        "description": "Identifiant CVE de la vulnerabilite",
-                        "examples": ["CVE-2024-1234", "CVE-2023-5678"],
-                        "required": false
-                    },
-                    {
-                        "name": "kev",
-                        "label": "KEV Status",
-                        "type": "boolean",
-                        "description": "Presence dans la liste KEV de CISA (true = exploit actif)",
-                        "examples": [true, false],
-                        "required": true
-                    },
-                    {
-                        "name": "epss_score",
-                        "label": "Score EPSS",
-                        "type": "number",
-                        "description": "Score EPSS (0-1). >= 0.2 = automatisable",
-                        "examples": [0.95, 0.12, 0.003],
-                        "required": true
-                    },
-                    {
-                        "name": "cvss_score",
-                        "label": "Score CVSS",
-                        "type": "number",
-                        "description": "Score CVSS (0-10). >= 9 = impact total",
-                        "examples": [9.8, 7.5, 4.2],
-                        "required": true
-                    },
-                    {
-                        "name": "asset_criticality",
-                        "label": "Asset Criticality",
-                        "type": "string",
-                        "description": "Criticite de l asset (Low, Medium, High, Critical)",
-                        "examples": ["Low", "Medium", "High", "Critical"],
-                        "required": true
-                    }
+                    {"name": "cve_id", "label": "CVE ID", "type": "string", "description": "Identifiant CVE de la vulnerabilite", "examples": ["CVE-2024-1234", "CVE-2023-5678"], "required": false},
+                    {"name": "kev", "label": "KEV Status", "type": "boolean", "description": "Presence dans la liste KEV de CISA (true = exploit actif, false = PoC, null = aucune info)", "examples": [true, false, null], "required": false},
+                    {"name": "epss_score", "label": "Score EPSS", "type": "number", "description": "Score EPSS (0-1). >= 0.2 = automatisable", "examples": [0.95, 0.12, 0.003], "required": true},
+                    {"name": "cvss_score", "label": "Score CVSS", "type": "number", "description": "Score CVSS (0-10). >= 9 = impact total", "examples": [9.8, 7.5, 4.2], "required": true},
+                    {"name": "cvss_vector", "label": "Vecteur CVSS", "type": "string", "description": "Vecteur CVSS complet (3.1 ou 4.0). Permet d extraire les metriques individuelles", "examples": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"], "required": false},
+                    {"name": "asset_criticality", "label": "Asset Criticality", "type": "string", "description": "Criticite de l asset (Low, Medium, High, Critical)", "examples": ["Low", "Medium", "High", "Critical"], "required": true}
                 ],
                 "source": "default",
-                "version": 2
+                "version": 3
             }
         }
     }'::jsonb

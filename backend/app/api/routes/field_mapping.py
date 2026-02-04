@@ -5,7 +5,13 @@ Routes API pour la gestion du mapping des champs.
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import TreeServiceDep
-from app.schemas.field_mapping import FieldMapping, FieldMappingUpdate, ScanResult
+from app.engine.cvss import get_cvss_field_definitions
+from app.schemas.field_mapping import (
+    FieldDefinition,
+    FieldMapping,
+    FieldMappingUpdate,
+    ScanResult,
+)
 from app.services import field_mapping_service
 
 router = APIRouter()
@@ -211,3 +217,17 @@ async def scan_file(
 
     result = field_mapping_service.scan_file_content(content_str, file.filename)
     return result
+
+
+@router.get("/cvss-fields", response_model=list[FieldDefinition])
+async def get_cvss_fields():
+    """
+    Retourne les définitions des champs CVSS virtuels.
+
+    Ces champs sont extraits automatiquement du vecteur CVSS (cvss_vector)
+    lors de l'évaluation. Ils permettent de créer des conditions sur les
+    métriques individuelles (Attack Vector, Attack Complexity, etc.).
+
+    Supporte CVSS 3.1 et 4.0.
+    """
+    return get_cvss_field_definitions()

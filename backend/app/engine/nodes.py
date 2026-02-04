@@ -106,6 +106,9 @@ class InputNode(BaseNode):
     """
     Nœud d'entrée : lit un champ de la vulnérabilité.
     Config attendue: {"field": "cvss_score"}
+
+    Supports virtual CVSS fields (cvss_av, cvss_ac, etc.) that are parsed
+    from the cvss_vector field on demand.
     """
 
     def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
@@ -120,6 +123,18 @@ class InputNode(BaseNode):
         # Cherche aussi dans extra si pas trouvé
         if value is None and "extra" in vuln_data:
             value = vuln_data["extra"].get(field)
+
+        # Handle virtual CVSS fields (cvss_av, cvss_ac, etc.)
+        if value is None:
+            from app.engine.cvss import is_cvss_field, parse_cvss_vector
+
+            if is_cvss_field(field):
+                cvss_vector = vuln_data.get("cvss_vector")
+                if cvss_vector is None and "extra" in vuln_data:
+                    cvss_vector = vuln_data["extra"].get("cvss_vector")
+                if cvss_vector:
+                    parsed = parse_cvss_vector(cvss_vector)
+                    value = parsed.get(field)
 
         # Trouve la condition qui matche
         match = self.match_condition(value)

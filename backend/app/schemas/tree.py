@@ -59,9 +59,12 @@ class NodeSchema(BaseModel):
         default_factory=dict,
         description="""
         Configuration selon le type:
-        - INPUT: {"field": "cvss_score"} - champ à lire dans la vulnérabilité
-        - LOOKUP: {"lookup_table": "assets", "lookup_key": "asset_id", "lookup_field": "criticality"}
+        - INPUT: {"field": "cvss_score", "input_count": 1} - champ à lire, nombre d'entrées
+        - LOOKUP: {"lookup_table": "assets", "lookup_key": "asset_id", "lookup_field": "criticality", "input_count": 1}
         - OUTPUT: {"decision": "Act", "color": "#ff0000"}
+
+        input_count > 1 active le mode multi-input où chaque entrée génère ses propres sorties.
+        Les handles de sortie deviennent: handle-{input_index}-{condition_index}
         """,
     )
 
@@ -82,7 +85,11 @@ class EdgeSchema(BaseModel):
     target: str = Field(description="ID du nœud cible")
     source_handle: str | None = Field(
         default=None,
-        description="Handle de sortie (correspond à l'index de la condition)",
+        description="Handle de sortie. Format: 'handle-{condition}' ou 'handle-{input}-{condition}' pour multi-input",
+    )
+    target_handle: str | None = Field(
+        default=None,
+        description="Handle d'entrée pour les nœuds multi-input. Format: 'input-{index}'",
     )
     label: str | None = Field(default=None, description="Label de la condition")
 

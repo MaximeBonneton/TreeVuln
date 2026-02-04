@@ -3,11 +3,17 @@
  */
 
 import { api } from './client';
-import type { FieldMapping, FieldMappingUpdate, ScanResult } from '@/types';
+import type { FieldDefinition, FieldMapping, FieldMappingUpdate, ScanResult } from '@/types';
 
 const API_BASE = '/api/v1';
 
 export const fieldMappingApi = {
+  /**
+   * Récupère les définitions des champs CVSS virtuels.
+   */
+  getCvssFields: (): Promise<FieldDefinition[]> =>
+    api.get<FieldDefinition[]>('/mapping/cvss-fields'),
+
   /**
    * Récupère le mapping des champs pour un arbre.
    */

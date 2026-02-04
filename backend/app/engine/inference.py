@@ -84,6 +84,7 @@ class InferenceEngine:
 
         path: list[DecisionPath] = []
         current_node_id = self.root_node_id
+        current_input_index: int | None = None  # Track which input we entered through
 
         # Limite de sécurité contre les boucles infinies
         max_iterations = 100
@@ -145,8 +146,13 @@ class InferenceEngine:
                         condition_index = idx
                         break
 
-            # Trouve l'edge à suivre basé sur la condition
-            next_node_id = self._find_next_node(current_node_id, condition_label, condition_index)
+            # Check if this is a multi-input node
+            input_count = node.config.get("input_count", 1) if hasattr(node, "config") else 1
+
+            # Trouve l'edge à suivre basé sur la condition et l'input_index
+            next_node_id, next_target_handle = self._find_next_node(
+                current_node_id, condition_label, condition_index, current_input_index, input_count
+            )
             if next_node_id is None:
                 return EvaluationResult(
                     vuln_id=vuln_id,
@@ -156,6 +162,8 @@ class InferenceEngine:
                 )
 
             current_node_id = next_node_id
+            # Parse the target_handle to get the input index for the next node
+            current_input_index = self._parse_input_index(next_target_handle)
 
         return EvaluationResult(
             vuln_id=vuln_id,
@@ -164,37 +172,78 @@ class InferenceEngine:
             error="Limite d'itérations atteinte (boucle infinie détectée?)",
         )
 
+    def _parse_input_index(self, target_handle: str | None) -> int | None:
+        """Parse input index from target_handle (e.g., 'input-2' -> 2)."""
+        if not target_handle:
+            return None
+        if target_handle.startswith("input-"):
+            try:
+                return int(target_handle.split("-")[1])
+            except (IndexError, ValueError):
+                return None
+        return None
+
     def _find_next_node(
-        self, source_id: str, condition_label: str | None, condition_index: int | None = None
-    ) -> str | None:
-        """Trouve le nœud suivant basé sur la condition matchée."""
+        self,
+        source_id: str,
+        condition_label: str | None,
+        condition_index: int | None = None,
+        input_index: int | None = None,
+        input_count: int = 1,
+    ) -> tuple[str | None, str | None]:
+        """
+        Trouve le nœud suivant basé sur la condition matchée.
+
+        For multi-input nodes (input_count > 1), the source_handle format is:
+        'handle-{input_index}-{condition_index}'
+
+        For single-input nodes, the format remains:
+        'handle-{condition_index}'
+
+        Returns:
+            Tuple of (next_node_id, target_handle of the edge)
+        """
         edges = self.edges.get(source_id, [])
 
         if not edges:
-            return None
+            return None, None
 
         # Si une seule edge, on la prend
         if len(edges) == 1:
-            return edges[0].target
+            return edges[0].target, edges[0].target_handle
 
-        # Cherche l'edge par source_handle (handle-0, handle-1, etc.)
+        # Build the expected source_handle based on input_count
         if condition_index is not None:
-            handle_id = f"handle-{condition_index}"
+            if input_count > 1 and input_index is not None:
+                # Multi-input mode: handle-{input}-{condition}
+                handle_id = f"handle-{input_index}-{condition_index}"
+            else:
+                # Single-input mode: handle-{condition}
+                handle_id = f"handle-{condition_index}"
+
+            # Search for edge with matching source_handle
             for edge in edges:
                 if edge.source_handle == handle_id:
-                    return edge.target
+                    return edge.target, edge.target_handle
+
+            # Fallback for multi-input: try single-input format
+            if input_count > 1:
+                fallback_handle = f"handle-{condition_index}"
+                for edge in edges:
+                    if edge.source_handle == fallback_handle:
+                        return edge.target, edge.target_handle
 
         # Fallback: cherche l'edge avec le bon label
         for edge in edges:
             if edge.label == condition_label:
-                return edge.target
+                return edge.target, edge.target_handle
 
         # Fallback: prend la première edge sans label (default)
         for edge in edges:
             if edge.label is None:
-                return edge.target
+                return edge.target, edge.target_handle
 
-        return None
+        return None, None
 
     def get_required_fields(self) -> set[str]:
         """Retourne la liste des champs requis par l'arbre."""
