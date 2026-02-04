@@ -8,6 +8,8 @@ Construisez graphiquement vos arbres de décision et utilisez-les pour traiter a
 
 - **Éditeur visuel** : Construisez vos arbres de décision par glisser-déposer
 - **Méthodologie SSVC** : Arbre par défaut implémentant les 4 critères SSVC
+- **Nœuds multi-entrées** : Optimisez vos arbres en mutualisant les nœuds similaires
+- **Parsing CVSS** : Extrayez les métriques individuelles des vecteurs CVSS (v3.1 et v4.0)
 - **API REST** : Évaluez vos vulnérabilités en batch via API
 - **Audit trail** : Tracez le chemin de décision complet pour chaque évaluation
 - **Multi-arbres** : Gérez plusieurs arbres avec contextes isolés
@@ -112,7 +114,51 @@ L'éditeur de conditions supporte 3 types de valeurs :
 - **Nombre** : `9.0`, `0.2`
 - **Booléen** : `true`, `false`
 
-### 4. Tester l'arbre
+### 4. Métriques CVSS
+
+TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les métriques individuelles.
+
+#### Utilisation
+
+1. Incluez le champ `cvss_vector` dans vos données de vulnérabilité :
+```json
+{
+  "cve_id": "CVE-2024-1234",
+  "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+}
+```
+
+2. Dans un nœud Input, sélectionnez une métrique CVSS (groupée sous "Métriques CVSS") :
+
+| Champ | Description | Valeurs possibles |
+|-------|-------------|-------------------|
+| `cvss_av` | Attack Vector | Network, Adjacent, Local, Physical |
+| `cvss_ac` | Attack Complexity | Low, High |
+| `cvss_pr` | Privileges Required | None, Low, High |
+| `cvss_ui` | User Interaction | None, Required |
+| `cvss_s` | Scope | Unchanged, Changed |
+| `cvss_c` | Confidentiality Impact | None, Low, High |
+| `cvss_i` | Integrity Impact | None, Low, High |
+| `cvss_a` | Availability Impact | None, Low, High |
+
+CVSS 4.0 ajoute des métriques supplémentaires (`cvss_at`, `cvss_vc`, `cvss_vi`, `cvss_va`, `cvss_sc`, `cvss_si`, `cvss_sa`).
+
+### 5. Nœuds multi-entrées
+
+Les nœuds peuvent avoir plusieurs entrées pour mutualiser la logique de décision.
+
+#### Configuration
+
+Dans le panneau de configuration d'un nœud Input ou Lookup, définissez le nombre d'entrées souhaité. Chaque entrée :
+- Reçoit une connexion indépendante depuis un nœud précédent
+- Évalue les mêmes conditions
+- Produit ses propres sorties vers les nœuds suivants
+
+#### Avantage
+
+Un arbre SSVC classique nécessite ~26 nœuds. Avec les nœuds multi-entrées, le même arbre n'en requiert que 8, tout en conservant la même logique de décision.
+
+### 6. Tester l'arbre
 
 1. Cliquez sur **Test** dans la toolbar
 2. Saisissez un JSON de vulnérabilité :
@@ -130,7 +176,7 @@ L'éditeur de conditions supporte 3 types de valeurs :
 3. Cliquez sur **Évaluer**
 4. Le chemin de décision s'affiche avec la décision finale
 
-### 5. Gérer les assets
+### 7. Gérer les assets
 
 Le référentiel d'assets permet d'enrichir les décisions avec des données contextuelles.
 
@@ -236,6 +282,8 @@ CVE-2024-002,false,0.1,5.0,Low
 | POST | `/api/v1/evaluate` | Évalue un batch JSON |
 | POST | `/api/v1/evaluate/csv` | Évalue un fichier CSV |
 | GET | `/api/v1/assets` | Liste les assets |
+| GET | `/api/v1/mapping` | Field mapping de l'arbre |
+| GET | `/api/v1/mapping/cvss-fields` | Définitions des champs CVSS |
 
 ## Configuration avancée
 
@@ -295,7 +343,11 @@ docker compose up -d --build
 
 ## Licence
 
-[À définir]
+Ce projet est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+
+Cela signifie que vous pouvez librement utiliser, modifier et distribuer ce logiciel, à condition de :
+- Conserver la même licence pour les œuvres dérivées
+- Rendre le code source disponible si vous déployez une version modifiée accessible via réseau
 
 ## Support
 
