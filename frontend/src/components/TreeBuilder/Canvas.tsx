@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,6 +11,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { nodeTypes } from './nodes';
+import { edgeTypes } from './edges';
 import { useTreeStore } from '@/stores/treeStore';
 import type { NodeType, TreeNode, TreeNodeData, TreeEdge } from '@/types';
 
@@ -30,6 +31,8 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     onEdgesChange,
     onConnect,
     addNode,
+    hoveredNodeId,
+    setHoveredNode,
   } = useTreeStore();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,11 +79,42 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     [onEdgeClick]
   );
 
+  // Handlers pour le survol des nœuds
+  const handleNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node<TreeNodeData>) => {
+      setHoveredNode(node.id);
+    },
+    [setHoveredNode]
+  );
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredNode(null);
+  }, [setHoveredNode]);
+
+  // Calcule les edges avec couleurs et highlighting
+  const styledEdges = useMemo(() => {
+    return edges.map((edge) => {
+      const isConnectedToHovered =
+        hoveredNodeId !== null &&
+        (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+
+      return {
+        ...edge,
+        type: 'colored',
+        data: {
+          ...edge.data,
+          highlighted: isConnectedToHovered,
+          dimmed: hoveredNodeId !== null && !isConnectedToHovered,
+        },
+      };
+    });
+  }, [edges, hoveredNodeId]);
+
   return (
     <div ref={reactFlowWrapper} className="flex-1 h-full">
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={styledEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -89,12 +123,15 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
         onDragOver={onDragOver}
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseLeave={handleNodeMouseLeave}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
         defaultEdgeOptions={{
-          type: 'smoothstep',
+          type: 'colored',
           animated: false,
         }}
       >

@@ -45,6 +45,7 @@ interface TreeState {
 
   // État UI
   selectedNodeId: string | null;
+  hoveredNodeId: string | null;
   isLoading: boolean;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
@@ -63,6 +64,7 @@ interface TreeState {
   updateNodeData: (nodeId: string, data: Partial<TreeNodeData>) => void;
   deleteNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null) => void;
+  setHoveredNode: (nodeId: string | null) => void;
 
   // Field mapping actions
   setFieldMapping: (mapping: FieldMapping | null) => void;
@@ -134,6 +136,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   edges: [],
   fieldMapping: null,
   selectedNodeId: null,
+  hoveredNodeId: null,
   isLoading: false,
   isSaving: false,
   hasUnsavedChanges: false,
@@ -178,7 +181,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       ...connection,
       id: generateEdgeId(),
       label: undefined,
-      type: 'smoothstep',
+      type: 'colored',
       animated: false,
     } as TreeEdge;
 
@@ -262,6 +265,9 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Sélectionne un nœud
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+
+  // Survole un nœud (pour le highlighting des edges)
+  setHoveredNode: (nodeId) => set({ hoveredNodeId: nodeId }),
 
   // --- Field Mapping ---
 
@@ -530,7 +536,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       target: apiEdge.target,
       sourceHandle: apiEdge.source_handle || undefined,
       label: apiEdge.label || undefined,
-      type: 'smoothstep',
+      type: 'colored',
     }));
 
     set({ nodes, edges });

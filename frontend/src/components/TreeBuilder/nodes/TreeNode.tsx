@@ -4,6 +4,7 @@ import type { NodeProps } from '@xyflow/react';
 import { Database, GitBranch, Flag } from 'lucide-react';
 import type { TreeNodeData } from '@/types';
 import { useTreeStore } from '@/stores/treeStore';
+import { getHandleColor } from '../edges';
 
 type TreeNodeProps = NodeProps & {
   data: TreeNodeData;
@@ -98,21 +99,31 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
 
       {/* Handles de sortie à droite pour les conditions */}
       {data.nodeType !== 'output' && data.conditions.length > 0 && (
-        <div className="border-l border-gray-200 flex flex-col justify-around py-1 min-w-[60px]">
-          {data.conditions.map((condition, index) => (
-            <div
-              key={index}
-              className="relative flex items-center justify-end pr-1 text-xs"
-            >
-              <span className="text-gray-500 mr-1 truncate max-w-[50px]">{condition.label}</span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`handle-${index}`}
-                className="!bg-gray-500 !w-2 !h-2 !relative !transform-none !right-auto !top-auto"
-              />
-            </div>
-          ))}
+        <div className="border-l border-gray-200 flex flex-col justify-around py-1 min-w-[60px] pr-3">
+          {data.conditions.map((condition, index) => {
+            const handleColor = getHandleColor(id, index);
+            const totalConditions = data.conditions.length;
+            // Calcule la position verticale du handle (réparti uniformément)
+            const topPercent = ((index + 0.5) / totalConditions) * 100;
+            return (
+              <div
+                key={index}
+                className="flex items-center justify-end text-xs py-0.5"
+              >
+                <span className="text-gray-500 truncate max-w-[50px]">{condition.label}</span>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={`handle-${index}`}
+                  className="!w-2.5 !h-2.5 !border-2 !border-white"
+                  style={{
+                    backgroundColor: handleColor,
+                    top: `${topPercent}%`,
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 
