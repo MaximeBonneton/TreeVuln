@@ -8,6 +8,7 @@ Construisez graphiquement vos arbres de décision et utilisez-les pour traiter a
 
 - **Éditeur visuel** : Construisez vos arbres de décision par glisser-déposer
 - **Méthodologie SSVC** : Arbre par défaut implémentant les 4 critères SSVC
+- **Conditions composées** : Combinez plusieurs critères avec AND/OR sur les branches
 - **Nœuds multi-entrées** : Optimisez vos arbres en mutualisant les nœuds similaires
 - **Parsing CVSS** : Extrayez les métriques individuelles des vecteurs CVSS (v3.1 et v4.0)
 - **API REST** : Évaluez vos vulnérabilités en batch via API
@@ -113,6 +114,31 @@ L'éditeur de conditions supporte 3 types de valeurs :
 - **Texte** : `"High"`, `"CVE-2024-1234"`
 - **Nombre** : `9.0`, `0.2`
 - **Booléen** : `true`, `false`
+
+#### Conditions composées (AND/OR)
+
+Pour des règles plus complexes, basculez en **mode Composé** pour combiner plusieurs critères :
+
+1. Cliquez sur le bouton **Composé** dans l'éditeur de condition
+2. Choisissez la logique : **AND** (toutes vraies) ou **OR** (au moins une vraie)
+3. Ajoutez vos critères avec le bouton **+ Ajouter critère**
+
+Chaque critère peut évaluer un champ différent :
+
+```
+┌─ Branche "Critical Network Risk" ──────────────┐
+│ Logique: AND                                   │
+│                                                │
+│ ┌─ Critère 1 ─────────────────────────────┐   │
+│ │ Champ: cvss_av  │  =  │  Network        │   │
+│ └─────────────────────────────────────────┘   │
+│ ┌─ Critère 2 ─────────────────────────────┐   │
+│ │ Champ: cvss_ac  │  =  │  Low            │   │
+│ └─────────────────────────────────────────┘   │
+└────────────────────────────────────────────────┘
+```
+
+Cette branche ne sera suivie que si `cvss_av = "Network"` **ET** `cvss_ac = "Low"`.
 
 ### 4. Métriques CVSS
 

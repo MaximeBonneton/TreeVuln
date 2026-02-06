@@ -6,7 +6,13 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any
 
-from app.schemas.tree import ConditionOperator, NodeCondition, NodeSchema, NodeType
+from app.schemas.tree import (
+    ConditionOperator,
+    NodeCondition,
+    NodeSchema,
+    NodeType,
+    SimpleConditionCriteria,
+)
 
 
 class NodeEvaluationError(Exception):
@@ -40,23 +46,71 @@ class BaseNode(ABC):
         """
         pass
 
-    def match_condition(self, value: Any) -> tuple[int, str] | None:
+    def match_condition(
+        self, value: Any, context: dict[str, Any] | None = None
+    ) -> tuple[int, str] | None:
         """
         Trouve la condition qui correspond à la valeur.
+
+        Args:
+            value: Valeur principale à évaluer
+            context: Contexte complet (nécessaire pour les conditions composées
+                     qui peuvent référencer d'autres champs)
 
         Returns:
             Tuple (index_condition, label_condition) ou None si aucune ne matche.
         """
         for idx, condition in enumerate(self.conditions):
-            if self._evaluate_condition(value, condition):
+            if self._evaluate_condition(value, condition, context or {}):
                 return idx, condition.label
         return None
 
-    def _evaluate_condition(self, value: Any, condition: NodeCondition) -> bool:
-        """Évalue si une valeur satisfait une condition."""
-        op = condition.operator
-        cond_value = condition.value
+    def _get_field_value(self, context: dict[str, Any], field: str) -> Any:
+        """
+        Récupère la valeur d'un champ depuis le contexte.
 
+        Args:
+            context: Contexte d'évaluation contenant vulnerability et lookups
+            field: Nom du champ à récupérer
+
+        Returns:
+            Valeur du champ ou None si non trouvé
+        """
+        vuln_data = context.get("vulnerability", {})
+        value = vuln_data.get(field)
+
+        # Cherche dans extra si pas trouvé
+        if value is None and "extra" in vuln_data:
+            value = vuln_data["extra"].get(field)
+
+        # Gère les champs CVSS virtuels
+        if value is None:
+            from app.engine.cvss import is_cvss_field, parse_cvss_vector
+
+            if is_cvss_field(field):
+                cvss_vector = vuln_data.get("cvss_vector")
+                if cvss_vector is None and "extra" in vuln_data:
+                    cvss_vector = vuln_data["extra"].get("cvss_vector")
+                if cvss_vector:
+                    parsed = parse_cvss_vector(cvss_vector)
+                    value = parsed.get(field)
+
+        return value
+
+    def _evaluate_simple(
+        self, value: Any, op: ConditionOperator, cond_value: Any
+    ) -> bool:
+        """
+        Évalue une condition simple (opérateur + valeur).
+
+        Args:
+            value: Valeur à tester
+            op: Opérateur de comparaison
+            cond_value: Valeur de référence
+
+        Returns:
+            True si la condition est satisfaite
+        """
         # Gestion des valeurs nulles
         if op == ConditionOperator.IS_NULL:
             return value is None
@@ -101,6 +155,69 @@ class BaseNode(ABC):
 
         return False
 
+    def _evaluate_criterion(
+        self,
+        criterion: SimpleConditionCriteria,
+        default_value: Any,
+        context: dict[str, Any],
+    ) -> bool:
+        """
+        Évalue un critère simple d'une condition composée.
+
+        Args:
+            criterion: Le critère à évaluer
+            default_value: Valeur par défaut (champ principal du nœud)
+            context: Contexte d'évaluation
+
+        Returns:
+            True si le critère est satisfait
+        """
+        # Si un champ est spécifié, on le lit depuis le contexte
+        # Sinon on utilise la valeur par défaut du nœud
+        if criterion.field is not None:
+            value = self._get_field_value(context, criterion.field)
+        else:
+            value = default_value
+
+        return self._evaluate_simple(value, criterion.operator, criterion.value)
+
+    def _evaluate_condition(
+        self, value: Any, condition: NodeCondition, context: dict[str, Any]
+    ) -> bool:
+        """
+        Évalue si une valeur satisfait une condition.
+
+        Supporte deux modes :
+        - Mode simple : operator + value (rétrocompatible)
+        - Mode composé : logic (AND/OR) + criteria
+
+        Args:
+            value: Valeur principale à tester
+            condition: Condition à évaluer
+            context: Contexte complet (pour les champs additionnels en mode composé)
+
+        Returns:
+            True si la condition est satisfaite
+        """
+        # Mode composé (AND/OR avec critères multiples)
+        if condition.logic is not None and condition.criteria:
+            results = [
+                self._evaluate_criterion(criterion, value, context)
+                for criterion in condition.criteria
+            ]
+
+            if condition.logic == "AND":
+                return all(results)
+            else:  # OR
+                return any(results)
+
+        # Mode simple (rétrocompatible)
+        if condition.operator is not None:
+            return self._evaluate_simple(value, condition.operator, condition.value)
+
+        # Fallback (ne devrait pas arriver avec la validation Pydantic)
+        return False
+
 
 class InputNode(BaseNode):
     """
@@ -116,28 +233,11 @@ class InputNode(BaseNode):
         if not field:
             raise NodeEvaluationError(f"Nœud {self.id}: champ 'field' non configuré")
 
-        # Récupère la valeur du champ
-        vuln_data = context.get("vulnerability", {})
-        value = vuln_data.get(field)
+        # Récupère la valeur du champ via _get_field_value
+        value = self._get_field_value(context, field)
 
-        # Cherche aussi dans extra si pas trouvé
-        if value is None and "extra" in vuln_data:
-            value = vuln_data["extra"].get(field)
-
-        # Handle virtual CVSS fields (cvss_av, cvss_ac, etc.)
-        if value is None:
-            from app.engine.cvss import is_cvss_field, parse_cvss_vector
-
-            if is_cvss_field(field):
-                cvss_vector = vuln_data.get("cvss_vector")
-                if cvss_vector is None and "extra" in vuln_data:
-                    cvss_vector = vuln_data["extra"].get("cvss_vector")
-                if cvss_vector:
-                    parsed = parse_cvss_vector(cvss_vector)
-                    value = parsed.get(field)
-
-        # Trouve la condition qui matche
-        match = self.match_condition(value)
+        # Trouve la condition qui matche (passe le contexte pour les conditions composées)
+        match = self.match_condition(value, context)
         if match is None:
             # Pas de condition matchée, on continue avec default si configuré
             default_idx = self.config.get("default_branch")
@@ -200,7 +300,8 @@ class LookupNode(BaseNode):
         # Extrait le champ demandé
         value = lookup_result.get(lookup_field)
 
-        match = self.match_condition(value)
+        # Passe le contexte pour les conditions composées
+        match = self.match_condition(value, context)
         if match is None:
             raise NodeEvaluationError(
                 f"Nœud {self.id}: aucune condition ne correspond à '{value}'"

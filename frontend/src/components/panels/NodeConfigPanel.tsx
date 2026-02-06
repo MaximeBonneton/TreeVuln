@@ -5,6 +5,7 @@ import { fieldMappingApi } from '@/api/fieldMapping';
 import type {
   TreeNode,
   NodeCondition,
+  SimpleConditionCriteria,
   ConditionOperator,
   InputNodeConfig,
   LookupNodeConfig,
@@ -500,6 +501,34 @@ function OutputConfig({
   );
 }
 
+// Détermine si la condition est en mode composé
+function isCompoundCondition(condition: NodeCondition): boolean {
+  return condition.logic !== undefined && condition.criteria !== undefined;
+}
+
+// Convertit une condition simple en condition composée
+function toCompoundCondition(condition: NodeCondition): NodeCondition {
+  return {
+    label: condition.label,
+    logic: 'AND',
+    criteria: [{
+      field: undefined,
+      operator: condition.operator || 'eq',
+      value: condition.value ?? '',
+    }],
+  };
+}
+
+// Convertit une condition composée en condition simple
+function toSimpleCondition(condition: NodeCondition): NodeCondition {
+  const firstCriterion = condition.criteria?.[0];
+  return {
+    label: condition.label,
+    operator: firstCriterion?.operator || 'eq',
+    value: firstCriterion?.value ?? '',
+  };
+}
+
 function ConditionEditor({
   condition,
   index,
@@ -515,8 +544,57 @@ function ConditionEditor({
   onRemove: (index: number) => void;
   onMove: (index: number, direction: 'up' | 'down') => void;
 }) {
+  const isCompound = isCompoundCondition(condition);
+
+  // Bascule entre mode simple et composé
+  const toggleMode = () => {
+    if (isCompound) {
+      const simple = toSimpleCondition(condition);
+      onChange(index, 'logic', undefined);
+      onChange(index, 'criteria', undefined);
+      onChange(index, 'operator', simple.operator);
+      onChange(index, 'value', simple.value);
+    } else {
+      const compound = toCompoundCondition(condition);
+      onChange(index, 'operator', undefined);
+      onChange(index, 'value', undefined);
+      onChange(index, 'logic', compound.logic);
+      onChange(index, 'criteria', compound.criteria);
+    }
+  };
+
+  // Met à jour un critère dans le mode composé
+  const updateCriterion = (
+    criterionIndex: number,
+    field: keyof SimpleConditionCriteria,
+    value: unknown
+  ) => {
+    const newCriteria = [...(condition.criteria || [])];
+    newCriteria[criterionIndex] = { ...newCriteria[criterionIndex], [field]: value };
+    onChange(index, 'criteria', newCriteria);
+  };
+
+  // Ajoute un nouveau critère
+  const addCriterion = () => {
+    const newCriteria = [...(condition.criteria || []), {
+      field: undefined,
+      operator: 'eq' as ConditionOperator,
+      value: '',
+    }];
+    onChange(index, 'criteria', newCriteria);
+  };
+
+  // Supprime un critère
+  const removeCriterion = (criterionIndex: number) => {
+    const newCriteria = (condition.criteria || []).filter((_, i) => i !== criterionIndex);
+    // S'il ne reste qu'un critère, on le garde (minimum 1)
+    if (newCriteria.length === 0) return;
+    onChange(index, 'criteria', newCriteria);
+  };
+
   return (
     <div className="p-3 bg-gray-50 rounded-md space-y-2">
+      {/* Header avec contrôles */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-gray-500">
@@ -549,6 +627,7 @@ function ConditionEditor({
         </button>
       </div>
 
+      {/* Label */}
       <input
         type="text"
         value={condition.label}
@@ -557,13 +636,137 @@ function ConditionEditor({
         className="w-full px-2 py-1 text-sm border rounded"
       />
 
+      {/* Toggle mode simple/composé */}
+      <div className="flex items-center gap-2 text-xs">
+        <button
+          onClick={toggleMode}
+          className={`px-2 py-1 rounded ${!isCompound ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+        >
+          Simple
+        </button>
+        <button
+          onClick={toggleMode}
+          className={`px-2 py-1 rounded ${isCompound ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+        >
+          Composé
+        </button>
+      </div>
+
+      {/* Mode simple */}
+      {!isCompound && (
+        <div className="flex gap-2">
+          <select
+            value={condition.operator || 'eq'}
+            onChange={(e) =>
+              onChange(index, 'operator', e.target.value as ConditionOperator)
+            }
+            className="flex-1 px-2 py-1 text-sm border rounded"
+          >
+            {OPERATORS.map((op) => (
+              <option key={op.value} value={op.value}>
+                {op.label}
+              </option>
+            ))}
+          </select>
+
+          {!['is_null', 'is_not_null'].includes(condition.operator || '') && (
+            <ValueEditor
+              value={condition.value}
+              onChange={(val) => onChange(index, 'value', val)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Mode composé */}
+      {isCompound && (
+        <div className="space-y-2">
+          {/* Sélecteur AND/OR */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Logique :</span>
+            <select
+              value={condition.logic || 'AND'}
+              onChange={(e) => onChange(index, 'logic', e.target.value as 'AND' | 'OR')}
+              className="px-2 py-1 text-sm border rounded bg-white"
+            >
+              <option value="AND">AND (toutes vraies)</option>
+              <option value="OR">OR (au moins une vraie)</option>
+            </select>
+          </div>
+
+          {/* Liste des critères */}
+          <div className="space-y-2">
+            {(condition.criteria || []).map((criterion, criterionIndex) => (
+              <CriterionEditor
+                key={criterionIndex}
+                criterion={criterion}
+                index={criterionIndex}
+                canRemove={(condition.criteria || []).length > 1}
+                onChange={(field, value) => updateCriterion(criterionIndex, field, value)}
+                onRemove={() => removeCriterion(criterionIndex)}
+              />
+            ))}
+          </div>
+
+          {/* Bouton ajouter critère */}
+          <button
+            onClick={addCriterion}
+            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
+          >
+            <Plus size={14} />
+            Ajouter critère
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Éditeur pour un critère individuel dans une condition composée
+function CriterionEditor({
+  criterion,
+  index,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  criterion: SimpleConditionCriteria;
+  index: number;
+  canRemove: boolean;
+  onChange: (field: keyof SimpleConditionCriteria, value: unknown) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="p-2 bg-white border rounded space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-400">Critère {index + 1}</span>
+        {canRemove && (
+          <button
+            onClick={onRemove}
+            className="text-red-400 hover:text-red-600"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* Champ optionnel */}
+      <div>
+        <input
+          type="text"
+          value={criterion.field || ''}
+          onChange={(e) => onChange('field', e.target.value || undefined)}
+          placeholder="Champ (vide = champ du nœud)"
+          className="w-full px-2 py-1 text-xs border rounded"
+        />
+      </div>
+
+      {/* Opérateur + valeur */}
       <div className="flex gap-2">
         <select
-          value={condition.operator}
-          onChange={(e) =>
-            onChange(index, 'operator', e.target.value as ConditionOperator)
-          }
-          className="flex-1 px-2 py-1 text-sm border rounded"
+          value={criterion.operator}
+          onChange={(e) => onChange('operator', e.target.value as ConditionOperator)}
+          className="flex-1 px-2 py-1 text-xs border rounded"
         >
           {OPERATORS.map((op) => (
             <option key={op.value} value={op.value}>
@@ -572,10 +775,10 @@ function ConditionEditor({
           ))}
         </select>
 
-        {!['is_null', 'is_not_null'].includes(condition.operator) && (
+        {!['is_null', 'is_not_null'].includes(criterion.operator) && (
           <ValueEditor
-            value={condition.value}
-            onChange={(val) => onChange(index, 'value', val)}
+            value={criterion.value}
+            onChange={(val) => onChange('value', val)}
           />
         )}
       </div>

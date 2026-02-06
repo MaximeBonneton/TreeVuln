@@ -1,8 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class NodeType(str, Enum):
@@ -31,15 +31,76 @@ class ConditionOperator(str, Enum):
     IS_NOT_NULL = "is_not_null"
 
 
+class SimpleConditionCriteria(BaseModel):
+    """
+    Critère simple pour une condition composée.
+    Permet de spécifier un champ différent du champ principal du nœud.
+    """
+
+    field: str | None = Field(
+        default=None,
+        description="Champ à évaluer. Si None, utilise le champ principal du nœud.",
+    )
+    operator: ConditionOperator
+    value: Any = Field(description="Valeur de comparaison")
+
+
 class NodeCondition(BaseModel):
     """
     Condition d'une branche sortante d'un nœud.
     Permet de définir quand suivre cette branche.
+
+    Supporte deux modes :
+    - Mode simple (rétrocompatible) : operator + value
+    - Mode composé : logic (AND/OR) + criteria (liste de critères)
     """
 
-    operator: ConditionOperator
-    value: Any = Field(description="Valeur de comparaison (peut être liste pour IN/NOT_IN)")
     label: str = Field(description="Label affiché sur la branche (ex: 'High', 'Critical')")
+
+    # Mode simple (rétrocompatible) - utilisé si logic est None
+    operator: ConditionOperator | None = Field(
+        default=None,
+        description="Opérateur pour le mode simple",
+    )
+    value: Any = Field(
+        default=None,
+        description="Valeur de comparaison pour le mode simple (peut être liste pour IN/NOT_IN)",
+    )
+
+    # Mode composé - utilisé si logic est défini
+    logic: Literal["AND", "OR"] | None = Field(
+        default=None,
+        description="Logique de combinaison des critères (AND ou OR)",
+    )
+    criteria: list[SimpleConditionCriteria] | None = Field(
+        default=None,
+        description="Liste des critères pour le mode composé",
+    )
+
+    @model_validator(mode="after")
+    def validate_condition_mode(self) -> "NodeCondition":
+        """Valide que la condition est en mode simple OU composé, pas les deux."""
+        has_simple = self.operator is not None
+        has_compound = self.logic is not None and self.criteria is not None
+
+        if has_simple and has_compound:
+            raise ValueError(
+                "Une condition ne peut pas avoir à la fois operator/value ET logic/criteria. "
+                "Utilisez soit le mode simple (operator + value), soit le mode composé (logic + criteria)."
+            )
+
+        if not has_simple and not has_compound:
+            raise ValueError(
+                "Une condition doit avoir soit operator (mode simple), "
+                "soit logic + criteria (mode composé)."
+            )
+
+        if self.logic is not None and (self.criteria is None or len(self.criteria) == 0):
+            raise ValueError(
+                "Le mode composé (logic défini) nécessite au moins un critère dans 'criteria'."
+            )
+
+        return self
 
 
 class NodeSchema(BaseModel):

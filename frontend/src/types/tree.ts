@@ -35,11 +35,23 @@ export const OPERATOR_LABELS: Record<ConditionOperator, string> = {
   is_not_null: 'n\'est pas vide',
 };
 
-// Condition d'une branche
-export interface NodeCondition {
+// Critère simple pour condition composée
+export interface SimpleConditionCriteria {
+  /** Champ à évaluer. Si undefined, utilise le champ principal du nœud */
+  field?: string;
   operator: ConditionOperator;
   value: unknown;
+}
+
+// Condition d'une branche (supporte mode simple et composé)
+export interface NodeCondition {
   label: string;
+  // Mode simple (rétrocompatible) - utilisé si logic est undefined
+  operator?: ConditionOperator;
+  value?: unknown;
+  // Mode composé - utilisé si logic est défini
+  logic?: 'AND' | 'OR';
+  criteria?: SimpleConditionCriteria[];
 }
 
 // Configuration des nœuds selon le type
