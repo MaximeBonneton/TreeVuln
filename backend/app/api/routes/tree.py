@@ -6,6 +6,7 @@ Support multi-arbres avec contextes isolés.
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import TreeServiceDep
+from app.models import Tree
 from app.schemas.tree import (
     TreeApiConfig,
     TreeCreate,
@@ -16,8 +17,18 @@ from app.schemas.tree import (
     TreeUpdate,
     TreeVersionResponse,
 )
+from app.services.tree_validation import validate_tree_structure
 
 router = APIRouter()
+
+
+def _tree_response_with_warnings(tree: Tree) -> TreeResponse:
+    """Construit une TreeResponse avec validation de la structure."""
+    structure = TreeStructure.model_validate(tree.structure)
+    warnings = validate_tree_structure(structure)
+    response = TreeResponse.model_validate(tree)
+    response.warnings = warnings
+    return response
 
 
 # --- Multi-arbres ---
@@ -46,7 +57,7 @@ async def get_tree(
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         return None
-    return tree
+    return _tree_response_with_warnings(tree)
 
 
 @router.post("", response_model=TreeResponse, status_code=status.HTTP_201_CREATED)
@@ -56,7 +67,7 @@ async def create_tree(
 ):
     """Crée un nouvel arbre de décision."""
     tree = await tree_service.create_tree(data)
-    return tree
+    return _tree_response_with_warnings(tree)
 
 
 @router.put("/{tree_id}", response_model=TreeResponse)
@@ -80,7 +91,7 @@ async def update_tree(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Arbre {tree_id} non trouvé",
         )
-    return tree
+    return _tree_response_with_warnings(tree)
 
 
 @router.delete("/{tree_id}", status_code=status.HTTP_204_NO_CONTENT)

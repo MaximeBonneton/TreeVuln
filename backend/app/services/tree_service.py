@@ -16,6 +16,7 @@ from app.schemas.tree import (
     TreeStructure,
     TreeUpdate,
 )
+from app.services.tree_validation import validate_tree_structure
 
 
 class TreeService:

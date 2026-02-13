@@ -197,6 +197,7 @@ class TreeResponse(BaseModel):
     is_default: bool = False
     api_enabled: bool = False
     api_slug: str | None = None
+    warnings: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

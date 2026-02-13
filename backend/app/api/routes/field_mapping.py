@@ -14,7 +14,11 @@ from app.schemas.field_mapping import (
 )
 from app.services import field_mapping_service
 
+# Routes par arbre (montées sous /tree)
 router = APIRouter()
+
+# Routes globales (montées sous /mapping)
+global_router = APIRouter()
 
 
 @router.get("/{tree_id}/mapping", response_model=FieldMapping | None)
@@ -186,7 +190,7 @@ async def delete_mapping(
     )
 
 
-@router.post("/scan", response_model=ScanResult)
+@global_router.post("/scan", response_model=ScanResult)
 async def scan_file(
     file: UploadFile = File(...),
 ):
@@ -219,7 +223,7 @@ async def scan_file(
     return result
 
 
-@router.get("/cvss-fields", response_model=list[FieldDefinition])
+@global_router.get("/cvss-fields", response_model=list[FieldDefinition])
 async def get_cvss_fields():
     """
     Retourne les définitions des champs CVSS virtuels.

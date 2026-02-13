@@ -5,7 +5,7 @@ Support multi-arbres: chaque asset appartient à un arbre spécifique.
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -172,6 +172,16 @@ class AssetService:
 
         resolved_tree_id = await self._resolve_tree_id(tree_id)
 
+        # Compte les assets existants avant l'upsert
+        asset_ids = [a.asset_id for a in assets]
+        existing_count_result = await self.db.execute(
+            select(func.count()).where(
+                Asset.tree_id == resolved_tree_id,
+                Asset.asset_id.in_(asset_ids),
+            )
+        )
+        existing_before = existing_count_result.scalar() or 0
+
         # Utilise INSERT ... ON CONFLICT pour l'upsert
         stmt = insert(Asset).values([
             {
@@ -198,8 +208,9 @@ class AssetService:
         await self.db.execute(stmt)
         await self.db.commit()
 
-        # Note: PostgreSQL ne retourne pas facilement le count created vs updated
-        return len(assets), 0
+        created = len(assets) - existing_before
+        updated = existing_before
+        return created, updated
 
     async def get_lookup_cache(
         self,

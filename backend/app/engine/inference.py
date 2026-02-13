@@ -2,9 +2,12 @@
 Moteur d'inférence pour l'évaluation des vulnérabilités.
 """
 
+import logging
 from typing import Any
 
 from app.engine.nodes import BaseNode, NodeEvaluationError, OutputNode, create_node
+
+logger = logging.getLogger(__name__)
 from app.schemas.evaluation import DecisionPath, EvaluationResult
 from app.schemas.tree import EdgeSchema, NodeSchema, NodeType, TreeStructure
 from app.schemas.vulnerability import VulnerabilityInput
@@ -165,6 +168,22 @@ class InferenceEngine:
             # Parse the target_handle to get the input index for the next node
             current_input_index = self._parse_input_index(next_target_handle)
 
+            # Valide que l'input_index est dans les bornes du nœud cible
+            if current_input_index is not None:
+                next_node = self.nodes.get(current_node_id)
+                if next_node and hasattr(next_node, "config"):
+                    target_input_count = next_node.config.get("input_count", 1)
+                    if current_input_index >= target_input_count:
+                        return EvaluationResult(
+                            vuln_id=vuln_id,
+                            decision="Error",
+                            path=path if include_path else [],
+                            error=(
+                                f"input_index={current_input_index} hors limites pour "
+                                f"le nœud '{current_node_id}' (input_count={target_input_count})"
+                            ),
+                        )
+
         return EvaluationResult(
             vuln_id=vuln_id,
             decision="Error",
@@ -177,9 +196,14 @@ class InferenceEngine:
         if not target_handle:
             return None
         if target_handle.startswith("input-"):
+            parts = target_handle.split("-")
+            if len(parts) < 2:
+                logger.warning("target_handle '%s' invalide: format attendu 'input-{index}'", target_handle)
+                return None
             try:
-                return int(target_handle.split("-")[1])
-            except (IndexError, ValueError):
+                return int(parts[1])
+            except ValueError:
+                logger.warning("target_handle '%s' invalide: '%s' n'est pas un entier", target_handle, parts[1])
                 return None
         return None
 
@@ -231,6 +255,11 @@ class InferenceEngine:
                 fallback_handle = f"handle-{condition_index}"
                 for edge in edges:
                     if edge.source_handle == fallback_handle:
+                        logger.warning(
+                            "Nœud '%s' (input_count=%d) utilise le fallback single-input "
+                            "handle '%s' au lieu de '%s'",
+                            source_id, input_count, fallback_handle, handle_id,
+                        )
                         return edge.target, edge.target_handle
 
         # Fallback: cherche l'edge avec le bon label
