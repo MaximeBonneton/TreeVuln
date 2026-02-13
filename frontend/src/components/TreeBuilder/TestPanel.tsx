@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { X, Play, Upload, Download, FileSpreadsheet, ChevronRight, ChevronDown } from 'lucide-react';
 import { evaluateApi } from '@/api';
+import { DECISION_COLORS } from '@/constants/decisions';
 import type { VulnerabilityInput, EvaluationResult, EvaluationResponse, DecisionPath } from '@/types';
 
 interface TestPanelProps {
@@ -17,13 +18,6 @@ const SAMPLE_VULN: VulnerabilityInput = {
   kev: true,
   asset_id: 'srv-prod-001',
   asset_criticality: 'High',
-};
-
-const DECISION_COLORS: Record<string, string> = {
-  'Act': '#dc2626',
-  'Attend': '#f97316',
-  'Track*': '#eab308',
-  'Track': '#22c55e',
 };
 
 export function TestPanel({ onClose }: TestPanelProps) {
