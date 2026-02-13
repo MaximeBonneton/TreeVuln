@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://treevuln:treevuln@localhost:5432/treevuln"
 
+    # CORS
+    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
     # API
     api_v1_prefix: str = "/api/v1"
 

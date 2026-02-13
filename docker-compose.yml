@@ -2,29 +2,37 @@ services:
   db:
     image: postgres:15-alpine
     container_name: treevuln-db
+    env_file: .env
     environment:
-      POSTGRES_USER: treevuln
-      POSTGRES_PASSWORD: treevuln
-      POSTGRES_DB: treevuln
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U treevuln"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - treevuln-net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: treevuln-backend
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://treevuln:treevuln@db:5432/treevuln
-      DEBUG: "false"
+      DATABASE_URL: ${DATABASE_URL}
+      DEBUG: ${DEBUG:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
       - "8000:8000"
     depends_on:
@@ -35,6 +43,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - treevuln-net
 
   frontend:
     build:
@@ -45,6 +60,17 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - treevuln-net
 
 volumes:
   postgres_data:
+
+networks:
+  treevuln-net:
+    driver: bridge
