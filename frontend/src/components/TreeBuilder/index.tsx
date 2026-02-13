@@ -24,11 +24,57 @@ export function TreeBuilder() {
 
   const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen } = useTreeStore();
 
+  const saveTree = useTreeStore((state) => state.saveTree);
+  const deleteNode = useTreeStore((state) => state.deleteNode);
+  const deleteEdge = useTreeStore((state) => state.deleteEdge);
+
   // Charge l'arbre et la liste au montage
   useEffect(() => {
     loadTree();
     loadTrees();
   }, [loadTree, loadTrees]);
+
+  // Raccourcis clavier
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+
+      // Ctrl/Cmd+S : Sauvegarder
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveTree();
+        return;
+      }
+
+      // Ne pas traiter Delete/Escape si focus dans un champ de saisie
+      if (isInput) return;
+
+      // Delete/Backspace : Supprimer nœud ou edge sélectionné
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeId) {
+          deleteNode(selectedNodeId);
+          selectNode(null);
+          setSelectedNode(null);
+        } else if (selectedEdge) {
+          deleteEdge(selectedEdge.id);
+          setSelectedEdge(null);
+        }
+        return;
+      }
+
+      // Escape : Désélectionner
+      if (e.key === 'Escape') {
+        selectNode(null);
+        setSelectedNode(null);
+        setSelectedEdge(null);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedNodeId, selectedEdge, saveTree, deleteNode, deleteEdge, selectNode]);
 
   // Synchronise le nœud sélectionné avec le store
   const selectedNodeId = useTreeStore((state) => state.selectedNodeId);

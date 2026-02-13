@@ -64,6 +64,7 @@ interface TreeState {
   duplicateNode: (nodeId: string) => void;
   updateNodeData: (nodeId: string, data: Partial<TreeNodeData>) => void;
   deleteNode: (nodeId: string) => void;
+  deleteEdge: (edgeId: string) => void;
   selectNode: (nodeId: string | null) => void;
   setHoveredNode: (nodeId: string | null, inputIndex?: number | null) => void;
 
@@ -265,6 +266,14 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
+  // Supprime une edge
+  deleteEdge: (edgeId) => {
+    set((state) => ({
+      edges: state.edges.filter((e) => e.id !== edgeId),
+      hasUnsavedChanges: true,
+    }));
+  },
+
   // Sélectionne un nœud
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
@@ -407,13 +416,6 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Sélectionne et charge un arbre
   selectTree: async (treeId: number) => {
-    const { hasUnsavedChanges } = get();
-    if (hasUnsavedChanges) {
-      const confirmed = window.confirm(
-        'Vous avez des modifications non sauvegardées. Voulez-vous continuer ?'
-      );
-      if (!confirmed) return;
-    }
     await get().loadTree(treeId);
     // Recharge la liste pour refléter les changements
     await get().loadTrees();

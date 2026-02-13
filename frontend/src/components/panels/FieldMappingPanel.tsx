@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { fieldMappingApi } from '@/api';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { FieldDefinition, FieldType, ScanResult } from '@/types';
 import { FIELD_TYPE_LABELS } from '@/types';
 import { FieldScanDialog } from './FieldScanDialog';
@@ -35,6 +37,7 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const hasChanges =
     JSON.stringify(fields) !== JSON.stringify(fieldMapping?.fields || []);
@@ -57,7 +60,8 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
 
   const handleDelete = async () => {
     if (!treeId) return;
-    if (!confirm('Supprimer le mapping des champs ?')) return;
+    const ok = await confirm('Supprimer le mapping', 'Supprimer le mapping des champs ? Les nœuds conserveront leurs configurations.', 'warning');
+    if (!ok) return;
 
     try {
       await deleteFieldMapping();
@@ -272,6 +276,7 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
           onResult={handleScanResult}
         />
       )}
+      <ConfirmDialog {...confirmDialogProps} />
     </>
   );
 }

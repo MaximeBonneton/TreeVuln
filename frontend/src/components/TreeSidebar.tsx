@@ -13,6 +13,8 @@ import {
   Link,
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { TreeListItem } from '@/types';
 
 interface TreeSidebarProps {
@@ -25,6 +27,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
     trees,
     treeId,
     isDefault,
+    hasUnsavedChanges,
     loadTrees,
     selectTree,
     duplicateTree,
@@ -34,6 +37,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
     setSidebarOpen,
   } = useTreeStore();
 
+  const { confirm, confirmDialogProps } = useConfirm();
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [duplicateName, setDuplicateName] = useState('');
 
@@ -78,7 +82,8 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('Supprimer cet arbre et tous ses assets ?')) return;
+    const ok = await confirm('Supprimer l\'arbre', 'Supprimer cet arbre et tous ses assets ? Cette action est irréversible.');
+    if (!ok) return;
     try {
       await deleteCurrentTree();
     } catch {
@@ -132,7 +137,17 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
         {trees.map((tree) => (
           <div
             key={tree.id}
-            onClick={() => selectTree(tree.id)}
+            onClick={async () => {
+              if (hasUnsavedChanges) {
+                const ok = await confirm(
+                  'Modifications non sauvegardées',
+                  'Vous avez des modifications non sauvegardées. Voulez-vous continuer ?',
+                  'warning'
+                );
+                if (!ok) return;
+              }
+              selectTree(tree.id);
+            }}
             className={`
               relative p-3 rounded-lg cursor-pointer transition-colors
               ${tree.id === treeId
@@ -253,6 +268,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

@@ -63,6 +63,8 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
 
     return (
       <div
+        role="group"
+        aria-label={`Nœud ${data.nodeType}: ${data.label}`}
         className={`
           min-w-[160px] rounded-lg shadow-md border-2
           ${style.bg} ${style.border}
@@ -182,6 +184,8 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   // Mode standard (single-input ou output)
   return (
     <div
+      role="group"
+      aria-label={`Nœud ${data.nodeType}: ${data.label}`}
       className={`
         min-w-[140px] rounded-lg shadow-md border-2 flex
         ${style.bg} ${style.border}

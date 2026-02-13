@@ -175,6 +175,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }
             `}
+            title="Sauvegarder (Ctrl+S)"
           >
             <Save size={18} />
             {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}

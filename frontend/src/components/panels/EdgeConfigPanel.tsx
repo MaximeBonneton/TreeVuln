@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Trash2, ArrowRight } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { TreeEdge } from '@/types';
 
 interface EdgeConfigPanelProps {
@@ -10,13 +12,15 @@ interface EdgeConfigPanelProps {
 
 export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
   const { nodes, edges, setEdges } = useTreeStore();
+  const { confirm, confirmDialogProps } = useConfirm();
   const [label, setLabel] = useState(typeof edge.label === 'string' ? edge.label : '');
 
   const sourceNode = nodes.find((n) => n.id === edge.source);
   const targetNode = nodes.find((n) => n.id === edge.target);
 
-  const handleDelete = () => {
-    if (confirm('Supprimer cette connexion ?')) {
+  const handleDelete = async () => {
+    const ok = await confirm('Supprimer la connexion', 'Supprimer cette connexion entre les nœuds ?');
+    if (ok) {
       setEdges(edges.filter((e) => e.id !== edge.id));
       onClose();
     }
@@ -121,6 +125,7 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
           </button>
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

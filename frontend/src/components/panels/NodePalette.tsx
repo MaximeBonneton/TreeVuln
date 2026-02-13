@@ -42,6 +42,9 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
           return (
             <div
               key={item.type}
+              role="button"
+              aria-label={`Ajouter un nœud ${item.label}: ${item.description}`}
+              tabIndex={0}
               className={`
                 p-3 rounded-lg border-2 border-dashed cursor-grab
                 hover:border-solid hover:shadow-md transition-all
@@ -51,6 +54,14 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
               `}
               draggable
               onDragStart={(e) => onDragStart(e, item.type)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  // Simule un drag start via un événement synthétique
+                  const syntheticEvent = new DragEvent('dragstart');
+                  onDragStart(syntheticEvent as unknown as React.DragEvent, item.type);
+                }
+              }}
             >
               <div className="flex items-center gap-2">
                 <Icon
