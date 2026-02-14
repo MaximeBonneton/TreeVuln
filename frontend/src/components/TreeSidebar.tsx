@@ -11,6 +11,9 @@ import {
   X,
   Check,
   Link,
+  Upload,
+  Bell,
+  Download,
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -20,9 +23,12 @@ import type { TreeListItem } from '@/types';
 interface TreeSidebarProps {
   onOpenCreateDialog: () => void;
   onOpenApiConfig: () => void;
+  onOpenAssetImport?: () => void;
+  onOpenWebhookConfig?: () => void;
+  onOpenIngestConfig?: () => void;
 }
 
-export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebarProps) {
+export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetImport, onOpenWebhookConfig, onOpenIngestConfig }: TreeSidebarProps) {
   const {
     trees,
     treeId,
@@ -215,7 +221,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
 
                 {/* Actions (visibles uniquement pour l'arbre sélectionné) */}
                 {tree.id === treeId && (
-                  <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200 flex-wrap">
                     <button
                       onClick={(e) => handleDuplicateStart(tree, e)}
                       className="p-1.5 hover:bg-gray-100 rounded-md"
@@ -230,6 +236,33 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig }: TreeSidebar
                     >
                       <Settings size={16} className="text-gray-500" />
                     </button>
+                    {onOpenAssetImport && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenAssetImport(); }}
+                        className="p-1.5 hover:bg-blue-50 rounded-md"
+                        title="Importer des assets"
+                      >
+                        <Upload size={16} className="text-gray-500" />
+                      </button>
+                    )}
+                    {onOpenWebhookConfig && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenWebhookConfig(); }}
+                        className="p-1.5 hover:bg-orange-50 rounded-md"
+                        title="Webhooks sortants"
+                      >
+                        <Bell size={16} className="text-gray-500" />
+                      </button>
+                    )}
+                    {onOpenIngestConfig && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenIngestConfig(); }}
+                        className="p-1.5 hover:bg-green-50 rounded-md"
+                        title="Webhooks entrants"
+                      >
+                        <Download size={16} className="text-gray-500" />
+                      </button>
+                    )}
                     {!isDefault && (
                       <>
                         <button

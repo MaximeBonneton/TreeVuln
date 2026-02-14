@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Asset, Tree
-from app.schemas.asset import AssetCreate, AssetUpdate
+from app.schemas.asset import AssetCreate, AssetImportError, AssetImportResponse, AssetUpdate
 
 
 class AssetService:
@@ -211,6 +211,84 @@ class AssetService:
         created = len(assets) - existing_before
         updated = existing_before
         return created, updated
+
+    async def import_from_rows(
+        self,
+        rows: list[dict[str, Any]],
+        column_mapping: dict[str, str | None],
+        tree_id: int | None = None,
+    ) -> AssetImportResponse:
+        """
+        Importe des assets depuis des lignes parsées avec mapping de colonnes.
+
+        Args:
+            rows: Lignes de données brutes
+            column_mapping: Mapping {champ_asset: colonne_source}
+            tree_id: ID de l'arbre cible
+
+        Returns:
+            Résultat détaillé de l'import
+        """
+        valid_assets: list[AssetCreate] = []
+        error_details: list[AssetImportError] = []
+        valid_criticalities = {"Low", "Medium", "High", "Critical"}
+
+        asset_id_col = column_mapping.get("asset_id", "asset_id")
+        name_col = column_mapping.get("name")
+        criticality_col = column_mapping.get("criticality")
+
+        for i, row in enumerate(rows, start=1):
+            # Récupère asset_id
+            raw_asset_id = row.get(asset_id_col) if asset_id_col else None
+            if not raw_asset_id or str(raw_asset_id).strip() == "":
+                error_details.append(AssetImportError(
+                    row=i,
+                    error=f"Colonne '{asset_id_col}' vide ou manquante",
+                ))
+                continue
+
+            asset_id_val = str(raw_asset_id).strip()
+
+            # Récupère name
+            name_val = None
+            if name_col and name_col in row:
+                name_val = str(row[name_col]).strip() if row[name_col] else None
+
+            # Récupère et valide criticality
+            criticality_val = "Medium"
+            if criticality_col and criticality_col in row:
+                raw_crit = str(row[criticality_col]).strip()
+                # Normalise la casse
+                crit_normalized = raw_crit.capitalize()
+                if crit_normalized in valid_criticalities:
+                    criticality_val = crit_normalized
+                elif raw_crit:
+                    error_details.append(AssetImportError(
+                        row=i,
+                        asset_id=asset_id_val,
+                        error=f"Criticité invalide: '{raw_crit}'. Valeurs acceptées: {', '.join(sorted(valid_criticalities))}",
+                    ))
+                    continue
+
+            valid_assets.append(AssetCreate(
+                asset_id=asset_id_val,
+                name=name_val,
+                criticality=criticality_val,
+            ))
+
+        # Bulk upsert des assets valides
+        created = 0
+        updated = 0
+        if valid_assets:
+            created, updated = await self.bulk_upsert(valid_assets, tree_id)
+
+        return AssetImportResponse(
+            total_rows=len(rows),
+            created=created,
+            updated=updated,
+            errors=len(error_details),
+            error_details=error_details,
+        )
 
     async def get_lookup_cache(
         self,

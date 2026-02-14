@@ -63,3 +63,29 @@ class AssetBulkResponse(BaseModel):
     created: int
     updated: int
     errors: list[str] = Field(default_factory=list)
+
+
+class AssetImportError(BaseModel):
+    """Détail d'une erreur d'import."""
+
+    row: int = Field(description="Numéro de ligne dans le fichier")
+    asset_id: str | None = Field(default=None, description="Asset ID si disponible")
+    error: str = Field(description="Description de l'erreur")
+
+
+class AssetColumnMapping(BaseModel):
+    """Mapping des colonnes du fichier vers les champs asset."""
+
+    asset_id: str = Field(description="Nom de la colonne pour asset_id")
+    name: str | None = Field(default=None, description="Nom de la colonne pour name")
+    criticality: str | None = Field(default=None, description="Nom de la colonne pour criticality")
+
+
+class AssetImportResponse(BaseModel):
+    """Réponse détaillée pour l'import fichier."""
+
+    total_rows: int = Field(description="Nombre total de lignes lues")
+    created: int = Field(description="Nombre d'assets créés")
+    updated: int = Field(description="Nombre d'assets mis à jour")
+    errors: int = Field(description="Nombre d'erreurs")
+    error_details: list[AssetImportError] = Field(default_factory=list)

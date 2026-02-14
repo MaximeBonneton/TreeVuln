@@ -1,15 +1,22 @@
 """
 Routes API pour la gestion des assets.
 Support multi-arbres: chaque asset appartient à un arbre spécifique.
+Support import bulk depuis CSV/JSON.
 """
 
-from fastapi import APIRouter, HTTPException, Query, status
+import csv
+import io
+import json
+
+from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
 from app.api.deps import AssetServiceDep
 from app.schemas.asset import (
     AssetBulkCreate,
     AssetBulkResponse,
+    AssetColumnMapping,
     AssetCreate,
+    AssetImportResponse,
     AssetResponse,
     AssetUpdate,
 )
@@ -146,3 +153,117 @@ async def bulk_create_assets(
     final_tree_id = tree_id or data.tree_id
     created, updated = await asset_service.bulk_upsert(data.assets, final_tree_id)
     return AssetBulkResponse(created=created, updated=updated)
+
+
+def _parse_upload_file(content: bytes, filename: str) -> list[dict]:
+    """Parse un fichier CSV ou JSON en liste de dictionnaires."""
+    if filename.endswith(".json"):
+        data = json.loads(content.decode("utf-8"))
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and "assets" in data:
+            return data["assets"]
+        raise ValueError("Le JSON doit être un tableau ou un objet avec une clé 'assets'")
+
+    if filename.endswith(".csv"):
+        text = content.decode("utf-8")
+        reader = csv.DictReader(io.StringIO(text))
+        return list(reader)
+
+    raise ValueError("Format non supporté. Utilisez CSV ou JSON.")
+
+
+@router.post("/import/preview")
+async def preview_import(file: UploadFile):
+    """
+    Scanne un fichier CSV/JSON et retourne les colonnes détectées.
+    Utile pour configurer le mapping avant import.
+    """
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nom de fichier manquant",
+        )
+
+    content = await file.read()
+    try:
+        rows = _parse_upload_file(content, file.filename)
+    except (ValueError, json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de parsing: {e}",
+        )
+
+    if not rows:
+        return {"columns": [], "row_count": 0, "preview": []}
+
+    columns = list(rows[0].keys())
+    preview = rows[:5]  # 5 premières lignes pour prévisualisation
+
+    return {
+        "columns": columns,
+        "row_count": len(rows),
+        "preview": preview,
+    }
+
+
+@router.post("/import", response_model=AssetImportResponse)
+async def import_assets(
+    file: UploadFile,
+    asset_service: AssetServiceDep,
+    tree_id: int | None = Query(
+        default=None,
+        description="ID de l'arbre cible. Si non fourni, utilise l'arbre par défaut.",
+    ),
+    col_asset_id: str = Query(
+        default="asset_id",
+        description="Nom de la colonne pour l'identifiant de l'asset",
+    ),
+    col_name: str | None = Query(
+        default=None,
+        description="Nom de la colonne pour le nom de l'asset",
+    ),
+    col_criticality: str | None = Query(
+        default=None,
+        description="Nom de la colonne pour la criticité",
+    ),
+):
+    """
+    Importe des assets depuis un fichier CSV ou JSON.
+
+    Le mapping des colonnes est configuré via les query params.
+    Les assets existants (même asset_id dans le même arbre) sont mis à jour.
+    """
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nom de fichier manquant",
+        )
+
+    if not (file.filename.endswith(".csv") or file.filename.endswith(".json")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le fichier doit être au format CSV ou JSON",
+        )
+
+    content = await file.read()
+    try:
+        rows = _parse_upload_file(content, file.filename)
+    except (ValueError, json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de parsing: {e}",
+        )
+
+    if not rows:
+        return AssetImportResponse(
+            total_rows=0, created=0, updated=0, errors=0,
+        )
+
+    column_mapping = {
+        "asset_id": col_asset_id,
+        "name": col_name,
+        "criticality": col_criticality,
+    }
+
+    return await asset_service.import_from_rows(rows, column_mapping, tree_id)

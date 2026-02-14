@@ -51,6 +51,70 @@ CREATE TABLE IF NOT EXISTS assets (
 -- Index pour la recherche d'assets par arbre et asset_id
 CREATE INDEX IF NOT EXISTS idx_assets_tree_asset_id ON assets(tree_id, asset_id);
 
+-- Création de la table webhooks
+CREATE TABLE IF NOT EXISTS webhooks (
+    id SERIAL PRIMARY KEY,
+    tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
+    secret VARCHAR(255),
+    headers JSONB NOT NULL DEFAULT '{}',
+    events TEXT[] NOT NULL DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhooks_tree_id ON webhooks(tree_id);
+
+-- Création de la table webhook_logs
+CREATE TABLE IF NOT EXISTS webhook_logs (
+    id SERIAL PRIMARY KEY,
+    webhook_id INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event VARCHAR(100) NOT NULL,
+    status_code INTEGER,
+    request_body JSONB NOT NULL DEFAULT '{}',
+    response_body VARCHAR(10000),
+    success BOOLEAN NOT NULL DEFAULT FALSE,
+    error_message VARCHAR(2000),
+    duration_ms INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_webhook_id ON webhook_logs(webhook_id);
+
+-- Création de la table ingest_endpoints
+CREATE TABLE IF NOT EXISTS ingest_endpoints (
+    id SERIAL PRIMARY KEY,
+    tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(100) NOT NULL UNIQUE,
+    api_key VARCHAR(255) NOT NULL,
+    field_mapping JSONB NOT NULL DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    auto_evaluate BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingest_endpoints_slug ON ingest_endpoints(slug);
+CREATE INDEX IF NOT EXISTS idx_ingest_endpoints_tree_id ON ingest_endpoints(tree_id);
+
+-- Création de la table ingest_logs
+CREATE TABLE IF NOT EXISTS ingest_logs (
+    id SERIAL PRIMARY KEY,
+    endpoint_id INTEGER NOT NULL REFERENCES ingest_endpoints(id) ON DELETE CASCADE,
+    source_ip VARCHAR(45),
+    payload_size INTEGER,
+    vuln_count INTEGER NOT NULL DEFAULT 0,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    duration_ms INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingest_logs_endpoint_id ON ingest_logs(endpoint_id);
+
 -- Insertion d'un arbre de décision SSVC OPTIMISE avec multi-input (arbre par défaut)
 -- Critères : Exploitation (KEV), Automatable (EPSS >= 0.2), Technical Impact (CVSS >= 9), Mission & Well-being (asset_criticality)
 -- Structure optimisée : 8 nœuds au lieu de 26 grâce aux entrées multiples

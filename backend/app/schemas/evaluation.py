@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -79,4 +79,13 @@ class EvaluationResponse(BaseModel):
     decision_summary: dict[str, int] = Field(
         default_factory=dict,
         description="Comptage par décision (ex: {'Act': 5, 'Track': 10})",
+    )
+
+
+class ExportRequest(EvaluationRequest):
+    """Requête pour évaluer et exporter un batch."""
+
+    format: Literal["csv", "json"] = Field(
+        default="csv",
+        description="Format d'export: csv ou json",
     )

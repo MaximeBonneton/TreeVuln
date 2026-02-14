@@ -11,6 +11,9 @@ import { FieldMappingPanel } from '../panels/FieldMappingPanel';
 import { TreeSidebar } from '../TreeSidebar';
 import { ApiConfigDialog } from '../dialogs/ApiConfigDialog';
 import { CreateTreeDialog } from '../dialogs/CreateTreeDialog';
+import { AssetImportDialog } from '../dialogs/AssetImportDialog';
+import { WebhookConfigDialog } from '../dialogs/WebhookConfigDialog';
+import { IngestConfigDialog } from '../dialogs/IngestConfigDialog';
 import { useTreeStore } from '@/stores/treeStore';
 import type { NodeType, TreeNode, TreeEdge } from '@/types';
 
@@ -21,12 +24,16 @@ export function TreeBuilder() {
   const [showMappingPanel, setShowMappingPanel] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showAssetImport, setShowAssetImport] = useState(false);
+  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
+  const [showIngestConfig, setShowIngestConfig] = useState(false);
 
-  const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen } = useTreeStore();
+  const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName } = useTreeStore();
 
   const saveTree = useTreeStore((state) => state.saveTree);
   const deleteNode = useTreeStore((state) => state.deleteNode);
   const deleteEdge = useTreeStore((state) => state.deleteEdge);
+  const selectedNodeId = useTreeStore((state) => state.selectedNodeId);
 
   // Charge l'arbre et la liste au montage
   useEffect(() => {
@@ -77,7 +84,6 @@ export function TreeBuilder() {
   }, [selectedNodeId, selectedEdge, saveTree, deleteNode, deleteEdge, selectNode]);
 
   // Synchronise le nœud sélectionné avec le store
-  const selectedNodeId = useTreeStore((state) => state.selectedNodeId);
   useEffect(() => {
     if (selectedNodeId) {
       const node = nodes.find((n) => n.id === selectedNodeId);
@@ -140,6 +146,9 @@ export function TreeBuilder() {
           <TreeSidebar
             onOpenCreateDialog={() => setShowCreateDialog(true)}
             onOpenApiConfig={() => setShowApiConfig(true)}
+            onOpenAssetImport={() => setShowAssetImport(true)}
+            onOpenWebhookConfig={() => setShowWebhookConfig(true)}
+            onOpenIngestConfig={() => setShowIngestConfig(true)}
           />
 
           {/* Palette gauche */}
@@ -193,6 +202,34 @@ export function TreeBuilder() {
         {/* Dialog de création d'arbre */}
         {showCreateDialog && (
           <CreateTreeDialog onClose={() => setShowCreateDialog(false)} />
+        )}
+
+        {/* Dialog d'import d'assets */}
+        {showAssetImport && treeId && (
+          <AssetImportDialog
+            treeId={treeId}
+            treeName={treeName}
+            onClose={() => setShowAssetImport(false)}
+            onImported={() => {}}
+          />
+        )}
+
+        {/* Dialog de configuration webhooks sortants */}
+        {showWebhookConfig && treeId && (
+          <WebhookConfigDialog
+            treeId={treeId}
+            treeName={treeName}
+            onClose={() => setShowWebhookConfig(false)}
+          />
+        )}
+
+        {/* Dialog de configuration webhooks entrants */}
+        {showIngestConfig && treeId && (
+          <IngestConfigDialog
+            treeId={treeId}
+            treeName={treeName}
+            onClose={() => setShowIngestConfig(false)}
+          />
         )}
       </div>
     </ReactFlowProvider>

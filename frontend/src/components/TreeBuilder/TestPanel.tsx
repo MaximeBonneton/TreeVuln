@@ -219,35 +219,28 @@ function BatchTestTab() {
     }
   };
 
-  const handleExportCsv = () => {
-    if (!response) return;
+  const [exporting, setExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
-    const headers = [
-      'vuln_id',
-      'decision',
-      'error',
-      'path_summary',
-    ];
+  const handleExport = async (format: 'csv' | 'json') => {
+    if (!file) return;
+    setExporting(true);
+    setShowExportMenu(false);
 
-    const rows = response.results.map((r) => [
-      r.vuln_id || '',
-      r.decision,
-      r.error || '',
-      r.path.map((p) => `${p.node_label}[${p.condition_matched || 'END'}]`).join(' -> '),
-    ]);
-
-    const csv = [
-      headers.join(','),
-      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `results_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await evaluateApi.exportCsvFile(file, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = format === 'csv' ? 'csv' : 'json';
+      a.download = `results_${new Date().toISOString().slice(0, 10)}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'export");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -320,13 +313,34 @@ function BatchTestTab() {
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium text-gray-700">Résumé</h4>
-              <button
-                onClick={handleExportCsv}
-                className="flex items-center gap-1 px-3 py-1 text-sm bg-white border rounded-md hover:bg-gray-50"
-              >
-                <Download size={14} />
-                Exporter CSV
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={exporting}
+                  className="flex items-center gap-1 px-3 py-1 text-sm bg-white border rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Download size={14} />
+                  {exporting ? 'Export...' : 'Exporter'}
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[140px]">
+                    <button
+                      onClick={() => handleExport('csv')}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FileSpreadsheet size={14} />
+                      Export CSV
+                    </button>
+                    <button
+                      onClick={() => handleExport('json')}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Download size={14} />
+                      Export JSON
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2 text-center text-sm">
