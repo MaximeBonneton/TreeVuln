@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +15,9 @@ class Webhook(Base):
     """
 
     __tablename__ = "webhooks"
+    __table_args__ = (
+        Index("idx_webhooks_tree_active", "tree_id", "is_active"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     tree_id: Mapped[int] = mapped_column(
@@ -50,6 +53,9 @@ class WebhookLog(Base):
     """
 
     __tablename__ = "webhook_logs"
+    __table_args__ = (
+        Index("idx_webhook_logs_created", "webhook_id", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     webhook_id: Mapped[int] = mapped_column(

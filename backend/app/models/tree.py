@@ -9,6 +9,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.asset import Asset
+    from app.models.webhook import Webhook
 
 
 class Tree(Base):
@@ -51,6 +52,11 @@ class Tree(Base):
         back_populates="tree",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    webhooks: Mapped[list["Webhook"]] = relationship(
+        "Webhook",
+        cascade="all, delete-orphan",
+        lazy="noload",
     )
 
     def __repr__(self) -> str:

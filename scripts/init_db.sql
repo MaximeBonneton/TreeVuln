@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhooks_tree_id ON webhooks(tree_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_tree_active ON webhooks(tree_id, is_active);
 
 -- Création de la table webhook_logs
 CREATE TABLE IF NOT EXISTS webhook_logs (
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_webhook_id ON webhook_logs(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_created ON webhook_logs(webhook_id, created_at);
 
 -- Création de la table ingest_endpoints
 CREATE TABLE IF NOT EXISTS ingest_endpoints (

@@ -23,6 +23,13 @@ from app.schemas.tree import (
     TreeVersionResponse,
 )
 from app.schemas.vulnerability import VulnerabilityInput
+from app.schemas.webhook import (
+    WebhookCreate,
+    WebhookLogResponse,
+    WebhookResponse,
+    WebhookTestResult,
+    WebhookUpdate,
+)
 
 __all__ = [
     # Tree
@@ -51,4 +58,10 @@ __all__ = [
     "FieldMapping",
     "FieldMappingUpdate",
     "ScanResult",
+    # Webhook
+    "WebhookCreate",
+    "WebhookUpdate",
+    "WebhookResponse",
+    "WebhookLogResponse",
+    "WebhookTestResult",
 ]

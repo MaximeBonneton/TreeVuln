@@ -10,7 +10,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import AssetServiceDep, TreeServiceDep, WebhookServiceDep
+from app.api.deps import AssetServiceDep, TreeServiceDep
 from app.config import settings
 from app.engine import BatchProcessor, InferenceEngine
 from app.engine.export import export_csv, export_json
@@ -24,6 +24,7 @@ from app.schemas.evaluation import (
 )
 from app.schemas.tree import TreeStructure
 from app.schemas.vulnerability import VulnerabilityInput
+from app.services.webhook_dispatch import dispatch_webhooks
 
 router = APIRouter()
 
@@ -86,7 +87,6 @@ async def evaluate_single(
     request: SingleEvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
-    webhook_service: WebhookServiceDep,
 ):
     """
     Évalue une vulnérabilité unique (temps réel).
@@ -108,7 +108,7 @@ async def evaluate_single(
         request.include_path,
     )
 
-    # Fire webhooks en background
+    # Fire webhooks en background (session DB indépendante)
     event = f"on_{result.decision.lower().replace('*', '_star')}"
     payload = {
         "event": event,
@@ -116,7 +116,7 @@ async def evaluate_single(
         "decision": result.decision,
         "decision_color": result.decision_color,
     }
-    asyncio.create_task(webhook_service.fire_webhooks(tree_id, event, payload))
+    asyncio.create_task(dispatch_webhooks(tree_id, event, payload))
 
     return result
 
@@ -126,7 +126,6 @@ async def evaluate_batch(
     request: EvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
-    webhook_service: WebhookServiceDep,
 ):
     """
     Évalue un batch de vulnérabilités.
@@ -166,7 +165,7 @@ async def evaluate_batch(
         request.include_path,
     )
 
-    # Fire webhooks en background
+    # Fire webhooks en background (session DB indépendante)
     payload = {
         "event": "on_batch_complete",
         "total": response.total,
@@ -174,9 +173,7 @@ async def evaluate_batch(
         "error_count": response.error_count,
         "decision_summary": response.decision_summary,
     }
-    asyncio.create_task(
-        webhook_service.fire_webhooks(tree.id, "on_batch_complete", payload)
-    )
+    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
 
     return response
 
@@ -237,6 +234,17 @@ async def evaluate_csv(
         lookups,
         include_path,
     )
+
+    # Fire webhooks en background (session DB indépendante)
+    payload = {
+        "event": "on_batch_complete",
+        "total": response.total,
+        "success_count": response.success_count,
+        "error_count": response.error_count,
+        "decision_summary": response.decision_summary,
+    }
+    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
+
     return response
 
 
@@ -392,6 +400,17 @@ async def evaluate_by_slug(
         lookups,
         request.include_path,
     )
+
+    # Fire webhooks en background (session DB indépendante)
+    event = f"on_{result.decision.lower().replace('*', '_star')}"
+    payload = {
+        "event": event,
+        "vuln_id": result.vuln_id,
+        "decision": result.decision,
+        "decision_color": result.decision_color,
+    }
+    asyncio.create_task(dispatch_webhooks(tree.id, event, payload))
+
     return result
 
 
@@ -439,6 +458,17 @@ async def evaluate_batch_by_slug(
         lookups,
         request.include_path,
     )
+
+    # Fire webhooks en background (session DB indépendante)
+    payload = {
+        "event": "on_batch_complete",
+        "total": response.total,
+        "success_count": response.success_count,
+        "error_count": response.error_count,
+        "decision_summary": response.decision_summary,
+    }
+    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
+
     return response
 
 

@@ -3,7 +3,7 @@ export interface Webhook {
   tree_id: number;
   name: string;
   url: string;
-  secret: string | null;
+  has_secret: boolean;
   headers: Record<string, string>;
   events: string[];
   is_active: boolean;
@@ -55,5 +55,5 @@ export const WEBHOOK_EVENTS = [
   { value: 'on_attend', label: 'Attend', color: '#f97316' },
   { value: 'on_track_star', label: 'Track*', color: '#eab308' },
   { value: 'on_track', label: 'Track', color: '#22c55e' },
-  { value: 'on_batch_complete', label: 'Batch termine', color: '#6b7280' },
+  { value: 'on_batch_complete', label: 'Batch terminé', color: '#6b7280' },
 ] as const;

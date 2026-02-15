@@ -12,9 +12,12 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { webhooksApi } from '@/api';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type {
   Webhook,
   WebhookCreate,
+  WebhookUpdate,
   WebhookLog,
   WebhookTestResult,
 } from '@/types';
@@ -35,6 +38,7 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
   const [error, setError] = useState<string | null>(null);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
   const [logsWebhookId, setLogsWebhookId] = useState<number | null>(null);
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const loadWebhooks = async () => {
     setLoading(true);
@@ -68,12 +72,22 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
   };
 
   const handleDelete = async (webhookId: number) => {
-    if (!window.confirm('Supprimer ce webhook ?')) return;
+    const ok = await confirm('Supprimer le webhook', 'Supprimer ce webhook et tout son historique ?');
+    if (!ok) return;
     try {
-      await webhooksApi.delete(webhookId);
+      await webhooksApi.delete(treeId, webhookId);
       await loadWebhooks();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de suppression');
+    }
+  };
+
+  const handleToggleActive = async (webhook: Webhook) => {
+    try {
+      await webhooksApi.update(treeId, webhook.id, { is_active: !webhook.is_active });
+      await loadWebhooks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de mise à jour');
     }
   };
 
@@ -111,11 +125,13 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
 
           {view === 'list' && (
             <WebhookList
+              treeId={treeId}
               webhooks={webhooks}
               loading={loading}
               onCreate={handleCreate}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
               onShowLogs={handleShowLogs}
             />
           )}
@@ -131,29 +147,35 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
 
           {view === 'logs' && logsWebhookId && (
             <WebhookLogs
+              treeId={treeId}
               webhookId={logsWebhookId}
               onBack={() => setView('list')}
             />
           )}
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }
 
 function WebhookList({
+  treeId,
   webhooks,
   loading,
   onCreate,
   onEdit,
   onDelete,
+  onToggleActive,
   onShowLogs,
 }: {
+  treeId: number;
   webhooks: Webhook[];
   loading: boolean;
   onCreate: () => void;
   onEdit: (w: Webhook) => void;
   onDelete: (id: number) => void;
+  onToggleActive: (w: Webhook) => void;
   onShowLogs: (id: number) => void;
 }) {
   const [testing, setTesting] = useState<number | null>(null);
@@ -163,7 +185,7 @@ function WebhookList({
     setTesting(webhookId);
     setTestResult(null);
     try {
-      const result = await webhooksApi.test(webhookId);
+      const result = await webhooksApi.test(treeId, webhookId);
       setTestResult({ id: webhookId, result });
     } catch {
       setTestResult({
@@ -194,15 +216,22 @@ function WebhookList({
       {webhooks.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           <Bell size={32} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Aucun webhook configure</p>
+          <p className="text-sm">Aucun webhook configuré</p>
         </div>
       ) : (
         webhooks.map((webhook) => (
           <div key={webhook.id} className="border rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${webhook.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <button
+                  onClick={() => onToggleActive(webhook)}
+                  className={`w-2 h-2 rounded-full cursor-pointer ${webhook.is_active ? 'bg-green-500' : 'bg-gray-300'}`}
+                  title={webhook.is_active ? 'Actif — cliquer pour désactiver' : 'Inactif — cliquer pour activer'}
+                />
                 <span className="font-medium text-sm">{webhook.name}</span>
+                {webhook.has_secret && (
+                  <span className="text-xs text-gray-400" title="Secret HMAC configuré">🔑</span>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -235,7 +264,7 @@ function WebhookList({
               </div>
             </div>
             <div className="text-xs text-gray-500 mt-1 font-mono truncate">{webhook.url}</div>
-            <div className="flex gap-1 mt-2">
+            <div className="flex gap-1 mt-2 flex-wrap">
               {webhook.events.map((evt) => {
                 const eventInfo = WEBHOOK_EVENTS.find((e) => e.value === evt);
                 return (
@@ -280,9 +309,14 @@ function WebhookForm({
 }) {
   const [name, setName] = useState(webhook?.name || '');
   const [url, setUrl] = useState(webhook?.url || '');
-  const [secret, setSecret] = useState(webhook?.secret || '');
+  const [secret, setSecret] = useState('');
   const [events, setEvents] = useState<string[]>(webhook?.events || []);
   const [isActive, setIsActive] = useState(webhook?.is_active ?? true);
+  const [headers, setHeaders] = useState<Array<{ key: string; value: string }>>(
+    webhook?.headers
+      ? Object.entries(webhook.headers).map(([key, value]) => ({ key, value }))
+      : []
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -292,9 +326,23 @@ function WebhookForm({
     );
   };
 
+  const addHeader = () => {
+    setHeaders([...headers, { key: '', value: '' }]);
+  };
+
+  const removeHeader = (index: number) => {
+    setHeaders(headers.filter((_, i) => i !== index));
+  };
+
+  const updateHeader = (index: number, field: 'key' | 'value', val: string) => {
+    const newHeaders = [...headers];
+    newHeaders[index] = { ...newHeaders[index], [field]: val };
+    setHeaders(newHeaders);
+  };
+
   const handleSave = async () => {
     if (!name.trim() || !url.trim() || events.length === 0) {
-      setError('Nom, URL et au moins un evenement sont requis');
+      setError('Nom, URL et au moins un événement sont requis');
       return;
     }
 
@@ -302,17 +350,38 @@ function WebhookForm({
     setError(null);
 
     try {
-      const data: WebhookCreate = {
-        name: name.trim(),
-        url: url.trim(),
-        secret: secret.trim() || undefined,
-        events,
-        is_active: isActive,
-      };
+      // Convertit les headers en Record
+      const headersRecord: Record<string, string> = {};
+      for (const h of headers) {
+        if (h.key.trim()) {
+          headersRecord[h.key.trim()] = h.value;
+        }
+      }
 
       if (webhook) {
-        await webhooksApi.update(webhook.id, data);
+        // Mode édition
+        const data: WebhookUpdate = {
+          name: name.trim(),
+          url: url.trim(),
+          events,
+          is_active: isActive,
+          headers: headersRecord,
+        };
+        // N'envoyer le secret que s'il a été modifié
+        if (secret) {
+          data.secret = secret;
+        }
+        await webhooksApi.update(treeId, webhook.id, data);
       } else {
+        // Mode création
+        const data: WebhookCreate = {
+          name: name.trim(),
+          url: url.trim(),
+          secret: secret.trim() || undefined,
+          events,
+          is_active: isActive,
+          headers: headersRecord,
+        };
         await webhooksApi.create(treeId, data);
       }
       onSaved();
@@ -360,17 +429,65 @@ function WebhookForm({
           Secret (HMAC-SHA256)
         </label>
         <input
-          type="text"
+          type="password"
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           className="w-full px-3 py-2 border rounded-md text-sm font-mono"
-          placeholder="Optionnel - pour signer les requetes"
+          placeholder={webhook?.has_secret ? 'Secret configuré — laisser vide pour conserver' : 'Optionnel — pour signer les requêtes'}
         />
+        {webhook?.has_secret && !secret && (
+          <p className="text-xs text-gray-400 mt-1">Un secret est déjà configuré. Saisissez une nouvelle valeur pour le remplacer.</p>
+        )}
+      </div>
+
+      {/* Headers custom */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Headers HTTP
+          </label>
+          <button
+            onClick={addHeader}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            + Ajouter
+          </button>
+        </div>
+        {headers.length === 0 ? (
+          <p className="text-xs text-gray-400">Aucun header custom</p>
+        ) : (
+          <div className="space-y-2">
+            {headers.map((h, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={h.key}
+                  onChange={(e) => updateHeader(i, 'key', e.target.value)}
+                  className="flex-1 px-2 py-1 border rounded text-sm font-mono"
+                  placeholder="Header-Name"
+                />
+                <input
+                  type="text"
+                  value={h.value}
+                  onChange={(e) => updateHeader(i, 'value', e.target.value)}
+                  className="flex-1 px-2 py-1 border rounded text-sm font-mono"
+                  placeholder="Valeur"
+                />
+                <button
+                  onClick={() => removeHeader(i)}
+                  className="p-1 hover:bg-red-50 rounded"
+                >
+                  <X size={14} className="text-red-400" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Evenements declencheurs
+          Événements déclencheurs
         </label>
         <div className="flex flex-wrap gap-2">
           {WEBHOOK_EVENTS.map((evt) => (
@@ -429,7 +546,7 @@ function WebhookForm({
   );
 }
 
-function WebhookLogs({ webhookId, onBack }: { webhookId: number; onBack: () => void }) {
+function WebhookLogs({ treeId, webhookId, onBack }: { treeId: number; webhookId: number; onBack: () => void }) {
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
@@ -437,7 +554,7 @@ function WebhookLogs({ webhookId, onBack }: { webhookId: number; onBack: () => v
   useEffect(() => {
     const loadLogs = async () => {
       try {
-        const data = await webhooksApi.getLogs(webhookId);
+        const data = await webhooksApi.getLogs(treeId, webhookId);
         setLogs(data);
       } catch {
         // silently fail
@@ -446,7 +563,7 @@ function WebhookLogs({ webhookId, onBack }: { webhookId: number; onBack: () => v
       }
     };
     loadLogs();
-  }, [webhookId]);
+  }, [treeId, webhookId]);
 
   if (loading) {
     return <div className="text-center text-gray-500 py-8">Chargement...</div>;
@@ -499,7 +616,7 @@ function WebhookLogs({ webhookId, onBack }: { webhookId: number; onBack: () => v
                 </div>
                 {log.response_body && (
                   <div>
-                    <div className="text-xs font-medium text-gray-500 mb-1">Reponse</div>
+                    <div className="text-xs font-medium text-gray-500 mb-1">Réponse</div>
                     <pre className="text-xs bg-white p-2 rounded border overflow-x-auto max-h-32">
                       {log.response_body}
                     </pre>

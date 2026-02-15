@@ -1,3 +1,6 @@
+import json
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +18,21 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://treevuln:treevuln@localhost:5432/treevuln"
 
-    # CORS
+    # CORS — accepte JSON array ou CSV
     allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: object) -> object:
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return [s.strip() for s in v.split(",") if s.strip()]
+        return v
 
     # API
     api_v1_prefix: str = "/api/v1"

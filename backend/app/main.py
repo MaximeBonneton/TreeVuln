@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.config import settings
 from app.database import engine
-from app.models import Asset, Tree, TreeVersion  # noqa: F401
+from app.models import Asset, IngestEndpoint, IngestLog, Tree, TreeVersion, Webhook, WebhookLog  # noqa: F401
 
 
 @asynccontextmanager

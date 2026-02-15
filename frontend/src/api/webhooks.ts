@@ -14,15 +14,15 @@ export const webhooksApi = {
   create: (treeId: number, data: WebhookCreate) =>
     api.post<Webhook>(`/tree/${treeId}/webhooks`, data),
 
-  update: (webhookId: number, data: WebhookUpdate) =>
-    api.put<Webhook>(`/webhooks/${webhookId}`, data),
+  update: (treeId: number, webhookId: number, data: WebhookUpdate) =>
+    api.put<Webhook>(`/tree/${treeId}/webhooks/${webhookId}`, data),
 
-  delete: (webhookId: number) =>
-    api.delete(`/webhooks/${webhookId}`),
+  delete: (treeId: number, webhookId: number) =>
+    api.delete(`/tree/${treeId}/webhooks/${webhookId}`),
 
-  test: (webhookId: number) =>
-    api.post<WebhookTestResult>(`/webhooks/${webhookId}/test`),
+  test: (treeId: number, webhookId: number) =>
+    api.post<WebhookTestResult>(`/tree/${treeId}/webhooks/${webhookId}/test`),
 
-  getLogs: (webhookId: number, limit = 50) =>
-    api.get<WebhookLog[]>(`/webhooks/${webhookId}/logs?limit=${limit}`),
+  getLogs: (treeId: number, webhookId: number, limit = 50) =>
+    api.get<WebhookLog[]>(`/tree/${treeId}/webhooks/${webhookId}/logs?limit=${limit}`),
 };
