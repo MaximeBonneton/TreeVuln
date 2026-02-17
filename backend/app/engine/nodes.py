@@ -310,6 +310,92 @@ class LookupNode(BaseNode):
         return value, match[1]
 
 
+class EquationNode(BaseNode):
+    """
+    Nœud équation : calcule un score à partir d'une formule multi-champs.
+
+    Config attendue:
+    {
+        "formula": "cvss_score * 0.4 + epss_score * 100 * 0.3 + (kev ? 30 : 0)",
+        "variables": ["cvss_score", "epss_score", "kev"],
+        "output_label": "Risk Score"
+    }
+    """
+
+    @staticmethod
+    def _apply_value_maps(
+        variables: dict[str, Any], value_maps: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Applique les tables de mapping texte → nombre aux variables.
+
+        Pour chaque variable ayant un value_map configuré :
+        - Si la valeur brute est une chaîne, cherche dans les entries et
+          remplace par la valeur numérique (ou default_value si non trouvé)
+        - Si la valeur est None, utilise default_value
+        - Les valeurs numériques/booléennes passent telles quelles
+        """
+        for var_name, vmap in value_maps.items():
+            if var_name not in variables:
+                continue
+
+            entries = vmap.get("entries", [])
+            default_value = vmap.get("default_value", 0)
+            raw = variables[var_name]
+
+            if raw is None:
+                variables[var_name] = default_value
+            elif isinstance(raw, str):
+                matched = False
+                for entry in entries:
+                    if entry.get("text") == raw:
+                        variables[var_name] = entry.get("value", default_value)
+                        matched = True
+                        break
+                if not matched:
+                    variables[var_name] = default_value
+
+        return variables
+
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+        from app.engine.formula import FormulaError, evaluate_formula
+
+        formula = self.config.get("formula")
+        if not formula:
+            raise NodeEvaluationError(f"Nœud {self.id}: formule non configurée")
+
+        variable_names = self.config.get("variables", [])
+
+        # Collecte les valeurs des variables depuis le contexte
+        variables: dict[str, Any] = {}
+        for var_name in variable_names:
+            value = self._get_field_value(context, var_name)
+            variables[var_name] = value
+
+        # Applique les mappings texte → nombre si configurés
+        value_maps = self.config.get("value_maps", {})
+        if value_maps:
+            variables = self._apply_value_maps(variables, value_maps)
+
+        # Évalue la formule
+        try:
+            score = evaluate_formula(formula, variables)
+        except FormulaError as e:
+            raise NodeEvaluationError(f"Nœud {self.id}: {e}") from e
+
+        # Route par seuils via le système de conditions existant
+        match = self.match_condition(score, context)
+        if match is None:
+            default_idx = self.config.get("default_branch")
+            if default_idx is not None and default_idx < len(self.conditions):
+                return score, self.conditions[default_idx].label
+            raise NodeEvaluationError(
+                f"Nœud {self.id}: aucune condition ne correspond au score {score}"
+            )
+
+        return score, match[1]
+
+
 class OutputNode(BaseNode):
     """
     Nœud de sortie : retourne la décision finale.
@@ -326,6 +412,7 @@ def create_node(schema: NodeSchema) -> BaseNode:
     node_classes = {
         NodeType.INPUT: InputNode,
         NodeType.LOOKUP: LookupNode,
+        NodeType.EQUATION: EquationNode,
         NodeType.OUTPUT: OutputNode,
     }
 

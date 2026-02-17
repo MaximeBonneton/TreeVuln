@@ -3,6 +3,7 @@ Validation de la structure d'un arbre de décision.
 Retourne des warnings (non bloquants) pour ne pas casser les arbres existants.
 """
 
+from app.engine.formula import FormulaError, validate_formula
 from app.schemas.tree import NodeType, TreeStructure
 
 
@@ -82,6 +83,22 @@ def validate_tree_structure(structure: TreeStructure) -> list[str]:
     root_nodes = [nid for nid in node_ids if nid not in target_nodes]
     if not root_nodes:
         warnings.append("Aucun nœud racine détecté (tous les nœuds sont ciblés par des edges)")
+
+    # Valide les noeuds equation
+    for node in structure.nodes:
+        if node.type == NodeType.EQUATION:
+            formula = node.config.get("formula", "")
+            if not formula or not formula.strip():
+                warnings.append(
+                    f"Le nœud equation '{node.id}' n'a pas de formule configurée"
+                )
+            else:
+                try:
+                    validate_formula(formula)
+                except FormulaError as e:
+                    warnings.append(
+                        f"Le nœud equation '{node.id}' a une formule invalide : {e}"
+                    )
 
     # Vérifie au moins un nœud output
     output_nodes = [n for n in structure.nodes if n.type == NodeType.OUTPUT]

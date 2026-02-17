@@ -489,6 +489,7 @@ function PathStep({ step, isLast }: { step: DecisionPath; isLast: boolean }) {
   const typeColors: Record<string, string> = {
     input: 'bg-blue-100 text-blue-800',
     lookup: 'bg-purple-100 text-purple-800',
+    equation: 'bg-amber-100 text-amber-800',
     output: 'bg-green-100 text-green-800',
   };
 

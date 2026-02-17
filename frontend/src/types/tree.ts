@@ -1,7 +1,7 @@
 import type { Node, Edge } from '@xyflow/react';
 
 // Types de nœuds disponibles
-export type NodeType = 'input' | 'lookup' | 'output';
+export type NodeType = 'input' | 'lookup' | 'output' | 'equation';
 
 // Opérateurs de condition
 export type ConditionOperator =
@@ -76,7 +76,25 @@ export interface OutputNodeConfig {
   color: string;
 }
 
-export type TreeNodeConfig = InputNodeConfig | LookupNodeConfig | OutputNodeConfig;
+export interface ValueMapEntry {
+  text: string;
+  value: number;
+}
+
+export interface ValueMap {
+  entries: ValueMapEntry[];
+  default_value: number;
+}
+
+export interface EquationNodeConfig {
+  formula: string;
+  variables: string[];
+  output_label: string;
+  default_branch?: number;
+  value_maps?: Record<string, ValueMap>;
+}
+
+export type TreeNodeConfig = InputNodeConfig | LookupNodeConfig | OutputNodeConfig | EquationNodeConfig;
 
 // Données d'un nœud custom
 export interface TreeNodeData extends Record<string, unknown> {

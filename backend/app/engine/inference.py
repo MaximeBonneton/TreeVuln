@@ -46,9 +46,9 @@ class InferenceEngine:
                 break
 
         if self.root_node_id is None and self.nodes:
-            # Si pas de racine claire, prend le premier nœud INPUT
+            # Si pas de racine claire, prend le premier nœud INPUT ou EQUATION
             for node_id, node in self.nodes.items():
-                if node.type == NodeType.INPUT:
+                if node.type in (NodeType.INPUT, NodeType.EQUATION):
                     self.root_node_id = node_id
                     break
 
@@ -119,7 +119,10 @@ class InferenceEngine:
             if include_path:
                 field_evaluated = None
                 if hasattr(node, "config"):
-                    field_evaluated = node.config.get("field") or node.config.get("lookup_field")
+                    if node.type == NodeType.EQUATION:
+                        field_evaluated = node.config.get("formula")
+                    else:
+                        field_evaluated = node.config.get("field") or node.config.get("lookup_field")
 
                 path.append(
                     DecisionPath(
@@ -283,6 +286,9 @@ class InferenceEngine:
                     fields.add(node.config["field"])
                 if "lookup_key" in node.config:
                     fields.add(node.config["lookup_key"])
+                if node.type == NodeType.EQUATION and "variables" in node.config:
+                    for var in node.config["variables"]:
+                        fields.add(var)
         return fields
 
     def get_lookup_tables(self) -> set[str]:

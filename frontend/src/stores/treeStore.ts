@@ -108,6 +108,8 @@ const getDefaultConfig = (type: NodeType): TreeNodeConfig => {
       return { field: '' };
     case 'lookup':
       return { lookup_table: 'assets', lookup_key: 'asset_id', lookup_field: 'criticality' };
+    case 'equation':
+      return { formula: '', variables: [], output_label: 'Score' };
     case 'output':
       return { decision: 'Track', color: '#22c55e' };
   }
@@ -120,6 +122,8 @@ const getDefaultLabel = (type: NodeType): string => {
       return 'Input';
     case 'lookup':
       return 'Lookup';
+    case 'equation':
+      return 'Equation';
     case 'output':
       return 'Output';
   }

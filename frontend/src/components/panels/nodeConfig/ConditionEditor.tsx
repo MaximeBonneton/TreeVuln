@@ -1,6 +1,6 @@
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { NodeCondition, SimpleConditionCriteria, ConditionOperator } from '@/types';
-import { OPERATORS, ValueEditor } from './ValueEditor';
+import { OPERATORS, NUMERIC_OPERATORS, ValueEditor } from './ValueEditor';
 import { CriterionEditor } from './CriterionEditor';
 
 function isCompoundCondition(condition: NodeCondition): boolean {
@@ -35,6 +35,7 @@ export function ConditionEditor({
   onChange,
   onRemove,
   onMove,
+  numericOnly,
 }: {
   condition: NodeCondition;
   index: number;
@@ -42,6 +43,7 @@ export function ConditionEditor({
   onChange: (index: number, field: keyof NodeCondition, value: unknown) => void;
   onRemove: (index: number) => void;
   onMove: (index: number, direction: 'up' | 'down') => void;
+  numericOnly?: boolean;
 }) {
   const isCompound = isCompoundCondition(condition);
 
@@ -156,7 +158,7 @@ export function ConditionEditor({
             }
             className="flex-1 px-2 py-1 text-sm border rounded"
           >
-            {OPERATORS.map((op) => (
+            {(numericOnly ? NUMERIC_OPERATORS : OPERATORS).map((op) => (
               <option key={op.value} value={op.value}>
                 {op.label}
               </option>
@@ -167,6 +169,7 @@ export function ConditionEditor({
             <ValueEditor
               value={condition.value}
               onChange={(val) => onChange(index, 'value', val)}
+              numericOnly={numericOnly}
             />
           )}
         </div>
@@ -198,6 +201,7 @@ export function ConditionEditor({
                 canRemove={(condition.criteria || []).length > 1}
                 onChange={(field, value) => updateCriterion(criterionIndex, field, value)}
                 onRemove={() => removeCriterion(criterionIndex)}
+                numericOnly={numericOnly}
               />
             ))}
           </div>

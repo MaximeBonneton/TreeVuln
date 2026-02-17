@@ -11,6 +11,7 @@ class NodeType(str, Enum):
     INPUT = "input"  # Nœud d'entrée (lecture d'un champ + conditions de sortie)
     LOOKUP = "lookup"  # Nœud lookup (recherche dans une table externe)
     OUTPUT = "output"  # Nœud de sortie (décision finale)
+    EQUATION = "equation"  # Nœud équation (calcul multi-champs avec formule)
 
 
 class ConditionOperator(str, Enum):

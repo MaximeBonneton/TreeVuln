@@ -6,23 +6,28 @@ Construisez graphiquement vos arbres de décision et utilisez-les pour traiter a
 
 ## Fonctionnalités
 
-- **Éditeur visuel** : Construisez vos arbres de décision par glisser-déposer
-- **Méthodologie SSVC** : Arbre par défaut implémentant les 4 critères SSVC
-- **Conditions composées** : Combinez plusieurs critères avec AND/OR sur les branches
-- **Nœuds multi-entrées** : Optimisez vos arbres en mutualisant les nœuds similaires
-- **Parsing CVSS** : Extrayez les métriques individuelles des vecteurs CVSS (v3.1 et v4.0)
-- **API REST** : Évaluez vos vulnérabilités en batch via API
-- **Audit trail** : Tracez le chemin de décision complet pour chaque évaluation
-- **Multi-arbres** : Gérez plusieurs arbres avec contextes isolés
-- **Référentiel d'assets** : Enrichissez vos décisions avec la criticité des assets
+- **Editeur visuel** : Construisez vos arbres de décision par glisser-deposer
+- **Methodologie SSVC** : Arbre par defaut implementant les 4 criteres SSVC
+- **4 types de noeuds** : Input, Lookup, Equation et Output
+- **Conditions composees** : Combinez plusieurs criteres avec AND/OR sur les branches
+- **Noeuds multi-entrees** : Optimisez vos arbres en mutualisant les noeuds similaires
+- **Noeud Equation** : Calculez des scores personnalises via formules mathematiques avec mapping texte vers nombre
+- **Parsing CVSS** : Extrayez les metriques individuelles des vecteurs CVSS (v3.1 et v4.0)
+- **Multi-arbres** : Gerez plusieurs arbres avec contextes isoles et API dediee par arbre
+- **Referentiel d'assets** : Enrichissez vos decisions avec la criticite des assets
+- **Import/Export** : Import bulk d'assets (CSV/JSON) et export des resultats d'evaluation
+- **Webhooks sortants** : Notifications vers ticketing/SIEM (HMAC-SHA256, retry, logs)
+- **Webhooks entrants** : Ingestion temps reel avec mapping de champs et cle API
+- **Audit trail** : Tracez le chemin de decision complet pour chaque evaluation
+- **Versioning** : Historique des modifications avec restauration
 
 ## Installation rapide
 
-### Prérequis
+### Prerequis
 
 - Docker et Docker Compose
 
-### Démarrage
+### Demarrage
 
 ```bash
 # Cloner le repository
@@ -32,11 +37,11 @@ cd TreeVuln
 # Lancer l'application
 docker compose up -d
 
-# Vérifier que tout fonctionne
+# Verifier que tout fonctionne
 docker compose ps
 ```
 
-### Accès
+### Acces
 
 | Service | URL |
 |---------|-----|
@@ -51,102 +56,150 @@ docker compose ps
 L'interface se compose de 3 zones :
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Toolbar (Sauvegarder, Annuler, Historique, Test)          │
-├──────────┬─────────────────────────────────┬───────────────┤
-│          │                                 │               │
-│ Sidebar  │      Zone de travail            │    Panel de   │
-│ (Arbres) │      (React Flow)               │ configuration │
-│          │                                 │               │
-└──────────┴─────────────────────────────────┴───────────────┘
++-------------------------------------------------------------+
+|  Toolbar (Sauvegarder, Annuler, Historique, Test)            |
++----------+---------------------------------+-----------------+
+|          |                                 |                 |
+| Sidebar  |      Zone de travail            |    Panel de     |
+| (Arbres) |      (React Flow)               | configuration   |
+|          |                                 |                 |
++----------+---------------------------------+-----------------+
 ```
 
-### 2. Créer un arbre de décision
+### 2. Creer un arbre de decision
 
-#### Types de nœuds disponibles
+#### Types de noeuds disponibles
 
 | Type | Description | Utilisation |
 |------|-------------|-------------|
-| **Input** | Lit un champ de la vulnérabilité | CVSS, EPSS, KEV, etc. |
-| **Lookup** | Recherche dans une table externe | Criticité d'un asset |
-| **Output** | Décision finale | Act, Attend, Track*, Track |
+| **Input** | Lit un champ de la vulnerabilite | CVSS, EPSS, KEV, etc. |
+| **Lookup** | Recherche dans une table externe | Criticite d'un asset |
+| **Equation** | Calcule un score via formule | Score de risque composite |
+| **Output** | Decision finale | Act, Attend, Track*, Track |
 
-#### Ajouter un nœud
+#### Ajouter un noeud
 
-1. Cliquez sur un type de nœud dans la barre d'outils
-2. Le nœud apparaît dans la zone de travail
-3. Glissez-le à la position souhaitée
+1. Cliquez sur un type de noeud dans la palette
+2. Le noeud apparait dans la zone de travail
+3. Glissez-le a la position souhaitee
 
-#### Configurer un nœud
+#### Configurer un noeud
 
-1. Cliquez sur un nœud pour ouvrir le panneau de configuration
-2. Définissez le champ à évaluer (pour Input/Lookup)
-3. Ajoutez des conditions de sortie avec leurs opérateurs
+1. Cliquez sur un noeud pour ouvrir le panneau de configuration
+2. Definissez le champ a evaluer (pour Input/Lookup) ou la formule (pour Equation)
+3. Ajoutez des conditions de sortie avec leurs operateurs
 
-#### Connecter les nœuds
+#### Connecter les noeuds
 
-1. Cliquez sur un handle de sortie (rond à droite du nœud)
-2. Glissez vers le nœud cible
-3. Relâchez sur le handle d'entrée (rond à gauche)
+1. Cliquez sur un handle de sortie (rond a droite du noeud)
+2. Glissez vers le noeud cible
+3. Relachez sur le handle d'entree (rond a gauche)
 
 ### 3. Conditions de sortie
 
-Chaque nœud (sauf Output) définit des conditions qui déterminent la branche à suivre.
+Chaque noeud (sauf Output) definit des conditions qui determinent la branche a suivre.
 
-#### Opérateurs disponibles
+#### Operateurs disponibles
 
-| Opérateur | Description | Exemple |
+| Operateur | Description | Exemple |
 |-----------|-------------|---------|
-| `=` | Égal | `kev = true` |
-| `≠` | Différent | `status ≠ "closed"` |
-| `>` | Supérieur | `cvss_score > 7` |
-| `>=` | Supérieur ou égal | `epss_score >= 0.2` |
-| `<` | Inférieur | `cvss_score < 4` |
-| `<=` | Inférieur ou égal | `epss_score <= 0.1` |
+| `=` | Egal | `kev = true` |
+| `!=` | Different | `status != "closed"` |
+| `>` | Superieur | `cvss_score > 7` |
+| `>=` | Superieur ou egal | `epss_score >= 0.2` |
+| `<` | Inferieur | `cvss_score < 4` |
+| `<=` | Inferieur ou egal | `epss_score <= 0.1` |
 | `in` | Dans une liste | `criticality in ["High", "Critical"]` |
 | `contains` | Contient | `description contains "RCE"` |
 | `is_null` | Est null/vide | `kev is_null` |
-| `regex` | Expression régulière | `cve_id regex "CVE-2024-.*"` |
+| `regex` | Expression reguliere | `cve_id regex "CVE-2024-.*"` |
 
 #### Types de valeurs
 
-L'éditeur de conditions supporte 3 types de valeurs :
+L'editeur de conditions supporte 3 types de valeurs :
 - **Texte** : `"High"`, `"CVE-2024-1234"`
 - **Nombre** : `9.0`, `0.2`
-- **Booléen** : `true`, `false`
+- **Booleen** : `true`, `false`
 
-#### Conditions composées (AND/OR)
+#### Conditions composees (AND/OR)
 
-Pour des règles plus complexes, basculez en **mode Composé** pour combiner plusieurs critères :
+Pour des regles plus complexes, basculez en **mode Compose** pour combiner plusieurs criteres :
 
-1. Cliquez sur le bouton **Composé** dans l'éditeur de condition
+1. Cliquez sur le bouton **Compose** dans l'editeur de condition
 2. Choisissez la logique : **AND** (toutes vraies) ou **OR** (au moins une vraie)
-3. Ajoutez vos critères avec le bouton **+ Ajouter critère**
+3. Ajoutez vos criteres avec le bouton **+ Ajouter critere**
 
-Chaque critère peut évaluer un champ différent :
+Chaque critere peut evaluer un champ different :
 
 ```
-┌─ Branche "Critical Network Risk" ──────────────┐
-│ Logique: AND                                   │
-│                                                │
-│ ┌─ Critère 1 ─────────────────────────────┐   │
-│ │ Champ: cvss_av  │  =  │  Network        │   │
-│ └─────────────────────────────────────────┘   │
-│ ┌─ Critère 2 ─────────────────────────────┐   │
-│ │ Champ: cvss_ac  │  =  │  Low            │   │
-│ └─────────────────────────────────────────┘   │
-└────────────────────────────────────────────────┘
++-- Branche "Critical Network Risk" ----------------+
+| Logique: AND                                       |
+|                                                    |
+| +-- Critere 1 ---------------------------------+  |
+| | Champ: cvss_av  |  =  |  Network             |  |
+| +-----------------------------------------------+  |
+| +-- Critere 2 ---------------------------------+  |
+| | Champ: cvss_ac  |  =  |  Low                 |  |
+| +-----------------------------------------------+  |
++----------------------------------------------------+
 ```
 
 Cette branche ne sera suivie que si `cvss_av = "Network"` **ET** `cvss_ac = "Low"`.
 
-### 4. Métriques CVSS
+### 4. Noeud Equation
 
-TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les métriques individuelles.
+Le noeud Equation permet de calculer un score numerique a partir d'une formule combinant plusieurs champs.
+
+#### Configuration
+
+1. Saisissez une **formule** dans le champ dedie (ex: `cvss_score * 0.4 + epss_score * 100 * 0.3`)
+2. Les **variables** sont detectees automatiquement depuis la formule
+3. Cliquez sur les champs disponibles pour les inserer dans la formule
+4. Definissez un **label de sortie** (ex: "Risk Score")
+5. Ajoutez des **conditions de seuil** pour router vers les noeuds suivants
+
+#### Syntaxe des formules
+
+| Element | Exemples |
+|---------|----------|
+| Operateurs | `+ - * / ** %` |
+| Fonctions | `min() max() abs() round()` |
+| Ternaire | `condition ? val_true : val_false` |
+| Comparaisons | `< > <= >= == !=` |
+| Logique | `and or not` |
+
+Exemples :
+```
+cvss_score * 0.4 + epss_score * 100 * 0.3
+max(cvss_score, epss_score * 10)
+kev ? 30 : 0
+```
+
+#### Mapping de valeurs (texte vers nombre)
+
+Les champs textuels comme `asset_criticality` ne peuvent pas etre utilises directement dans une formule. Le **mapping de valeurs** permet de leur associer une valeur numerique.
+
+Dans la section "Mapping de valeurs" du noeud Equation :
+1. Depliez la variable textuelle (ex: `asset_criticality`)
+2. Ajoutez les correspondances :
+
+| Texte | Valeur |
+|-------|--------|
+| Low | 1 |
+| Medium | 2 |
+| High | 3 |
+| Critical | 4 |
+| **Defaut** | **0** |
+
+Lors de l'evaluation, `asset_criticality = "High"` sera automatiquement remplace par `3` avant le calcul de la formule. Si la valeur n'est pas trouvee dans la table, la valeur par defaut est utilisee.
+
+### 5. Metriques CVSS
+
+TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les metriques individuelles.
 
 #### Utilisation
 
-1. Incluez le champ `cvss_vector` dans vos données de vulnérabilité :
+1. Incluez le champ `cvss_vector` dans vos donnees de vulnerabilite :
 ```json
 {
   "cve_id": "CVE-2024-1234",
@@ -154,7 +207,7 @@ TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les métriqu
 }
 ```
 
-2. Dans un nœud Input, sélectionnez une métrique CVSS (groupée sous "Métriques CVSS") :
+2. Dans un noeud Input, selectionnez une metrique CVSS (groupee sous "Metriques CVSS") :
 
 | Champ | Description | Valeurs possibles |
 |-------|-------------|-------------------|
@@ -167,27 +220,27 @@ TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les métriqu
 | `cvss_i` | Integrity Impact | None, Low, High |
 | `cvss_a` | Availability Impact | None, Low, High |
 
-CVSS 4.0 ajoute des métriques supplémentaires (`cvss_at`, `cvss_vc`, `cvss_vi`, `cvss_va`, `cvss_sc`, `cvss_si`, `cvss_sa`).
+CVSS 4.0 ajoute des metriques supplementaires (`cvss_at`, `cvss_vc`, `cvss_vi`, `cvss_va`, `cvss_sc`, `cvss_si`, `cvss_sa`).
 
-### 5. Nœuds multi-entrées
+### 6. Noeuds multi-entrees
 
-Les nœuds peuvent avoir plusieurs entrées pour mutualiser la logique de décision.
+Les noeuds peuvent avoir plusieurs entrees pour mutualiser la logique de decision.
 
 #### Configuration
 
-Dans le panneau de configuration d'un nœud Input ou Lookup, définissez le nombre d'entrées souhaité. Chaque entrée :
-- Reçoit une connexion indépendante depuis un nœud précédent
-- Évalue les mêmes conditions
-- Produit ses propres sorties vers les nœuds suivants
+Dans le panneau de configuration d'un noeud Input ou Lookup, definissez le nombre d'entrees souhaite. Chaque entree :
+- Recoit une connexion independante depuis un noeud precedent
+- Evalue les memes conditions
+- Produit ses propres sorties vers les noeuds suivants
 
 #### Avantage
 
-Un arbre SSVC classique nécessite ~26 nœuds. Avec les nœuds multi-entrées, le même arbre n'en requiert que 8, tout en conservant la même logique de décision.
+Un arbre SSVC classique necessite ~26 noeuds. Avec les noeuds multi-entrees, le meme arbre n'en requiert que 8, tout en conservant la meme logique de decision.
 
-### 6. Tester l'arbre
+### 7. Tester l'arbre
 
 1. Cliquez sur **Test** dans la toolbar
-2. Saisissez un JSON de vulnérabilité :
+2. Saisissez un JSON de vulnerabilite :
 
 ```json
 {
@@ -199,42 +252,105 @@ Un arbre SSVC classique nécessite ~26 nœuds. Avec les nœuds multi-entrées, l
 }
 ```
 
-3. Cliquez sur **Évaluer**
-4. Le chemin de décision s'affiche avec la décision finale
+3. Cliquez sur **Evaluer**
+4. Le chemin de decision s'affiche avec la decision finale
 
-### 7. Gérer les assets
+### 8. Gerer les assets
 
-Le référentiel d'assets permet d'enrichir les décisions avec des données contextuelles.
+Le referentiel d'assets permet d'enrichir les decisions avec des donnees contextuelles.
 
 1. Cliquez sur l'onglet **Assets** dans la sidebar
-2. Ajoutez vos assets avec leur criticité (Low, Medium, High, Critical)
-3. Utilisez un nœud **Lookup** pour récupérer la criticité via `asset_id`
+2. Ajoutez vos assets avec leur criticite (Low, Medium, High, Critical)
+3. Utilisez un noeud **Lookup** pour recuperer la criticite via `asset_id`
 
-## Arbre SSVC par défaut
+#### Import bulk
 
-L'application inclut un arbre SSVC complet évaluant 4 critères :
+Importez vos assets depuis un fichier CSV ou JSON :
 
-### Critères d'évaluation
+1. Cliquez sur **Importer** dans l'onglet Assets
+2. Selectionnez votre fichier
+3. Previewez et mappez les colonnes
+4. Validez l'import
 
-| Critère | Champ | Valeurs |
+### 9. Export des resultats
+
+Apres une evaluation batch, exportez les resultats avec l'audit trail complet :
+
+```bash
+# Evaluer et exporter en CSV
+curl -X POST 'http://localhost:8000/api/v1/evaluate/export' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "vulnerabilities": [...],
+    "format": "csv"
+  }' -o results.csv
+
+# Evaluer un CSV et exporter
+curl -X POST 'http://localhost:8000/api/v1/evaluate/export/csv' \
+  -F 'file=@vulns.csv' \
+  -F 'format=json' -o results.json
+```
+
+### 10. Webhooks sortants
+
+Envoyez automatiquement les resultats d'evaluation vers vos outils (ticketing, SIEM, etc.).
+
+#### Configuration
+
+1. Ouvrez les parametres d'un arbre
+2. Ajoutez un webhook avec l'URL cible
+3. Configurez les options : evenements, secret HMAC-SHA256, retry
+
+#### Securite
+
+Les webhooks sont signes avec HMAC-SHA256. Le header `X-Webhook-Signature` permet au destinataire de verifier l'authenticite du payload.
+
+### 11. Webhooks entrants (ingestion)
+
+Recevez des vulnerabilites en temps reel depuis des sources externes.
+
+#### Configuration
+
+1. Creez un endpoint d'ingestion pour un arbre
+2. Configurez le mapping des champs (adaptation du format source)
+3. Une cle API est generee automatiquement
+
+#### Utilisation
+
+```bash
+curl -X POST 'http://localhost:8000/api/v1/ingest/mon-endpoint' \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: <cle-api>' \
+  -d '{"cve": "CVE-2024-1234", "score": 9.8, ...}'
+```
+
+Les vulnerabilites sont evaluees automatiquement par l'arbre associe.
+
+## Arbre SSVC par defaut
+
+L'application inclut un arbre SSVC complet evaluant 4 criteres :
+
+### Criteres d'evaluation
+
+| Critere | Champ | Valeurs |
 |---------|-------|---------|
-| **Exploitation** | `kev` | null → None, false → PoC, true → Active |
-| **Automatable** | `epss_score` | < 0.2 → No, >= 0.2 → Yes |
-| **Technical Impact** | `cvss_score` | < 9 → Partial, >= 9 → Total |
+| **Exploitation** | `kev` | null -> None, false -> PoC, true -> Active |
+| **Automatable** | `epss_score` | < 0.2 -> No, >= 0.2 -> Yes |
+| **Technical Impact** | `cvss_score` | < 9 -> Partial, >= 9 -> Total |
 | **Mission & Well-being** | `asset_criticality` | Low, Medium, High, Critical |
 
-### Décisions possibles
+### Decisions possibles
 
-| Décision | Couleur | Signification |
+| Decision | Couleur | Signification |
 |----------|---------|---------------|
-| **Act** | Rouge | Action immédiate requise |
+| **Act** | Rouge | Action immediate requise |
 | **Attend** | Orange | Surveillance active, planifier correction |
-| **Track*** | Jaune | Suivre de près |
+| **Track*** | Jaune | Suivre de pres |
 | **Track** | Vert | Suivre dans le flux normal |
 
 ## Utilisation de l'API
 
-### Évaluer une vulnérabilité
+### Evaluer une vulnerabilite
 
 ```bash
 curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
@@ -250,7 +366,7 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
   }'
 ```
 
-**Réponse :**
+**Reponse :**
 
 ```json
 {
@@ -264,13 +380,12 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
       "field_evaluated": "kev",
       "value_found": true,
       "condition_matched": "Active"
-    },
-    ...
+    }
   ]
 }
 ```
 
-### Évaluer un batch
+### Evaluer un batch
 
 ```bash
 curl -X POST 'http://localhost:8000/api/v1/evaluate' \
@@ -283,7 +398,7 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate' \
   }'
 ```
 
-### Évaluer un fichier CSV
+### Evaluer un fichier CSV
 
 ```bash
 curl -X POST 'http://localhost:8000/api/v1/evaluate/csv' \
@@ -299,23 +414,77 @@ CVE-2024-002,false,0.1,5.0,Low
 
 ### Endpoints principaux
 
-| Méthode | Endpoint | Description |
+#### Gestion des arbres
+
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/api/v1/trees` | Liste tous les arbres |
-| GET | `/api/v1/tree` | Récupère l'arbre par défaut |
+| GET | `/api/v1/tree` | Recupere l'arbre par defaut |
 | POST | `/api/v1/tree` | Sauvegarde l'arbre |
-| POST | `/api/v1/evaluate/single` | Évalue 1 vulnérabilité |
-| POST | `/api/v1/evaluate` | Évalue un batch JSON |
-| POST | `/api/v1/evaluate/csv` | Évalue un fichier CSV |
-| GET | `/api/v1/assets` | Liste les assets |
-| GET | `/api/v1/mapping` | Field mapping de l'arbre |
-| GET | `/api/v1/mapping/cvss-fields` | Définitions des champs CVSS |
+| GET | `/api/v1/tree/{id}/versions` | Historique des versions |
+| POST | `/api/v1/tree/{id}/restore/{version_id}` | Restaurer une version |
+| POST | `/api/v1/tree/{id}/duplicate` | Dupliquer un arbre |
+| PUT | `/api/v1/tree/{id}/api-config` | Configurer l'API dediee |
+| PUT | `/api/v1/tree/{id}/set-default` | Definir comme arbre par defaut |
 
-## Configuration avancée
+#### Evaluation
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/v1/evaluate/single` | Evaluer 1 vulnerabilite |
+| POST | `/api/v1/evaluate` | Evaluer un batch JSON |
+| POST | `/api/v1/evaluate/csv` | Evaluer un fichier CSV |
+| POST | `/api/v1/evaluate/export` | Evaluer batch et exporter CSV/JSON |
+| POST | `/api/v1/evaluate/export/csv` | Evaluer CSV et exporter CSV/JSON |
+| POST | `/api/v1/evaluate/tree/{slug}` | Evaluer via API dediee d'un arbre |
+| POST | `/api/v1/evaluate/tree/{slug}/batch` | Evaluer batch via API dediee |
+
+#### Assets
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/v1/assets?tree_id=X` | Lister les assets d'un arbre |
+| POST | `/api/v1/assets` | Creer un asset |
+| POST | `/api/v1/assets/import` | Import bulk depuis CSV/JSON |
+| POST | `/api/v1/assets/import/preview` | Preview colonnes d'un fichier |
+
+#### Webhooks sortants
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/v1/tree/{tree_id}/webhooks` | Lister les webhooks d'un arbre |
+| POST | `/api/v1/tree/{tree_id}/webhooks` | Creer un webhook |
+| PUT | `/api/v1/webhooks/{id}` | Modifier un webhook |
+| DELETE | `/api/v1/webhooks/{id}` | Supprimer un webhook |
+| POST | `/api/v1/webhooks/{id}/test` | Tester un webhook |
+| GET | `/api/v1/webhooks/{id}/logs` | Historique des envois |
+
+#### Webhooks entrants (ingestion)
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/v1/ingest/{slug}` | Recevoir et evaluer (auth X-API-Key) |
+| GET | `/api/v1/tree/{tree_id}/ingest-endpoints` | Lister les endpoints |
+| POST | `/api/v1/tree/{tree_id}/ingest-endpoints` | Creer un endpoint |
+| PUT | `/api/v1/ingest-endpoints/{id}` | Modifier un endpoint |
+| DELETE | `/api/v1/ingest-endpoints/{id}` | Supprimer un endpoint |
+| POST | `/api/v1/ingest-endpoints/{id}/regenerate-key` | Regenerer cle API |
+| GET | `/api/v1/ingest-endpoints/{id}/logs` | Historique des receptions |
+
+#### Field mapping
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/v1/mapping` | Field mapping de l'arbre |
+| PUT | `/api/v1/mapping` | Mettre a jour le mapping |
+| POST | `/api/v1/mapping/scan` | Scanner un fichier pour detecter les champs |
+| GET | `/api/v1/mapping/cvss-fields` | Definitions des champs CVSS |
+
+## Configuration avancee
 
 ### Variables d'environnement
 
-| Variable | Défaut | Description |
+| Variable | Defaut | Description |
 |----------|--------|-------------|
 | `DATABASE_URL` | (voir docker-compose) | URL PostgreSQL |
 | `BACKEND_PORT` | 8000 | Port du backend |
@@ -324,16 +493,17 @@ CVE-2024-002,false,0.1,5.0,Low
 ### Multi-arbres
 
 Chaque arbre peut avoir :
-- Son propre référentiel d'assets (contexte isolé)
-- Une API dédiée via un slug personnalisé
+- Son propre referentiel d'assets (contexte isole)
+- Une API dediee via un slug personnalise
+- Ses propres webhooks sortants et endpoints d'ingestion
 
 ```bash
-# Activer l'API dédiée pour un arbre
+# Activer l'API dediee pour un arbre
 curl -X PUT 'http://localhost:8000/api/v1/tree/1/api-config' \
   -H 'Content-Type: application/json' \
   -d '{"api_enabled": true, "api_slug": "mon-arbre"}'
 
-# Évaluer via l'URL dédiée
+# Evaluer via l'URL dediee
 curl -X POST 'http://localhost:8000/api/v1/evaluate/tree/mon-arbre' \
   -H 'Content-Type: application/json' \
   -d '{"vulnerability": {...}}'
@@ -342,21 +512,37 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/tree/mon-arbre' \
 ## Commandes utiles
 
 ```bash
-# Démarrer
+# Demarrer
 docker compose up -d
 
-# Arrêter
+# Arreter
 docker compose down
 
 # Voir les logs
 docker compose logs -f backend
 
-# Réinitialiser la base de données
+# Reinitialiser la base de donnees
 docker compose down -v && docker compose up -d
 
-# Reconstruire après modification du code
+# Reconstruire apres modification du code
 docker compose up -d --build
 ```
+
+## Developpement local (sans Docker)
+
+```bash
+# Backend
+cd backend
+pip install -e .
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (dans un autre terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+Necessite une instance PostgreSQL locale avec les variables d'environnement configurees.
 
 ## Stack technique
 
@@ -364,17 +550,49 @@ docker compose up -d --build
 |-----------|-------------|
 | Frontend | React 18, TypeScript, React Flow, TailwindCSS, Zustand |
 | Backend | FastAPI, Pydantic v2, Polars, SQLAlchemy 2.0 async |
-| Base de données | PostgreSQL 15 |
-| Déploiement | Docker Compose |
+| Base de donnees | PostgreSQL 15 (JSONB pour arbres) |
+| Deploiement | Docker Compose |
+
+## Structure du projet
+
+```
+TreeVuln/
+├── docker-compose.yml
+├── scripts/
+│   └── init_db.sql
+├── backend/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── app/
+│       ├── main.py
+│       ├── config.py
+│       ├── database.py
+│       ├── models/
+│       ├── schemas/
+│       ├── engine/          # Moteur d'inference (nodes, formula, inference, batch)
+│       ├── services/
+│       └── api/routes/
+└── frontend/
+    ├── Dockerfile
+    ├── nginx.conf
+    ├── package.json
+    └── src/
+        ├── components/
+        │   ├── TreeBuilder/     # Interface drag & drop
+        │   └── panels/          # Panneaux de configuration
+        ├── stores/              # Etat Zustand
+        ├── api/                 # Clients API
+        └── types/               # Types TypeScript
+```
 
 ## Licence
 
 Ce projet est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
-Cela signifie que vous pouvez librement utiliser, modifier et distribuer ce logiciel, à condition de :
-- Conserver la même licence pour les œuvres dérivées
-- Rendre le code source disponible si vous déployez une version modifiée accessible via réseau
+Cela signifie que vous pouvez librement utiliser, modifier et distribuer ce logiciel, a condition de :
+- Conserver la meme licence pour les oeuvres derivees
+- Rendre le code source disponible si vous deployez une version modifiee accessible via reseau
 
 ## Support
 
-Pour signaler un bug ou demander une fonctionnalité, ouvrez une issue sur le repository.
+Pour signaler un bug ou demander une fonctionnalite, ouvrez une issue sur le repository.

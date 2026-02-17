@@ -1,6 +1,6 @@
 import { Trash2 } from 'lucide-react';
 import type { SimpleConditionCriteria, ConditionOperator } from '@/types';
-import { OPERATORS, ValueEditor } from './ValueEditor';
+import { OPERATORS, NUMERIC_OPERATORS, ValueEditor } from './ValueEditor';
 
 export function CriterionEditor({
   criterion,
@@ -8,12 +8,14 @@ export function CriterionEditor({
   canRemove,
   onChange,
   onRemove,
+  numericOnly,
 }: {
   criterion: SimpleConditionCriteria;
   index: number;
   canRemove: boolean;
   onChange: (field: keyof SimpleConditionCriteria, value: unknown) => void;
   onRemove: () => void;
+  numericOnly?: boolean;
 }) {
   return (
     <div className="p-2 bg-white border rounded space-y-2">
@@ -47,7 +49,7 @@ export function CriterionEditor({
           onChange={(e) => onChange('operator', e.target.value as ConditionOperator)}
           className="flex-1 px-2 py-1 text-xs border rounded"
         >
-          {OPERATORS.map((op) => (
+          {(numericOnly ? NUMERIC_OPERATORS : OPERATORS).map((op) => (
             <option key={op.value} value={op.value}>
               {op.label}
             </option>
@@ -58,6 +60,7 @@ export function CriterionEditor({
           <ValueEditor
             value={criterion.value}
             onChange={(val) => onChange('value', val)}
+            numericOnly={numericOnly}
           />
         )}
       </div>

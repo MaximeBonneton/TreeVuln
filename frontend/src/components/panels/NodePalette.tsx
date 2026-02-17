@@ -1,4 +1,4 @@
-import { Database, GitBranch, Flag } from 'lucide-react';
+import { Database, GitBranch, Flag, Calculator } from 'lucide-react';
 import type { NodeType } from '@/types';
 
 interface NodePaletteProps {
@@ -17,6 +17,12 @@ const nodeItems: { type: NodeType; label: string; icon: React.ElementType; descr
     label: 'Lookup',
     icon: GitBranch,
     description: 'Recherche dans une table externe',
+  },
+  {
+    type: 'equation',
+    label: 'Equation',
+    icon: Calculator,
+    description: 'Calcul multi-champs avec formule',
   },
   {
     type: 'output',
@@ -50,6 +56,7 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
                 hover:border-solid hover:shadow-md transition-all
                 ${item.type === 'input' ? 'border-blue-300 hover:border-blue-500 hover:bg-blue-50' : ''}
                 ${item.type === 'lookup' ? 'border-purple-300 hover:border-purple-500 hover:bg-purple-50' : ''}
+                ${item.type === 'equation' ? 'border-amber-300 hover:border-amber-500 hover:bg-amber-50' : ''}
                 ${item.type === 'output' ? 'border-green-300 hover:border-green-500 hover:bg-green-50' : ''}
               `}
               draggable
@@ -69,6 +76,7 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
                   className={`
                     ${item.type === 'input' ? 'text-blue-500' : ''}
                     ${item.type === 'lookup' ? 'text-purple-500' : ''}
+                    ${item.type === 'equation' ? 'text-amber-500' : ''}
                     ${item.type === 'output' ? 'text-green-500' : ''}
                   `}
                 />

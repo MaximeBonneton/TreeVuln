@@ -9,12 +9,14 @@ import type {
   InputNodeConfig,
   LookupNodeConfig,
   OutputNodeConfig,
+  EquationNodeConfig,
 } from '@/types';
 import {
   ConditionEditor,
   InputConfig,
   LookupConfig,
   OutputConfig,
+  EquationConfig,
 } from './nodeConfig';
 
 interface NodeConfigPanelProps {
@@ -82,7 +84,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg w-80 max-h-[calc(100vh-100px)] overflow-y-auto">
+    <div className={`bg-white rounded-lg shadow-lg max-h-[calc(100vh-100px)] overflow-y-auto ${node.data.nodeType === 'equation' ? 'w-[480px]' : 'w-80'}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
         <div>
@@ -127,6 +129,14 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
           />
         )}
 
+        {node.data.nodeType === 'equation' && (
+          <EquationConfig
+            config={config as EquationNodeConfig}
+            onChange={setConfig}
+            fieldMapping={fieldMapping}
+          />
+        )}
+
         {node.data.nodeType === 'output' && (
           <OutputConfig
             config={config as OutputNodeConfig}
@@ -160,6 +170,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
                   onChange={updateCondition}
                   onRemove={removeCondition}
                   onMove={moveCondition}
+                  numericOnly={node.data.nodeType === 'equation'}
                 />
               ))}
 

@@ -16,6 +16,17 @@ export const OPERATORS: { value: ConditionOperator; label: string }[] = [
   { value: 'is_not_null', label: "n'est pas vide" },
 ];
 
+export const NUMERIC_OPERATORS: { value: ConditionOperator; label: string }[] = [
+  { value: 'eq', label: '=' },
+  { value: 'neq', label: '≠' },
+  { value: 'gt', label: '>' },
+  { value: 'gte', label: '≥' },
+  { value: 'lt', label: '<' },
+  { value: 'lte', label: '≤' },
+  { value: 'is_null', label: 'est vide' },
+  { value: 'is_not_null', label: "n'est pas vide" },
+];
+
 function getValueType(value: unknown): 'boolean' | 'number' | 'string' {
   if (typeof value === 'boolean') return 'boolean';
   if (typeof value === 'number') return 'number';
@@ -25,9 +36,11 @@ function getValueType(value: unknown): 'boolean' | 'number' | 'string' {
 export function ValueEditor({
   value,
   onChange,
+  numericOnly,
 }: {
   value: unknown;
   onChange: (val: unknown) => void;
+  numericOnly?: boolean;
 }) {
   const currentType = getValueType(value);
 
@@ -43,6 +56,22 @@ export function ValueEditor({
         onChange('');
     }
   };
+
+  if (numericOnly) {
+    const numValue = typeof value === 'number' ? value : (parseFloat(String(value)) || 0);
+    return (
+      <div className="flex-1">
+        <input
+          type="number"
+          step="any"
+          value={String(numValue)}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          placeholder="Valeur"
+          className="w-full px-2 py-1 text-sm border rounded"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex gap-1">

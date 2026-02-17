@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { Database, GitBranch, Flag } from 'lucide-react';
+import { Database, GitBranch, Flag, Calculator } from 'lucide-react';
 import type { TreeNodeData, InputNodeConfig, LookupNodeConfig } from '@/types';
 import { useTreeStore } from '@/stores/treeStore';
 import { getHandleColor } from '../edges';
@@ -23,6 +23,12 @@ const nodeStyles = {
     header: 'bg-purple-500',
     icon: GitBranch,
   },
+  equation: {
+    bg: 'bg-amber-50',
+    border: 'border-amber-400',
+    header: 'bg-amber-500',
+    icon: Calculator,
+  },
   output: {
     bg: 'bg-green-50',
     border: 'border-green-400',
@@ -33,7 +39,7 @@ const nodeStyles = {
 
 /** Get input_count from node config (defaults to 1) */
 function getInputCount(data: TreeNodeData): number {
-  if (data.nodeType === 'output') return 1;
+  if (data.nodeType === 'output' || data.nodeType === 'equation') return 1;
   const config = data.config as InputNodeConfig | LookupNodeConfig;
   return config.input_count ?? 1;
 }
@@ -224,6 +230,13 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
             <div>
               <span className="font-medium">Lookup:</span>{' '}
               {(data.config as { lookup_table: string }).lookup_table}
+            </div>
+          )}
+
+          {data.nodeType === 'equation' && 'formula' in data.config && (
+            <div className="font-mono text-[10px] text-amber-700 truncate max-w-[120px]" title={(data.config as { formula: string }).formula}>
+              {((data.config as { formula: string }).formula || '(non configuré)').slice(0, 30)}
+              {((data.config as { formula: string }).formula || '').length > 30 ? '...' : ''}
             </div>
           )}
 
