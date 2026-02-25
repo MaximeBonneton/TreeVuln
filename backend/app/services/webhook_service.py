@@ -43,12 +43,21 @@ class WebhookService:
         return result.scalar_one_or_none()
 
     async def create_webhook(self, tree_id: int, data: WebhookCreate) -> Webhook:
-        """Crée un nouveau webhook."""
+        """Crée un nouveau webhook (secret chiffré en BDD)."""
+        from app.config import settings
+        from app.crypto import encrypt_secret
+
+        stored_secret = None
+        if data.secret and settings.admin_api_key:
+            stored_secret = encrypt_secret(data.secret, settings.admin_api_key)
+        elif data.secret:
+            stored_secret = data.secret
+
         webhook = Webhook(
             tree_id=tree_id,
             name=data.name,
             url=data.url,
-            secret=data.secret,
+            secret=stored_secret,
             headers=data.headers,
             events=data.events,
             is_active=data.is_active,
@@ -70,7 +79,16 @@ class WebhookService:
             webhook.url = data.url
         if data.secret is not None:
             # Chaîne vide = supprimer le secret
-            webhook.secret = data.secret if data.secret else None
+            if data.secret:
+                from app.config import settings
+                from app.crypto import encrypt_secret
+
+                if settings.admin_api_key:
+                    webhook.secret = encrypt_secret(data.secret, settings.admin_api_key)
+                else:
+                    webhook.secret = data.secret
+            else:
+                webhook.secret = None
         if data.headers is not None:
             webhook.headers = data.headers
         if data.events is not None:
@@ -141,29 +159,54 @@ async def _send_webhook(
     event: str,
     payload: dict[str, Any],
 ) -> WebhookTestResult:
-    """Envoie une requête HTTP à un webhook."""
+    """Envoie une requête HTTP à un webhook avec protection SSRF par IP pinning."""
+    from urllib.parse import urlparse, urlunparse
+
+    from app.url_validation import resolve_and_validate_url
+
+    try:
+        url, resolved_ips = resolve_and_validate_url(webhook.url)
+    except ValueError as e:
+        return WebhookTestResult(
+            success=False,
+            error_message=f"URL bloquée (SSRF): {e}",
+        )
+
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
+    # Headers utilisateur d'abord, puis headers de sécurité (ne peuvent pas être surchargés)
     headers: dict[str, str] = {
+        **webhook.headers,
         "Content-Type": "application/json",
         "X-TreeVuln-Event": event,
-        **webhook.headers,
     }
 
     # Signature HMAC-SHA256 si un secret est configuré
     if webhook.secret:
+        from app.config import settings as _settings
+        from app.crypto import decrypt_secret
+
+        secret_plain = decrypt_secret(webhook.secret, _settings.admin_api_key) if _settings.admin_api_key else webhook.secret
         signature = hmac.new(
-            webhook.secret.encode("utf-8"),
+            secret_plain.encode("utf-8"),
             body.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
         headers["X-TreeVuln-Signature"] = f"sha256={signature}"
 
+    # IP pinning pour HTTP (prévient le DNS rebinding TOCTOU)
+    parsed = urlparse(url)
+    request_url = url
+    if parsed.scheme == "http" and resolved_ips:
+        port = parsed.port or 80
+        request_url = urlunparse(parsed._replace(netloc=f"{resolved_ips[0]}:{port}"))
+        headers["Host"] = parsed.hostname or ""
+
     start = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             response = await client.post(
-                webhook.url,
+                request_url,
                 content=body,
                 headers=headers,
             )

@@ -4,24 +4,31 @@ Reçoit des vulnérabilités depuis des sources externes, applique le mapping
 et évalue automatiquement si configuré.
 """
 
+import hmac
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Header, Request, status
 
 from app.api.deps import AssetServiceDep, IngestServiceDep, TreeServiceDep, WebhookServiceDep
+from app.config import settings
 from app.engine import InferenceEngine
 from app.schemas.ingest import (
     IngestEndpointCreate,
     IngestEndpointResponse,
     IngestEndpointUpdate,
+    IngestEndpointWithKeyResponse,
     IngestLogResponse,
     IngestResult,
 )
 
-router = APIRouter()
+# Route publique (authentifiée par X-API-Key)
+public_router = APIRouter()
+
+# Routes d'administration (protégées par RequireAdmin via api/__init__.py)
+admin_router = APIRouter()
 
 
-@router.post("/ingest/{slug}", response_model=IngestResult)
+@public_router.post("/ingest/{slug}", response_model=IngestResult)
 async def ingest_vulnerabilities(
     slug: str,
     payload: list[dict[str, Any]],
@@ -38,6 +45,13 @@ async def ingest_vulnerabilities(
     L'authentification se fait par header X-API-Key.
     Le payload est une liste de vulnérabilités au format JSON.
     """
+    # Limite la taille du payload pour prévenir l'épuisement mémoire
+    if len(payload) > settings.max_batch_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payload trop grand ({len(payload)} éléments). Maximum : {settings.max_batch_size}",
+        )
+
     endpoint = await ingest_service.get_endpoint_by_slug(slug)
     if not endpoint:
         raise HTTPException(
@@ -45,8 +59,8 @@ async def ingest_vulnerabilities(
             detail=f"Endpoint '{slug}' non trouvé ou désactivé",
         )
 
-    # Vérification de la clé API
-    if endpoint.api_key != x_api_key:
+    # Vérification de la clé API (constant-time pour éviter les timing attacks)
+    if not hmac.compare_digest(endpoint.api_key, x_api_key):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Clé API invalide",
@@ -79,6 +93,9 @@ async def ingest_vulnerabilities(
     # Déclenche les webhooks sortants si évaluation automatique
     if endpoint.auto_evaluate and result.evaluated > 0:
         import asyncio
+
+        from app.services.webhook_dispatch import dispatch_webhooks
+
         summary_payload = {
             "event": "on_ingest_complete",
             "source": slug,
@@ -87,27 +104,28 @@ async def ingest_vulnerabilities(
             "errors": result.errors,
         }
         asyncio.create_task(
-            webhook_service.fire_webhooks(endpoint.tree_id, "on_batch_complete", summary_payload)
+            dispatch_webhooks(endpoint.tree_id, "on_batch_complete", summary_payload)
         )
 
     return result
 
 
-# --- CRUD endpoints d'ingestion ---
+# --- CRUD endpoints d'ingestion (admin) ---
 
 
-@router.get("/tree/{tree_id}/ingest-endpoints", response_model=list[IngestEndpointResponse])
+@admin_router.get("/tree/{tree_id}/ingest-endpoints", response_model=list[IngestEndpointResponse])
 async def list_ingest_endpoints(
     tree_id: int,
     ingest_service: IngestServiceDep,
 ):
-    """Liste les endpoints d'ingestion d'un arbre."""
-    return await ingest_service.list_endpoints(tree_id)
+    """Liste les endpoints d'ingestion d'un arbre (clé API masquée)."""
+    endpoints = await ingest_service.list_endpoints(tree_id)
+    return [IngestEndpointResponse.from_endpoint(ep) for ep in endpoints]
 
 
-@router.post(
+@admin_router.post(
     "/tree/{tree_id}/ingest-endpoints",
-    response_model=IngestEndpointResponse,
+    response_model=IngestEndpointWithKeyResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_ingest_endpoint(
@@ -115,27 +133,27 @@ async def create_ingest_endpoint(
     data: IngestEndpointCreate,
     ingest_service: IngestServiceDep,
 ):
-    """Crée un nouveau endpoint d'ingestion."""
+    """Crée un nouveau endpoint d'ingestion. Retourne la clé API complète."""
     return await ingest_service.create_endpoint(tree_id, data)
 
 
-@router.put("/ingest-endpoints/{endpoint_id}", response_model=IngestEndpointResponse)
+@admin_router.put("/ingest-endpoints/{endpoint_id}", response_model=IngestEndpointResponse)
 async def update_ingest_endpoint(
     endpoint_id: int,
     data: IngestEndpointUpdate,
     ingest_service: IngestServiceDep,
 ):
-    """Met à jour un endpoint d'ingestion."""
+    """Met à jour un endpoint d'ingestion (clé API masquée)."""
     endpoint = await ingest_service.update_endpoint(endpoint_id, data)
     if not endpoint:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Endpoint non trouvé",
         )
-    return endpoint
+    return IngestEndpointResponse.from_endpoint(endpoint)
 
 
-@router.delete("/ingest-endpoints/{endpoint_id}", status_code=status.HTTP_204_NO_CONTENT)
+@admin_router.delete("/ingest-endpoints/{endpoint_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_ingest_endpoint(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
@@ -149,15 +167,15 @@ async def delete_ingest_endpoint(
         )
 
 
-@router.post(
+@admin_router.post(
     "/ingest-endpoints/{endpoint_id}/regenerate-key",
-    response_model=IngestEndpointResponse,
+    response_model=IngestEndpointWithKeyResponse,
 )
 async def regenerate_api_key(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
 ):
-    """Régénère la clé API d'un endpoint."""
+    """Régénère la clé API d'un endpoint. Retourne la clé API complète."""
     endpoint = await ingest_service.regenerate_key(endpoint_id)
     if not endpoint:
         raise HTTPException(
@@ -167,7 +185,7 @@ async def regenerate_api_key(
     return endpoint
 
 
-@router.get("/ingest-endpoints/{endpoint_id}/logs", response_model=list[IngestLogResponse])
+@admin_router.get("/ingest-endpoints/{endpoint_id}/logs", response_model=list[IngestLogResponse])
 async def get_ingest_logs(
     endpoint_id: int,
     ingest_service: IngestServiceDep,

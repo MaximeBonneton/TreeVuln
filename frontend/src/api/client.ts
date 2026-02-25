@@ -16,12 +16,15 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
   const config: RequestInit = {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
+    credentials: 'same-origin',
   };
 
   const response = await fetch(url, config);
@@ -57,5 +60,14 @@ export const api = {
   delete: <T>(endpoint: string) =>
     request<T>(endpoint, { method: 'DELETE' }),
 };
+
+/**
+ * Retourne les headers d'authentification pour les appels fetch directs
+ * (uploads de fichiers, exports blob, etc.).
+ * L'authentification est gérée par cookies HttpOnly (credentials: same-origin).
+ */
+export function getAuthHeaders(): Record<string, string> {
+  return {};
+}
 
 export { ApiError };

@@ -14,6 +14,7 @@ dependencies = [
     "alembic>=1.13.0",
     "python-multipart>=0.0.6",
     "httpx>=0.27.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]

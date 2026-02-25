@@ -10,7 +10,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import AssetServiceDep, TreeServiceDep
+from app.api.deps import AssetServiceDep, TreeServiceDep, read_upload_with_limit
 from app.config import settings
 from app.engine import BatchProcessor, InferenceEngine
 from app.engine.export import export_csv, export_json
@@ -196,7 +196,7 @@ async def evaluate_csv(
             detail="Le fichier doit être au format CSV",
         )
 
-    content = await file.read()
+    content = await read_upload_with_limit(file)
 
     tree = await tree_service.get_tree()
     if not tree:
@@ -333,7 +333,7 @@ async def export_csv_file(
             detail="Le fichier doit être au format CSV",
         )
 
-    content = await file.read()
+    content = await read_upload_with_limit(file)
 
     tree = await tree_service.get_tree()
     if not tree:

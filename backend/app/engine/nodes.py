@@ -2,6 +2,7 @@
 Définition des types de nœuds et de leur logique d'évaluation.
 """
 
+import concurrent.futures
 import re
 from abc import ABC, abstractmethod
 from typing import Any
@@ -19,6 +20,27 @@ class NodeEvaluationError(Exception):
     """Erreur lors de l'évaluation d'un nœud."""
 
     pass
+
+
+# Protection ReDoS : limite de longueur et timeout pour les regex utilisateur
+_REGEX_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+_MAX_REGEX_PATTERN_LENGTH = 200
+_REGEX_TIMEOUT_SECONDS = 1.0
+
+
+def _safe_regex_match(pattern: str, text: str) -> bool:
+    """Exécute un match regex avec limite de longueur et timeout (prévient les ReDoS)."""
+    if len(pattern) > _MAX_REGEX_PATTERN_LENGTH:
+        return False
+    try:
+        compiled = re.compile(pattern)
+    except re.error:
+        return False
+    future = _REGEX_EXECUTOR.submit(compiled.search, text)
+    try:
+        return bool(future.result(timeout=_REGEX_TIMEOUT_SECONDS))
+    except (concurrent.futures.TimeoutError, Exception):
+        return False
 
 
 class BaseNode(ABC):
@@ -141,7 +163,7 @@ class BaseNode(ABC):
         if op == ConditionOperator.NOT_CONTAINS:
             return str(cond_value) not in str(value)
         if op == ConditionOperator.REGEX:
-            return bool(re.search(str(cond_value), str(value)))
+            return _safe_regex_match(str(cond_value), str(value))
 
         # Opérateurs d'appartenance
         if op == ConditionOperator.IN:

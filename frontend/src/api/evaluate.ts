@@ -24,6 +24,7 @@ export const evaluateApi = {
       `/api/v1/evaluate/csv?include_path=${includePath}`,
       {
         method: 'POST',
+        credentials: 'same-origin',
         body: formData,
       }
     );
@@ -45,6 +46,7 @@ export const evaluateApi = {
       `/api/v1/evaluate/export/csv?format=${format}`,
       {
         method: 'POST',
+        credentials: 'same-origin',
         body: formData,
       }
     );
@@ -64,6 +66,7 @@ export const evaluateApi = {
     const response = await fetch('/api/v1/evaluate/export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(data),
     });
 

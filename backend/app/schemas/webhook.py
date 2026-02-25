@@ -1,9 +1,31 @@
+import re
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.url_validation import validate_webhook_url
+
 VALID_EVENTS = {"on_act", "on_attend", "on_track_star", "on_track", "on_batch_complete", "*"}
+
+# Headers interdits : ne peuvent pas être surchargés par les headers custom utilisateur
+_FORBIDDEN_HEADERS = {
+    "host", "content-length", "transfer-encoding",
+    "content-type", "x-treevuln-event", "x-treevuln-signature",
+}
+_HEADER_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-]*$")
+
+
+def _validate_webhook_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Valide les headers custom d'un webhook (protection CRLF injection + header override)."""
+    for name, value in headers.items():
+        if name.lower() in _FORBIDDEN_HEADERS:
+            raise ValueError(f"Le header '{name}' ne peut pas être surchargé")
+        if not _HEADER_NAME_RE.match(name):
+            raise ValueError(f"Le nom de header '{name}' contient des caractères invalides")
+        if "\r" in value or "\n" in value or "\r" in name or "\n" in name:
+            raise ValueError(f"Le header '{name}' contient des caractères CRLF interdits")
+    return headers
 
 
 class WebhookCreate(BaseModel):
@@ -21,9 +43,7 @@ class WebhookCreate(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        if not v.startswith(("http://", "https://")):
-            raise ValueError("L'URL doit commencer par http:// ou https://")
-        return v
+        return validate_webhook_url(v)
 
     @field_validator("events")
     @classmethod
@@ -34,6 +54,11 @@ class WebhookCreate(BaseModel):
         if invalid:
             raise ValueError(f"Événements invalides : {invalid}. Valides : {VALID_EVENTS}")
         return v
+
+    @field_validator("headers")
+    @classmethod
+    def validate_headers(cls, v: dict[str, str]) -> dict[str, str]:
+        return _validate_webhook_headers(v)
 
 
 class WebhookUpdate(BaseModel):
@@ -49,8 +74,8 @@ class WebhookUpdate(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str | None) -> str | None:
-        if v is not None and not v.startswith(("http://", "https://")):
-            raise ValueError("L'URL doit commencer par http:// ou https://")
+        if v is not None:
+            return validate_webhook_url(v)
         return v
 
     @field_validator("events")
@@ -60,6 +85,13 @@ class WebhookUpdate(BaseModel):
             invalid = set(v) - VALID_EVENTS
             if invalid:
                 raise ValueError(f"Événements invalides : {invalid}. Valides : {VALID_EVENTS}")
+        return v
+
+    @field_validator("headers")
+    @classmethod
+    def validate_headers(cls, v: dict[str, str] | None) -> dict[str, str] | None:
+        if v is not None:
+            return _validate_webhook_headers(v)
         return v
 
 

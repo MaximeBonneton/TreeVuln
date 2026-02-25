@@ -35,6 +35,7 @@ export const fieldMappingApi = {
 
     const response = await fetch(`${API_BASE}/tree/${treeId}/mapping/import`, {
       method: 'POST',
+      credentials: 'same-origin',
       body: formData,
     });
 
@@ -61,6 +62,7 @@ export const fieldMappingApi = {
 
     const response = await fetch(`${API_BASE}/mapping/scan`, {
       method: 'POST',
+      credentials: 'same-origin',
       body: formData,
     });
 

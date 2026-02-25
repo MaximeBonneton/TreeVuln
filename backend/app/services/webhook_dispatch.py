@@ -103,28 +103,55 @@ async def _send_single(
     event: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    """Envoie une requête HTTP à un webhook."""
+    """Envoie une requête HTTP à un webhook avec protection SSRF par IP pinning."""
+    from urllib.parse import urlparse, urlunparse
+
+    from app.url_validation import resolve_and_validate_url
+
+    try:
+        url, resolved_ips = resolve_and_validate_url(webhook.url)
+    except ValueError as e:
+        return {
+            "success": False,
+            "error_message": f"URL bloquée (SSRF): {e}",
+        }
+
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
+    # Headers utilisateur d'abord, puis headers de sécurité (ne peuvent pas être surchargés)
     headers: dict[str, str] = {
+        **webhook.headers,
         "Content-Type": "application/json",
         "X-TreeVuln-Event": event,
-        **webhook.headers,
     }
 
-    # Signature HMAC-SHA256
+    # Signature HMAC-SHA256 (déchiffre le secret stocké en BDD)
     if webhook.secret:
+        from app.config import settings as _settings
+        from app.crypto import decrypt_secret
+
+        secret_plain = decrypt_secret(webhook.secret, _settings.admin_api_key) if _settings.admin_api_key else webhook.secret
         signature = hmac.new(
-            webhook.secret.encode("utf-8"),
+            secret_plain.encode("utf-8"),
             body.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
         headers["X-TreeVuln-Signature"] = f"sha256={signature}"
 
+    # IP pinning pour HTTP : connecte à l'IP résolue et validée (prévient le DNS rebinding)
+    # HTTPS est protégé nativement : la vérification du certificat TLS empêche
+    # la connexion à une IP privée rebindée (le cert ne matchera pas le hostname)
+    parsed = urlparse(url)
+    request_url = url
+    if parsed.scheme == "http" and resolved_ips:
+        port = parsed.port or 80
+        request_url = urlunparse(parsed._replace(netloc=f"{resolved_ips[0]}:{port}"))
+        headers["Host"] = parsed.hostname or ""
+
     start = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(webhook.url, content=body, headers=headers)
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+            response = await client.post(request_url, content=body, headers=headers)
 
         duration_ms = int((time.monotonic() - start) * 1000)
         success = 200 <= response.status_code < 300

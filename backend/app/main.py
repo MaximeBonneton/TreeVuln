@@ -2,6 +2,7 @@
 Point d'entrée principal de l'API TreeVuln.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -13,11 +14,25 @@ from app.config import settings
 from app.database import engine
 from app.models import Asset, IngestEndpoint, IngestLog, Tree, TreeVersion, Webhook, WebhookLog  # noqa: F401
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application."""
     # Startup
+    if not settings.admin_api_key:
+        if settings.debug:
+            logger.warning(
+                "ADMIN_API_KEY non configurée — les endpoints de gestion sont "
+                "accessibles sans authentification (mode debug)."
+            )
+        else:
+            raise RuntimeError(
+                "ADMIN_API_KEY doit être configurée en production. "
+                'Générer avec : python -c "import secrets; print(secrets.token_urlsafe(32))"\n'
+                "Définir DEBUG=true pour désactiver ce contrôle en développement."
+            )
     # Note: En production, utiliser Alembic pour les migrations
     from app.database import Base
     async with engine.begin() as conn:

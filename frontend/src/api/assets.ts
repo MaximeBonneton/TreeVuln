@@ -7,6 +7,7 @@ export const assetsApi = {
 
     const response = await fetch('/api/v1/assets/import/preview', {
       method: 'POST',
+      credentials: 'same-origin',
       body: formData,
     });
 
@@ -34,6 +35,7 @@ export const assetsApi = {
 
     const response = await fetch(`/api/v1/assets/import?${params.toString()}`, {
       method: 'POST',
+      credentials: 'same-origin',
       body: formData,
     });
 
