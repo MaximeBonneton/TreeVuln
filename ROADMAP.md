@@ -26,18 +26,18 @@
 
 ## Failles moyennes (à planifier)
 
-| # | Description | Fichier(s) |
-|---|-------------|------------|
-| M-1 | Clés API d'ingestion en clair en BDD | `models/ingest.py:26` — appliquer le même pattern `crypto.py` |
-| M-2 | Tâches webhook async non bornées (risque OOM) | `evaluate.py` — ajouter un `asyncio.Semaphore` |
-| M-3 | Pagination sans limite haute (`limit=999999999`) | Routes assets/webhooks/logs — plafonner à 1000 |
-| M-4 | Filename non sanitisé dans les imports | Routes assets/evaluate — valider l'extension et le nom |
-| M-5 | `eval()` dans le moteur de formule | `engine/nodes.py` — bien protégé par AST, mais envisager `simpleeval` |
-| M-6 | Race conditions store Zustand (pas d'AbortController) | `treeStore.ts` — annuler les requêtes en cours au changement d'arbre |
-| M-7 | Builds Docker non reproductibles | Ajouter `package-lock.json`, utiliser `npm ci`, pinner les images |
-| M-8 | Pas de limites ressources conteneurs | `docker-compose.yml` — ajouter `mem_limit`, `cpus` |
-| M-9 | Conteneur frontend en root | Dockerfile frontend — le `nginx-user` est créé mais la directive `USER` manque (nginx a besoin de root pour le port 443, à résoudre avec `setcap` ou port > 1024) |
-| M-10 | Single worker uvicorn | Ajouter gunicorn avec 2-4 workers ou `--workers` |
+| # | Description | Fichier(s) | Statut |
+|---|-------------|------------|--------|
+| M-1 | Clés API d'ingestion en clair en BDD | `crypto.py` + `ingest_service.py` + `ingest.py` + schemas | **Done** |
+| M-2 | Tâches webhook async non bornées (risque OOM) | `webhook_dispatch.py` + `evaluate.py` + `ingest.py` — sémaphore (20 max) | **Done** |
+| M-3 | Pagination sans limite haute (`limit=999999999`) | Routes assets/webhooks/logs — `Query(ge=1, le=1000)` | **Done** |
+| M-4 | Filename non sanitisé dans les imports | Routes assets/evaluate — valider l'extension et le nom | |
+| M-5 | `eval()` dans le moteur de formule | `engine/nodes.py` — bien protégé par AST, mais envisager `simpleeval` | |
+| M-6 | Race conditions store Zustand (pas d'AbortController) | `treeStore.ts` — annuler les requêtes en cours au changement d'arbre | |
+| M-7 | Builds Docker non reproductibles | Ajouter `package-lock.json`, utiliser `npm ci`, pinner les images | |
+| M-8 | Pas de limites ressources conteneurs | `docker-compose.yml` — ajouter `mem_limit`, `cpus` | |
+| M-9 | Conteneur frontend en root | Dockerfile frontend — le `nginx-user` est créé mais la directive `USER` manque (nginx a besoin de root pour le port 443, à résoudre avec `setcap` ou port > 1024) | |
+| M-10 | Single worker uvicorn | Ajouter gunicorn avec 2-4 workers ou `--workers` | |
 
 ## Failles basses / améliorations (backlog)
 
@@ -57,9 +57,10 @@
 
 ## Ordre de priorité recommandé
 
-1. **Valider le build** — tsc + docker compose
-2. **M-1** — chiffrer les clés d'ingestion (même pattern que webhooks)
-3. **M-2 + M-3** — borner les tâches async et la pagination
-4. **M-7** — reproductibilité des builds (lockfiles)
-5. **B-8** — tests pour les nouveaux modules de sécurité
-6. Le reste par ordre d'impact
+1. ~~**Valider le build** — tsc + docker compose~~ ✅
+2. ~~**M-1** — chiffrer les clés d'ingestion (même pattern que webhooks)~~ ✅
+3. ~~**M-2 + M-3** — borner les tâches async et la pagination~~ ✅
+4. **M-4** — sanitiser les noms de fichiers dans les imports
+5. **M-7** — reproductibilité des builds (lockfiles)
+6. **B-8** — tests pour les nouveaux modules de sécurité
+7. Le reste par ordre d'impact

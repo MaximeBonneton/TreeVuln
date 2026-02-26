@@ -54,5 +54,5 @@ def decrypt_secret(stored_value: str, admin_key: str) -> str:
     try:
         return f.decrypt(stored_value[len(_PREFIX) :].encode()).decode()
     except InvalidToken:
-        logger.error("Impossible de déchiffrer un secret webhook (clé changée ?)")
+        logger.error("Impossible de déchiffrer un secret (clé changée ?)")
         raise ValueError("Déchiffrement du secret impossible — la clé a peut-être changé")

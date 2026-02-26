@@ -3,7 +3,7 @@ Routes API pour la gestion des webhooks sortants.
 Toutes les routes sont scopées par tree_id pour la sécurité.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import WebhookServiceDep
 from app.models.webhook import Webhook
@@ -124,7 +124,7 @@ async def get_webhook_logs(
     tree_id: int,
     webhook_id: int,
     webhook_service: WebhookServiceDep,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Récupère l'historique des envois d'un webhook."""
     # Vérifie l'appartenance au tree

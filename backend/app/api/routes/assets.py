@@ -31,8 +31,8 @@ async def list_assets(
         default=None,
         description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut.",
     ),
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     criticality: str | None = None,
 ):
     """

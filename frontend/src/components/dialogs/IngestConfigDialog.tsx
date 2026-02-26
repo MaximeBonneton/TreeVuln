@@ -13,7 +13,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { ingestApi } from '@/api';
-import type { IngestEndpoint, IngestEndpointCreate, IngestLog } from '@/types';
+import type { IngestEndpoint, IngestEndpointCreate, IngestEndpointWithKey, IngestLog } from '@/types';
 
 interface IngestConfigDialogProps {
   treeId: number;
@@ -30,6 +30,8 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
   const [error, setError] = useState<string | null>(null);
   const [editingEndpoint, setEditingEndpoint] = useState<IngestEndpoint | null>(null);
   const [logsEndpointId, setLogsEndpointId] = useState<number | null>(null);
+  // Clés en clair retournées lors de la création/régénération (visibles une seule fois)
+  const [revealedKeys, setRevealedKeys] = useState<Record<number, string>>({});
 
   const loadEndpoints = async () => {
     setLoading(true);
@@ -75,14 +77,18 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
   const handleRegenerateKey = async (endpointId: number) => {
     if (!window.confirm('Regenerer la cle API ? L\'ancienne sera invalidee.')) return;
     try {
-      await ingestApi.regenerateKey(endpointId);
+      const result = await ingestApi.regenerateKey(endpointId);
+      setRevealedKeys((prev) => ({ ...prev, [result.id]: result.api_key }));
       await loadEndpoints();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     }
   };
 
-  const handleSaved = async () => {
+  const handleSaved = async (created?: IngestEndpointWithKey) => {
+    if (created) {
+      setRevealedKeys((prev) => ({ ...prev, [created.id]: created.api_key }));
+    }
     await loadEndpoints();
     setView('list');
   };
@@ -118,6 +124,7 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
             <EndpointList
               endpoints={endpoints}
               loading={loading}
+              revealedKeys={revealedKeys}
               onCreate={handleCreate}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -150,6 +157,7 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
 function EndpointList({
   endpoints,
   loading,
+  revealedKeys,
   onCreate,
   onEdit,
   onDelete,
@@ -158,6 +166,7 @@ function EndpointList({
 }: {
   endpoints: IngestEndpoint[];
   loading: boolean;
+  revealedKeys: Record<number, string>;
   onCreate: () => void;
   onEdit: (ep: IngestEndpoint) => void;
   onDelete: (id: number) => void;
@@ -167,9 +176,11 @@ function EndpointList({
   const [showKey, setShowKey] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
 
-  const handleCopyKey = (ep: IngestEndpoint) => {
-    navigator.clipboard.writeText(ep.api_key);
-    setCopied(ep.id);
+  const handleCopyKey = (epId: number) => {
+    const key = revealedKeys[epId];
+    if (!key) return;
+    navigator.clipboard.writeText(key);
+    setCopied(epId);
     setTimeout(() => setCopied(null), 2000);
   };
 
@@ -236,23 +247,31 @@ function EndpointList({
             {/* API Key */}
             <div className="flex items-center gap-2 mt-2">
               <span className="text-xs text-gray-500">Cle API:</span>
-              <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono flex-1 truncate">
-                {showKey === ep.id ? ep.api_key : '••••••••••••••••'}
-              </code>
-              <button
-                onClick={() => setShowKey(showKey === ep.id ? null : ep.id)}
-                className="p-1 hover:bg-gray-100 rounded"
-                title={showKey === ep.id ? 'Masquer' : 'Afficher'}
-              >
-                {showKey === ep.id ? <EyeOff size={12} /> : <Eye size={12} />}
-              </button>
-              <button
-                onClick={() => handleCopyKey(ep)}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Copier"
-              >
-                {copied === ep.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-              </button>
+              {revealedKeys[ep.id] ? (
+                <>
+                  <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono flex-1 truncate">
+                    {showKey === ep.id ? revealedKeys[ep.id] : '••••••••••••••••'}
+                  </code>
+                  <button
+                    onClick={() => setShowKey(showKey === ep.id ? null : ep.id)}
+                    className="p-1 hover:bg-gray-100 rounded"
+                    title={showKey === ep.id ? 'Masquer' : 'Afficher'}
+                  >
+                    {showKey === ep.id ? <EyeOff size={12} /> : <Eye size={12} />}
+                  </button>
+                  <button
+                    onClick={() => handleCopyKey(ep.id)}
+                    className="p-1 hover:bg-gray-100 rounded"
+                    title="Copier"
+                  >
+                    {copied === ep.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-gray-400 italic flex-1">
+                  {ep.has_api_key ? 'Chiffree (copiez-la lors de la creation)' : 'Non configuree'}
+                </span>
+              )}
               <button
                 onClick={() => onRegenerateKey(ep.id)}
                 className="p-1 hover:bg-gray-100 rounded"
@@ -287,7 +306,7 @@ function EndpointForm({
 }: {
   treeId: number;
   endpoint: IngestEndpoint | null;
-  onSaved: () => void;
+  onSaved: (created?: IngestEndpointWithKey) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(endpoint?.name || '');
@@ -336,10 +355,11 @@ function EndpointForm({
 
       if (endpoint) {
         await ingestApi.update(endpoint.id, data);
+        onSaved();
       } else {
-        await ingestApi.create(treeId, data);
+        const created = await ingestApi.create(treeId, data);
+        onSaved(created);
       }
-      onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
     } finally {

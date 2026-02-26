@@ -7,10 +7,11 @@ et évalue automatiquement si configuré.
 import hmac
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Header, Request, status
+from fastapi import APIRouter, HTTPException, Header, Query, Request, status
 
 from app.api.deps import AssetServiceDep, IngestServiceDep, TreeServiceDep, WebhookServiceDep
 from app.config import settings
+from app.crypto import decrypt_secret
 from app.engine import InferenceEngine
 from app.schemas.ingest import (
     IngestEndpointCreate,
@@ -59,8 +60,19 @@ async def ingest_vulnerabilities(
             detail=f"Endpoint '{slug}' non trouvé ou désactivé",
         )
 
-    # Vérification de la clé API (constant-time pour éviter les timing attacks)
-    if not hmac.compare_digest(endpoint.api_key, x_api_key):
+    # Déchiffre la clé stockée puis comparaison constant-time (timing attacks)
+    try:
+        stored_plain = (
+            decrypt_secret(endpoint.api_key, settings.admin_api_key)
+            if settings.admin_api_key
+            else endpoint.api_key
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur de déchiffrement de la clé API",
+        )
+    if not hmac.compare_digest(stored_plain, x_api_key):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Clé API invalide",
@@ -92,9 +104,7 @@ async def ingest_vulnerabilities(
 
     # Déclenche les webhooks sortants si évaluation automatique
     if endpoint.auto_evaluate and result.evaluated > 0:
-        import asyncio
-
-        from app.services.webhook_dispatch import dispatch_webhooks
+        from app.services.webhook_dispatch import schedule_webhook_dispatch
 
         summary_payload = {
             "event": "on_ingest_complete",
@@ -103,8 +113,8 @@ async def ingest_vulnerabilities(
             "evaluated": result.evaluated,
             "errors": result.errors,
         }
-        asyncio.create_task(
-            dispatch_webhooks(endpoint.tree_id, "on_batch_complete", summary_payload)
+        schedule_webhook_dispatch(
+            endpoint.tree_id, "on_batch_complete", summary_payload
         )
 
     return result
@@ -133,8 +143,11 @@ async def create_ingest_endpoint(
     data: IngestEndpointCreate,
     ingest_service: IngestServiceDep,
 ):
-    """Crée un nouveau endpoint d'ingestion. Retourne la clé API complète."""
-    return await ingest_service.create_endpoint(tree_id, data)
+    """Crée un nouveau endpoint d'ingestion. Retourne la clé API en clair (une seule fois)."""
+    endpoint, plain_key = await ingest_service.create_endpoint(tree_id, data)
+    resp = IngestEndpointWithKeyResponse.model_validate(endpoint)
+    resp.api_key = plain_key
+    return resp
 
 
 @admin_router.put("/ingest-endpoints/{endpoint_id}", response_model=IngestEndpointResponse)
@@ -175,21 +188,24 @@ async def regenerate_api_key(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
 ):
-    """Régénère la clé API d'un endpoint. Retourne la clé API complète."""
-    endpoint = await ingest_service.regenerate_key(endpoint_id)
-    if not endpoint:
+    """Régénère la clé API d'un endpoint. Retourne la clé API en clair (une seule fois)."""
+    result = await ingest_service.regenerate_key(endpoint_id)
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Endpoint non trouvé",
         )
-    return endpoint
+    endpoint, plain_key = result
+    resp = IngestEndpointWithKeyResponse.model_validate(endpoint)
+    resp.api_key = plain_key
+    return resp
 
 
 @admin_router.get("/ingest-endpoints/{endpoint_id}/logs", response_model=list[IngestLogResponse])
 async def get_ingest_logs(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Récupère l'historique de réception d'un endpoint."""
     return await ingest_service.get_logs(endpoint_id, limit)

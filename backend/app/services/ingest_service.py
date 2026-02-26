@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.crypto import encrypt_secret
 from app.engine import InferenceEngine
 from app.models.ingest import IngestEndpoint, IngestLog
 from app.schemas.ingest import IngestEndpointCreate, IngestEndpointUpdate, IngestResult
@@ -50,13 +52,21 @@ class IngestService:
         )
         return result.scalar_one_or_none()
 
-    async def create_endpoint(self, tree_id: int, data: IngestEndpointCreate) -> IngestEndpoint:
-        """Crée un nouveau endpoint d'ingestion avec une clé API générée."""
+    async def create_endpoint(
+        self, tree_id: int, data: IngestEndpointCreate
+    ) -> tuple[IngestEndpoint, str]:
+        """Crée un nouveau endpoint d'ingestion avec une clé API générée.
+
+        Returns:
+            Tuple (endpoint, plain_key) — la clé en clair n'est retournée qu'une seule fois.
+        """
+        plain_key = generate_api_key()
+        stored_key = _encrypt_key(plain_key)
         endpoint = IngestEndpoint(
             tree_id=tree_id,
             name=data.name,
             slug=data.slug,
-            api_key=generate_api_key(),
+            api_key=stored_key,
             field_mapping=data.field_mapping,
             is_active=data.is_active,
             auto_evaluate=data.auto_evaluate,
@@ -64,7 +74,7 @@ class IngestService:
         self.db.add(endpoint)
         await self.db.commit()
         await self.db.refresh(endpoint)
-        return endpoint
+        return endpoint, plain_key
 
     async def update_endpoint(
         self, endpoint_id: int, data: IngestEndpointUpdate
@@ -98,15 +108,20 @@ class IngestService:
         await self.db.commit()
         return True
 
-    async def regenerate_key(self, endpoint_id: int) -> IngestEndpoint | None:
-        """Régénère la clé API d'un endpoint."""
+    async def regenerate_key(self, endpoint_id: int) -> tuple[IngestEndpoint, str] | None:
+        """Régénère la clé API d'un endpoint.
+
+        Returns:
+            Tuple (endpoint, plain_key) ou None si non trouvé.
+        """
         endpoint = await self.get_endpoint(endpoint_id)
         if not endpoint:
             return None
-        endpoint.api_key = generate_api_key()
+        plain_key = generate_api_key()
+        endpoint.api_key = _encrypt_key(plain_key)
         await self.db.commit()
         await self.db.refresh(endpoint)
-        return endpoint
+        return endpoint, plain_key
 
     async def get_logs(self, endpoint_id: int, limit: int = 50) -> list[IngestLog]:
         """Récupère les logs de réception."""
@@ -190,6 +205,13 @@ class IngestService:
 def generate_api_key() -> str:
     """Génère une clé API aléatoire."""
     return secrets.token_urlsafe(32)
+
+
+def _encrypt_key(plain_key: str) -> str:
+    """Chiffre une clé API si admin_api_key est configuré, sinon plain-text."""
+    if settings.admin_api_key:
+        return encrypt_secret(plain_key, settings.admin_api_key)
+    return plain_key
 
 
 def transform_payload(entry: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:

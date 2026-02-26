@@ -3,6 +3,19 @@ export interface IngestEndpoint {
   tree_id: number;
   name: string;
   slug: string;
+  has_api_key: boolean;
+  field_mapping: Record<string, string>;
+  is_active: boolean;
+  auto_evaluate: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IngestEndpointWithKey {
+  id: number;
+  tree_id: number;
+  name: string;
+  slug: string;
   api_key: string;
   field_mapping: Record<string, string>;
   is_active: boolean;

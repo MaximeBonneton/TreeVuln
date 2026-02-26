@@ -4,7 +4,6 @@ Support multi-arbres avec endpoints dédiés par slug.
 Support export CSV/JSON des résultats.
 """
 
-import asyncio
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
@@ -24,7 +23,7 @@ from app.schemas.evaluation import (
 )
 from app.schemas.tree import TreeStructure
 from app.schemas.vulnerability import VulnerabilityInput
-from app.services.webhook_dispatch import dispatch_webhooks
+from app.services.webhook_dispatch import schedule_webhook_dispatch
 
 router = APIRouter()
 
@@ -116,7 +115,7 @@ async def evaluate_single(
         "decision": result.decision,
         "decision_color": result.decision_color,
     }
-    asyncio.create_task(dispatch_webhooks(tree_id, event, payload))
+    schedule_webhook_dispatch(tree_id, event, payload)
 
     return result
 
@@ -173,7 +172,7 @@ async def evaluate_batch(
         "error_count": response.error_count,
         "decision_summary": response.decision_summary,
     }
-    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
+    schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
     return response
 
@@ -243,7 +242,7 @@ async def evaluate_csv(
         "error_count": response.error_count,
         "decision_summary": response.decision_summary,
     }
-    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
+    schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
     return response
 
@@ -467,7 +466,7 @@ async def evaluate_batch_by_slug(
         "error_count": response.error_count,
         "decision_summary": response.decision_summary,
     }
-    asyncio.create_task(dispatch_webhooks(tree.id, "on_batch_complete", payload))
+    schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
     return response
 

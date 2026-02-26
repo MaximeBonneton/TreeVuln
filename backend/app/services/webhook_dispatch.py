@@ -23,6 +23,33 @@ logger = logging.getLogger(__name__)
 
 RETRY_DELAYS = [1, 5, 15]  # secondes entre les retries
 
+# Limite le nombre de dispatches webhook concurrents pour éviter l'épuisement mémoire
+_MAX_CONCURRENT_DISPATCHES = 20
+_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_DISPATCHES)
+
+
+def schedule_webhook_dispatch(
+    tree_id: int,
+    event: str,
+    payload: dict[str, Any],
+) -> asyncio.Task[None]:
+    """Planifie un dispatch webhook borné par un sémaphore (fire-and-forget).
+
+    Remplace l'usage direct de asyncio.create_task(dispatch_webhooks(...)).
+    Le sémaphore limite à _MAX_CONCURRENT_DISPATCHES tâches simultanées.
+    """
+    return asyncio.create_task(_bounded_dispatch(tree_id, event, payload))
+
+
+async def _bounded_dispatch(
+    tree_id: int,
+    event: str,
+    payload: dict[str, Any],
+) -> None:
+    """Wrapper qui acquiert le sémaphore avant de dispatcher."""
+    async with _semaphore:
+        await dispatch_webhooks(tree_id, event, payload)
+
 
 async def dispatch_webhooks(
     tree_id: int,

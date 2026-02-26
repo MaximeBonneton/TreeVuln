@@ -28,7 +28,39 @@ class IngestEndpointUpdate(BaseModel):
 
 
 class IngestEndpointResponse(BaseModel):
-    """Schéma de réponse pour un endpoint d'ingestion."""
+    """Schéma de réponse pour un endpoint d'ingestion (clé API non exposée)."""
+
+    id: int
+    tree_id: int
+    name: str
+    slug: str
+    has_api_key: bool
+    field_mapping: dict[str, str]
+    is_active: bool
+    auto_evaluate: bool
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_endpoint(cls, endpoint: object) -> "IngestEndpointResponse":
+        """Construit la réponse en indiquant la présence d'une clé API."""
+        api_key = getattr(endpoint, "api_key", None)
+        return cls(
+            id=endpoint.id,  # type: ignore[union-attr]
+            tree_id=endpoint.tree_id,  # type: ignore[union-attr]
+            name=endpoint.name,  # type: ignore[union-attr]
+            slug=endpoint.slug,  # type: ignore[union-attr]
+            has_api_key=bool(api_key),
+            field_mapping=endpoint.field_mapping,  # type: ignore[union-attr]
+            is_active=endpoint.is_active,  # type: ignore[union-attr]
+            auto_evaluate=endpoint.auto_evaluate,  # type: ignore[union-attr]
+            created_at=endpoint.created_at,  # type: ignore[union-attr]
+            updated_at=endpoint.updated_at,  # type: ignore[union-attr]
+        )
+
+
+class IngestEndpointWithKeyResponse(BaseModel):
+    """Schéma de réponse avec clé API complète (création/régénération)."""
 
     id: int
     tree_id: int
