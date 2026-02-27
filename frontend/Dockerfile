@@ -1,18 +1,18 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.21 AS builder
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN npm install
+# Install dependencies (lockfile pour builds reproductibles)
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy source and build
 COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1.27-alpine3.21
 
 # Install openssl for self-signed cert generation
 RUN apk add --no-cache openssl

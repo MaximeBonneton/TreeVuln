@@ -34,7 +34,7 @@
 | M-4 | Filename non sanitisé dans les imports | `filename_validation.py` — sanitise les 6 routes d'upload (traversée, null bytes, contrôle, longueur) | **Done** |
 | M-5 | `eval()` dans le moteur de formule | `engine/formula.py` — protégé par validation AST stricte + whitelist + `__builtins__: {}` | **Done** (sécurisé) |
 | M-6 | Race conditions store Zustand (pas d'AbortController) | `treeStore.ts` — annuler les requêtes en cours au changement d'arbre | |
-| M-7 | Builds Docker non reproductibles | `package-lock.json` existe, mais Dockerfile utilise `npm install` au lieu de `npm ci`, images non pinnées | |
+| M-7 | Builds Docker non reproductibles | `npm ci` + `requirements.lock` (pip-compile --generate-hashes), images pinnées (alpine3.21, bookworm) | **Done** |
 | M-8 | Pas de limites ressources conteneurs | `docker-compose.yml` — ajouter `mem_limit`, `cpus` | |
 | M-9 | Conteneur frontend en root | Dockerfile frontend — le `nginx-user` est créé mais la directive `USER` manque (nginx a besoin de root pour le port 443, à résoudre avec `setcap` ou port > 1024) | Partiel |
 | M-10 | Single worker uvicorn | Ajouter gunicorn avec 2-4 workers ou `--workers` | |
@@ -62,7 +62,7 @@
 3. ~~**M-2 + M-3** — borner les tâches async et la pagination~~ ✅
 4. ~~**M-5** — sécuriser eval() dans le moteur de formule~~ ✅ (AST strict + whitelist)
 5. ~~**M-4** — sanitiser les noms de fichiers dans les imports~~ ✅
-6. **M-7** — reproductibilité des builds (`npm ci`, pinner les images)
+6. ~~**M-7** — reproductibilité des builds (`npm ci`, pinner les images)~~ ✅
 7. **B-8** — tests pour les nouveaux modules de sécurité
 8. **M-8** — limites ressources conteneurs
 9. **M-10** — multi-workers uvicorn/gunicorn
