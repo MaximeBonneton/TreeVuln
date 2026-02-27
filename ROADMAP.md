@@ -20,9 +20,9 @@
 
 ## A vérifier / finaliser
 
-1. **Vérifier compilation TypeScript frontend** — valider que les modifications frontend compilent (`npx tsc --noEmit`), notamment `App.tsx` avec le nouveau composant `Login`
+1. ~~**Vérifier compilation TypeScript frontend** — valider que les modifications frontend compilent (`npx tsc --noEmit`), notamment `App.tsx` avec le nouveau composant `Login`~~ ✅
 2. **Tester le build Docker complet** — `docker compose up -d --build` pour valider TLS auto-signé, le rôle DB, et l'auth session
-3. **Erreur TS pré-existante** — `IngestConfigDialog.tsx:171` a un type `string | undefined` non géré (antérieur à l'audit)
+3. ~~**Erreur TS pré-existante** — `IngestConfigDialog.tsx:171` a un type `string | undefined` non géré (antérieur à l'audit)~~ ✅ Vérifié : le typage est correct
 
 ## Failles moyennes (à planifier)
 
@@ -31,36 +31,39 @@
 | M-1 | Clés API d'ingestion en clair en BDD | `crypto.py` + `ingest_service.py` + `ingest.py` + schemas | **Done** |
 | M-2 | Tâches webhook async non bornées (risque OOM) | `webhook_dispatch.py` + `evaluate.py` + `ingest.py` — sémaphore (20 max) | **Done** |
 | M-3 | Pagination sans limite haute (`limit=999999999`) | Routes assets/webhooks/logs — `Query(ge=1, le=1000)` | **Done** |
-| M-4 | Filename non sanitisé dans les imports | Routes assets/evaluate — valider l'extension et le nom | |
-| M-5 | `eval()` dans le moteur de formule | `engine/nodes.py` — bien protégé par AST, mais envisager `simpleeval` | |
+| M-4 | Filename non sanitisé dans les imports | `filename_validation.py` — sanitise les 6 routes d'upload (traversée, null bytes, contrôle, longueur) | **Done** |
+| M-5 | `eval()` dans le moteur de formule | `engine/formula.py` — protégé par validation AST stricte + whitelist + `__builtins__: {}` | **Done** (sécurisé) |
 | M-6 | Race conditions store Zustand (pas d'AbortController) | `treeStore.ts` — annuler les requêtes en cours au changement d'arbre | |
-| M-7 | Builds Docker non reproductibles | Ajouter `package-lock.json`, utiliser `npm ci`, pinner les images | |
+| M-7 | Builds Docker non reproductibles | `package-lock.json` existe, mais Dockerfile utilise `npm install` au lieu de `npm ci`, images non pinnées | |
 | M-8 | Pas de limites ressources conteneurs | `docker-compose.yml` — ajouter `mem_limit`, `cpus` | |
-| M-9 | Conteneur frontend en root | Dockerfile frontend — le `nginx-user` est créé mais la directive `USER` manque (nginx a besoin de root pour le port 443, à résoudre avec `setcap` ou port > 1024) | |
+| M-9 | Conteneur frontend en root | Dockerfile frontend — le `nginx-user` est créé mais la directive `USER` manque (nginx a besoin de root pour le port 443, à résoudre avec `setcap` ou port > 1024) | Partiel |
 | M-10 | Single worker uvicorn | Ajouter gunicorn avec 2-4 workers ou `--workers` | |
 
 ## Failles basses / améliorations (backlog)
 
-| # | Description |
-|---|-------------|
-| B-1 | Rate-limiting par IP sur les endpoints d'ingestion (au-delà du rate-limit nginx) |
-| B-2 | Rotation automatique des clés API d'ingestion |
-| B-3 | Logs d'audit des actions admin (qui a modifié quoi) |
-| B-4 | Migration Alembic formelle (au lieu de `create_all` au startup) |
-| B-5 | Healthcheck HTTPS dans docker-compose (actuellement HTTP) |
-| B-6 | CSP `connect-src` à restreindre aux domaines webhook autorisés |
-| B-7 | Ajouter `Secure` flag explicite sur le cookie de session en production |
-| B-8 | Tests unitaires pour `crypto.py`, `auth.py`, et la nouvelle auth session dans `deps.py` |
-| B-9 | Expiration/nettoyage automatique des logs webhook et ingestion anciens |
-| B-10 | Support certificats TLS fournis par l'utilisateur (volume mount au lieu d'auto-signé) |
-| B-11 | Documentation déploiement production (guide de hardening) |
+| # | Description | Statut |
+|---|-------------|--------|
+| B-1 | Rate-limiting par IP sur les endpoints d'ingestion (au-delà du rate-limit nginx) | |
+| B-2 | Rotation automatique des clés API d'ingestion | |
+| B-3 | Logs d'audit des actions admin (qui a modifié quoi) | |
+| B-4 | Migration Alembic formelle (au lieu de `create_all` au startup) | |
+| B-5 | Healthcheck HTTPS dans docker-compose (actuellement HTTP) | |
+| B-6 | CSP `connect-src` à restreindre aux domaines webhook autorisés | |
+| B-7 | ~~Ajouter `Secure` flag explicite sur le cookie de session~~ | **Done** (`secure=not settings.debug` dans `auth.py`) |
+| B-8 | Tests unitaires pour `crypto.py`, `auth.py`, et la nouvelle auth session dans `deps.py` | |
+| B-9 | Expiration/nettoyage automatique des logs webhook et ingestion anciens | |
+| B-10 | Support certificats TLS fournis par l'utilisateur (volume mount au lieu d'auto-signé) | |
+| B-11 | Documentation déploiement production (guide de hardening) | |
 
 ## Ordre de priorité recommandé
 
 1. ~~**Valider le build** — tsc + docker compose~~ ✅
 2. ~~**M-1** — chiffrer les clés d'ingestion (même pattern que webhooks)~~ ✅
 3. ~~**M-2 + M-3** — borner les tâches async et la pagination~~ ✅
-4. **M-4** — sanitiser les noms de fichiers dans les imports
-5. **M-7** — reproductibilité des builds (lockfiles)
-6. **B-8** — tests pour les nouveaux modules de sécurité
-7. Le reste par ordre d'impact
+4. ~~**M-5** — sécuriser eval() dans le moteur de formule~~ ✅ (AST strict + whitelist)
+5. ~~**M-4** — sanitiser les noms de fichiers dans les imports~~ ✅
+6. **M-7** — reproductibilité des builds (`npm ci`, pinner les images)
+7. **B-8** — tests pour les nouveaux modules de sécurité
+8. **M-8** — limites ressources conteneurs
+9. **M-10** — multi-workers uvicorn/gunicorn
+10. Le reste par ordre d'impact

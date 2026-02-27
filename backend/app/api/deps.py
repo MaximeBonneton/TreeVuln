@@ -101,6 +101,8 @@ IngestServiceDep = Annotated[IngestService, Depends(get_ingest_service)]
 
 # --- Upload helpers ---
 
+from app.filename_validation import sanitize_filename  # noqa: F401 — re-export
+
 
 async def read_upload_with_limit(file: "UploadFile") -> bytes:
     """Lit un fichier uploadé avec vérification de la taille.

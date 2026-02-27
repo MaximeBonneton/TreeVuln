@@ -11,6 +11,7 @@ import json
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
 from app.api.deps import AssetServiceDep
+from app.filename_validation import sanitize_filename
 from app.schemas.asset import (
     AssetBulkCreate,
     AssetBulkResponse,
@@ -179,7 +180,8 @@ async def preview_import(file: UploadFile):
     Scanne un fichier CSV/JSON et retourne les colonnes détectées.
     Utile pour configurer le mapping avant import.
     """
-    if not file.filename:
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nom de fichier manquant",
@@ -187,7 +189,7 @@ async def preview_import(file: UploadFile):
 
     content = await file.read()
     try:
-        rows = _parse_upload_file(content, file.filename)
+        rows = _parse_upload_file(content, safe_name)
     except (ValueError, json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -234,13 +236,14 @@ async def import_assets(
     Le mapping des colonnes est configuré via les query params.
     Les assets existants (même asset_id dans le même arbre) sont mis à jour.
     """
-    if not file.filename:
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nom de fichier manquant",
         )
 
-    if not (file.filename.endswith(".csv") or file.filename.endswith(".json")):
+    if not (safe_name.endswith(".csv") or safe_name.endswith(".json")):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le fichier doit être au format CSV ou JSON",
@@ -248,7 +251,7 @@ async def import_assets(
 
     content = await file.read()
     try:
-        rows = _parse_upload_file(content, file.filename)
+        rows = _parse_upload_file(content, safe_name)
     except (ValueError, json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

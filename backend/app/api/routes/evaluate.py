@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import AssetServiceDep, TreeServiceDep, read_upload_with_limit
+from app.filename_validation import sanitize_filename
 from app.config import settings
 from app.engine import BatchProcessor, InferenceEngine
 from app.engine.export import export_csv, export_json
@@ -189,7 +190,8 @@ async def evaluate_csv(
 
     Le CSV doit avoir des colonnes correspondant aux champs attendus par l'arbre.
     """
-    if not file.filename or not file.filename.endswith(".csv"):
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name or not safe_name.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le fichier doit être au format CSV",
@@ -326,7 +328,8 @@ async def export_csv_file(
     """
     Évalue un fichier CSV et retourne un fichier CSV ou JSON téléchargeable.
     """
-    if not file.filename or not file.filename.endswith(".csv"):
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name or not safe_name.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le fichier doit être au format CSV",

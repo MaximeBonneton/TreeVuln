@@ -5,6 +5,7 @@ Routes API pour la gestion du mapping des champs.
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import TreeServiceDep
+from app.filename_validation import sanitize_filename
 from app.engine.cvss import get_cvss_field_definitions
 from app.schemas.field_mapping import (
     FieldDefinition,
@@ -139,7 +140,7 @@ async def import_mapping(
 
     new_mapping = FieldMapping(
         fields=imported_mapping.fields,
-        source=f"import:{file.filename or 'unknown'}",
+        source=f"import:{sanitize_filename(file.filename) or 'unknown'}",
         version=new_version,
     )
 
@@ -204,7 +205,8 @@ async def scan_file(
     - CSV avec en-têtes
     - JSON (array d'objets ou objet avec une clé contenant un array)
     """
-    if not file.filename:
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nom de fichier requis",
@@ -219,7 +221,7 @@ async def scan_file(
             detail="Le fichier doit être encodé en UTF-8",
         )
 
-    result = field_mapping_service.scan_file_content(content_str, file.filename)
+    result = field_mapping_service.scan_file_content(content_str, safe_name)
     return result
 
 
