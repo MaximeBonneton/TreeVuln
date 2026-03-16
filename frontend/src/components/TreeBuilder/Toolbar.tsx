@@ -1,7 +1,8 @@
-import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid } from 'lucide-react';
+import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid, Image } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { treeApi } from '@/api';
 import { useState } from 'react';
+import { toPng, toSvg } from 'html-to-image';
 import type { TreeExportFile } from '@/types';
 
 interface ToolbarProps {
@@ -75,6 +76,38 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     input.click();
   };
 
+  const [showImageMenu, setShowImageMenu] = useState(false);
+
+  const handleExportImage = async (format: 'png' | 'svg') => {
+    setShowImageMenu(false);
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) return;
+
+    try {
+      const options = {
+        backgroundColor: '#f9fafb',
+        style: { transform: '' }, // Réinitialiser le transform pour capturer tout
+      };
+
+      let dataUrl: string;
+      let extension: string;
+      if (format === 'svg') {
+        dataUrl = await toSvg(viewport, options);
+        extension = 'svg';
+      } else {
+        dataUrl = await toPng(viewport, { ...options, pixelRatio: 2 });
+        extension = 'png';
+      }
+
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${treeName.replace(/\s+/g, '_')}_tree.${extension}`;
+      a.click();
+    } catch {
+      alert('Erreur lors de l\'export image');
+    }
+  };
+
   return (
     <>
       <div className="bg-white border-b px-4 py-2 flex items-center justify-between">
@@ -141,6 +174,32 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           >
             <LayoutGrid size={20} />
           </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowImageMenu(!showImageMenu)}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              title="Exporter en image"
+            >
+              <Image size={20} />
+            </button>
+            {showImageMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-50">
+                <button
+                  onClick={() => handleExportImage('png')}
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
+                >
+                  Exporter en PNG
+                </button>
+                <button
+                  onClick={() => handleExportImage('svg')}
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
+                >
+                  Exporter en SVG
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="w-px h-6 bg-gray-300 mx-2" />
 
