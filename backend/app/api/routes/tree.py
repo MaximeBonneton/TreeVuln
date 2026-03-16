@@ -4,13 +4,16 @@ Support multi-arbres avec contextes isolés.
 """
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import Response
 
 from app.api.deps import TreeServiceDep
+from app.filename_validation import sanitize_filename
 from app.models import Tree
 from app.schemas.tree import (
     TreeApiConfig,
     TreeCreate,
     TreeDuplicateRequest,
+    TreeImportRequest,
     TreeListItem,
     TreeResponse,
     TreeStructure,
@@ -68,6 +71,45 @@ async def create_tree(
     """Crée un nouvel arbre de décision."""
     tree = await tree_service.create_tree(data)
     return _tree_response_with_warnings(tree)
+
+
+# --- Decision-as-Code (export/import) ---
+# IMPORTANT : /import doit être avant /{tree_id} pour éviter que
+# FastAPI parse "import" comme un int (tree_id)
+
+
+@router.post("/import", response_model=TreeResponse, status_code=status.HTTP_201_CREATED)
+async def import_tree(
+    data: TreeImportRequest,
+    tree_service: TreeServiceDep,
+):
+    """Importer un arbre depuis un fichier Decision-as-Code (JSON)."""
+    tree = await tree_service.import_tree(data)
+    return _tree_response_with_warnings(tree)
+
+
+@router.get("/{tree_id}/export")
+async def export_tree(
+    tree_id: int,
+    tree_service: TreeServiceDep,
+):
+    """Exporter un arbre au format Decision-as-Code (JSON)."""
+    result = await tree_service.export_tree(tree_id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Arbre {tree_id} non trouvé",
+        )
+
+    # Nom de fichier sanitisé via le module existant
+    raw_name = f"{result.tree.name}_tree.json"
+    filename = sanitize_filename(raw_name) or "tree_export.json"
+
+    return Response(
+        content=result.model_dump_json(indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.put("/{tree_id}", response_model=TreeResponse)

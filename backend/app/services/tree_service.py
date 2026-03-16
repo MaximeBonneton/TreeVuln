@@ -3,6 +3,9 @@ Service pour la gestion des arbres de décision.
 Support multi-arbres avec contextes isolés.
 """
 
+from copy import deepcopy
+from datetime import datetime, timezone
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +15,8 @@ from app.schemas.tree import (
     TreeApiConfig,
     TreeCreate,
     TreeDuplicateRequest,
+    TreeExportFile,
+    TreeImportRequest,
     TreeListItem,
     TreeStructure,
     TreeUpdate,
@@ -260,6 +265,73 @@ class TreeService:
         await self.db.commit()
         await self.db.refresh(tree)
         return tree
+
+    # --- Decision-as-Code (export/import) ---
+
+    async def export_tree(self, tree_id: int) -> TreeExportFile | None:
+        """Exporte un arbre complet au format Decision-as-Code."""
+        tree = await self.get_tree(tree_id)
+        if not tree:
+            return None
+
+        # Copier la structure pour ne pas muter l'original
+        structure = deepcopy(tree.structure) if tree.structure else {"nodes": [], "edges": [], "metadata": {}}
+
+        # Extraire le field_mapping de metadata et le retirer de la structure
+        # pour éviter la duplication (une seule source de vérité dans le fichier)
+        field_mapping = None
+        if structure.get("metadata", {}).get("field_mapping"):
+            field_mapping = structure["metadata"].pop("field_mapping")
+
+        return TreeExportFile.model_validate({
+            "format": "treevuln-decision-tree",
+            "version": 1,
+            "exported_at": datetime.now(timezone.utc),
+            "tree": {
+                "name": tree.name,
+                "description": tree.description,
+                "structure": structure,
+                "field_mapping": field_mapping,
+            },
+        })
+
+    async def import_tree(self, data: TreeImportRequest) -> Tree:
+        """Importe un arbre depuis un fichier Decision-as-Code."""
+        # Générer un nom unique si nécessaire
+        name = await self._unique_import_name(data.tree.name)
+
+        # Injecter le field_mapping dans metadata si présent
+        structure_data = data.tree.structure.model_dump()
+        if data.tree.field_mapping:
+            if "metadata" not in structure_data or structure_data["metadata"] is None:
+                structure_data["metadata"] = {}
+            structure_data["metadata"]["field_mapping"] = data.tree.field_mapping.model_dump()
+
+        # Créer l'arbre via le flux existant
+        create_data = TreeCreate(
+            name=name,
+            description=data.tree.description,
+            structure=TreeStructure.model_validate(structure_data),
+        )
+        return await self.create_tree(create_data)
+
+    async def _unique_import_name(self, base_name: str) -> str:
+        """Génère un nom unique en suffixant si nécessaire."""
+        stmt = select(Tree.name).where(Tree.name.like(f"{base_name}%"))
+        result = await self.db.execute(stmt)
+        existing_names = {row[0] for row in result.fetchall()}
+
+        if base_name not in existing_names:
+            return base_name
+
+        candidate = f"{base_name} (imported)"
+        if candidate not in existing_names:
+            return candidate
+
+        counter = 2
+        while f"{base_name} (imported {counter})" in existing_names:
+            counter += 1
+        return f"{base_name} (imported {counter})"
 
     async def duplicate_tree(
         self,

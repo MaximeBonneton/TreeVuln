@@ -1,6 +1,8 @@
 import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
+import { treeApi } from '@/api';
 import { useState } from 'react';
+import type { TreeExportFile } from '@/types';
 
 interface ToolbarProps {
   onTest?: () => void;
@@ -41,17 +43,14 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     }
   };
 
-  const handleExport = () => {
-    const structure = useTreeStore.getState().toApiStructure();
-    const blob = new Blob([JSON.stringify(structure, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${treeName.replace(/\s+/g, '_')}_tree.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    const { treeId } = useTreeStore.getState();
+    if (!treeId) return;
+    try {
+      await treeApi.exportTree(treeId);
+    } catch {
+      alert('Erreur lors de l\'export');
+    }
   };
 
   const handleImport = () => {
@@ -64,8 +63,11 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
 
       try {
         const text = await file.text();
-        const structure = JSON.parse(text);
-        useTreeStore.getState().fromApiStructure(structure);
+        const data = JSON.parse(text) as TreeExportFile;
+        const newTree = await treeApi.importTree(data);
+        // Naviguer vers le nouvel arbre importé
+        await useTreeStore.getState().loadTrees();
+        await useTreeStore.getState().selectTree(newTree.id);
       } catch {
         alert('Erreur lors de l\'import du fichier');
       }

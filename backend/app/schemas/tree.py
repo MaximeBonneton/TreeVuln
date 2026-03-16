@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.field_mapping import FieldMapping
+
 
 class NodeType(str, Enum):
     """Types de nœuds disponibles dans l'arbre."""
@@ -251,3 +253,48 @@ class TreeVersionResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# --- Decision-as-Code (export/import) ---
+
+
+class TreeExportData(BaseModel):
+    """Contenu de l'arbre dans le fichier d'export."""
+
+    name: str
+    description: str | None = None
+    structure: TreeStructure
+    field_mapping: FieldMapping | None = None
+
+
+class TreeExportFile(BaseModel):
+    """Format complet du fichier d'export Decision-as-Code."""
+
+    format: Literal["treevuln-decision-tree"]
+    version: Literal[1]
+    exported_at: datetime
+    tree: TreeExportData
+
+
+class TreeImportRequest(BaseModel):
+    """Fichier d'import Decision-as-Code (même format que l'export).
+
+    exported_at est optionnel pour permettre les fichiers créés manuellement.
+    """
+
+    format: str
+    version: int
+    exported_at: datetime | None = None
+    tree: TreeExportData
+
+    @model_validator(mode="after")
+    def validate_format_and_version(self) -> "TreeImportRequest":
+        if self.format != "treevuln-decision-tree":
+            raise ValueError(
+                f"Format inconnu: {self.format}. Attendu: treevuln-decision-tree"
+            )
+        if self.version not in (1,):
+            raise ValueError(
+                f"Version non supportée: {self.version}. Supportées: [1]"
+            )
+        return self

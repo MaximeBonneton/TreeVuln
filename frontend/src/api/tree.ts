@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, ApiError } from './client';
 import type {
   TreeResponse,
   TreeCreate,
@@ -7,6 +7,7 @@ import type {
   TreeListItem,
   TreeApiConfig,
   TreeDuplicateRequest,
+  TreeExportFile,
 } from '@/types';
 
 export const treeApi = {
@@ -56,4 +57,27 @@ export const treeApi = {
   // Restaure une version
   restoreVersion: (treeId: number, versionId: number) =>
     api.post<TreeResponse>(`/tree/${treeId}/restore/${versionId}`),
+
+  // --- Decision-as-Code (export/import) ---
+
+  // Exporte un arbre (téléchargement fichier JSON)
+  exportTree: async (treeId: number): Promise<void> => {
+    const response = await fetch(`/api/v1/tree/${treeId}/export`, {
+      credentials: 'same-origin',
+    });
+    if (!response.ok) throw new ApiError(response.status, 'Export failed');
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition');
+    const filename = disposition?.match(/filename="(.+)"/)?.[1] ?? 'tree.json';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  // Importe un arbre depuis un fichier Decision-as-Code
+  importTree: (data: TreeExportFile) =>
+    api.post<TreeResponse>('/tree/import', data),
 };

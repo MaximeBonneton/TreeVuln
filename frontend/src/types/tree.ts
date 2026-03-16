@@ -1,4 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
+import type { FieldMapping } from './fieldMapping';
 
 // Types de nœuds disponibles
 export type NodeType = 'input' | 'lookup' | 'output' | 'equation';
@@ -196,4 +197,18 @@ export interface TreeVersionResponse {
   structure_snapshot: TreeStructure;
   comment: string | null;
   created_at: string;
+}
+
+// --- Decision-as-Code (export/import) ---
+
+export interface TreeExportFile {
+  format: 'treevuln-decision-tree';
+  version: number;
+  exported_at: string;
+  tree: {
+    name: string;
+    description: string | null;
+    structure: TreeStructure;
+    field_mapping: FieldMapping | null;
+  };
 }
