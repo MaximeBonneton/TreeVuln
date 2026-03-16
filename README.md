@@ -8,15 +8,15 @@
 
 Moteur de decision de securite visuel et auditable. Construisez graphiquement vos arbres de decision et utilisez-les pour automatiser le traitement de volumes massifs de vulnerabilites, non-conformites, audits cloud, containers et plus encore.
 
-![TreeVuln — Editeur visuel d'arbres de decision SSVC](docs/images/tree-editor.png)
+![TreeVuln — Editeur visuel d'arbres de decision](docs/images/tree-editor.png)
 
 ## Pourquoi TreeVuln ?
 
-Le score CVSS seul ne suffit plus. Avec des milliers d'alertes par jour, les equipes SecOps ont besoin de **contexte** pour prioriser : l'asset est-il critique ? L'exploit est-il actif ? Le service est-il expose sur Internet ?
+Les equipes securite croulent sous les alertes. Scanners de vulnerabilites, audits cloud, non-conformites, rapports containers — chaque outil produit des centaines de resultats, mais aucun ne dit **quoi faire en premier**.
 
-TreeVuln applique la methodologie **SSVC** (Stakeholder-Specific Vulnerability Categorization) pour transformer ces criteres en decisions actionnables — de facon **transparente**, **auditable** et **personnalisable**.
+TreeVuln vous permet de **dessiner votre propre logique de decision** sous forme d'arbre visuel, puis de l'appliquer automatiquement a des volumes massifs de donnees. Chaque decision est **transparente** (audit trail complet), **auditable** (exportable) et **personnalisable** (vos criteres, vos seuils, votre politique).
 
-Contrairement aux "black boxes" proprietaires, TreeVuln vous permet de **dessiner votre propre logique de decision** et de l'expliquer a un auditeur ou a un RSSI.
+Que ce soit pour prioriser des CVE avec la methodologie SSVC, evaluer l'exploitabilite d'une vulnerabilite (VEX), trier des non-conformites cloud ou automatiser des controles d'audit — TreeVuln est le moteur qui transforme vos regles en decisions actionnables.
 
 ## Quick Start
 
@@ -50,13 +50,13 @@ docker compose up -d
 
 - **Drag & drop** : 4 types de noeuds — Input, Lookup, Equation, Output
 - **Conditions composees** : combinez plusieurs criteres avec AND/OR sur les branches
-- **Noeuds multi-entrees** : mutualisez la logique (8 noeuds au lieu de 26 pour un arbre SSVC)
+- **Noeuds multi-entrees** : mutualisez la logique pour optimiser les arbres complexes
 - **Auto-layout** : reorganisez automatiquement les noeuds en un clic
 - **Export image** : PNG ou SVG pour vos rapports et presentations
 
 ### Moteur d'inference
 
-- **Evaluation unitaire et batch** : jusqu'a 50 000 vulnerabilites par requete
+- **Evaluation unitaire et batch** : jusqu'a 50 000 elements par requete
 - **Parsing CVSS** : extraction automatique des metriques CVSS v3.1 et v4.0
 - **Noeud Equation** : formules mathematiques avec mapping texte-vers-nombre
 - **Audit trail** : chemin de decision complet pour chaque evaluation
@@ -76,15 +76,18 @@ docker compose up -d
 
 ## Cas d'usage
 
-| Domaine | Exemple |
-|---------|---------|
-| **Vulnerabilites** | Priorisation SSVC (Act / Attend / Track* / Track) basee sur KEV, EPSS, CVSS |
-| **Cloud** | Evaluation des droits IAM excessifs, security groups ouverts, buckets exposes |
-| **Containers** | Detection d'images Docker avec CVE critiques, execution root, secrets en clair |
-| **Conformite** | Controles ISO 27001, SOC2, PCI-DSS avec decisions automatisees |
-| **Audit** | Evaluation de maturite et plans de remediation |
+| Domaine | Exemple | Decisions typiques |
+|---------|---------|-------------------|
+| **Vulnerabilites** | Priorisation basee sur KEV, EPSS, CVSS et criticite des assets | Act, Attend, Track |
+| **VEX** | Exploitabilite reelle d'une CVE dans le contexte du produit | Not Affected, Exploitable, In Triage |
+| **Cloud** | Droits IAM excessifs, security groups ouverts, buckets exposes | Remedier, Accepter, Investiguer |
+| **Containers** | Images Docker avec CVE, execution root, secrets en clair | Bloquer, Alerter, Ignorer |
+| **Conformite** | Controles ISO 27001, SOC2, PCI-DSS | Conforme, Non-conforme, Exception |
+| **Audit** | Evaluation de maturite, plan de remediation | Critique, A ameliorer, Conforme |
 
 ## Exemple API
+
+Evaluation d'une vulnerabilite avec l'arbre SSVC par defaut (un des arbres fournis) :
 
 ```bash
 curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
