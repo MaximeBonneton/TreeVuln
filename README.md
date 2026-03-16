@@ -192,4 +192,4 @@ Les modules Enterprise sont sous licence commerciale separee.
 
 ## Contribuer
 
-Les contributions sont les bienvenues. Avant de contribuer, veuillez signer le [CLA (Contributor License Agreement)](CLA.md) afin de permettre la distribution du projet sous double licence.
+Les contributions sont les bienvenues. Pour signaler un bug ou proposer une fonctionnalite, ouvrez une issue sur le repository.
