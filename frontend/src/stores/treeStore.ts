@@ -23,6 +23,7 @@ import type {
   TreeDuplicateRequest,
 } from '@/types';
 import { treeApi, fieldMappingApi } from '@/api';
+import { getLayoutedNodes } from '@/utils/autoLayout';
 
 interface TreeState {
   // Multi-arbres
@@ -87,6 +88,7 @@ interface TreeState {
   setAsDefault: () => Promise<void>;
   deleteCurrentTree: () => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
+  autoLayout: () => void;
 
   // Conversion
   toApiStructure: () => TreeStructure;
@@ -498,6 +500,13 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Toggle sidebar
   setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
+
+  autoLayout: () => {
+    const { nodes, edges } = get();
+    if (nodes.length === 0) return;
+    const layouted = getLayoutedNodes(nodes, edges);
+    set({ nodes: layouted, hasUnsavedChanges: true });
+  },
 
   // Convertit vers le format API
   toApiStructure: (): TreeStructure => {

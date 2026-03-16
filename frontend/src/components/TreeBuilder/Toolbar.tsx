@@ -1,4 +1,4 @@
-import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link } from 'lucide-react';
+import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { treeApi } from '@/api';
 import { useState } from 'react';
@@ -132,6 +132,14 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             title="Exporter JSON"
           >
             <Download size={20} />
+          </button>
+
+          <button
+            onClick={() => useTreeStore.getState().autoLayout()}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+            title="Réorganiser automatiquement les nœuds"
+          >
+            <LayoutGrid size={20} />
           </button>
 
           <div className="w-px h-6 bg-gray-300 mx-2" />
