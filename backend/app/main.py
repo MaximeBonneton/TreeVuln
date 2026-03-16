@@ -37,6 +37,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.database import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Initialisation Enterprise (détection licence + modules)
+    from app.enterprise import init_enterprise
+    init_enterprise()
+
     yield
     # Shutdown
     await engine.dispose()

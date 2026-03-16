@@ -112,6 +112,12 @@ LICENSE-COMMERCIAL.md
 docs/superpowers/
 
 # ===========================
+# Enterprise modules (proprietary)
+# ===========================
+backend/app/enterprise/modules/
+frontend/src/enterprise/modules/
+
+# ===========================
 # Testing
 # ===========================
 coverage/

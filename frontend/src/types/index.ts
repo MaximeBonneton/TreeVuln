@@ -4,3 +4,4 @@ export * from './asset';
 export * from './fieldMapping';
 export * from './webhook';
 export * from './ingest';
+export * from './license';

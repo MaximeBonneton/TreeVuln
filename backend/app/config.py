@@ -61,5 +61,8 @@ class Settings(BaseSettings):
     session_cookie_name: str = "treevuln_session"
     session_max_age: int = 86400  # 24 heures
 
+    # Enterprise license (laisser vide pour mode Community)
+    treevuln_license_key: str | None = None
+
 
 settings = Settings()

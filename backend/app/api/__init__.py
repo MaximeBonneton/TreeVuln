@@ -1,12 +1,14 @@
 from fastapi import APIRouter
 
 from app.api.deps import RequireAdmin
-from app.api.routes import assets, auth, evaluate, field_mapping, ingest, tree, webhooks
+from app.api.routes import assets, auth, evaluate, field_mapping, ingest, license, tree, webhooks
+from app.enterprise.license import is_enterprise
 
 api_router = APIRouter()
 
-# --- Routes d'authentification (publiques) ---
+# --- Routes publiques (pas d'auth) ---
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
+api_router.include_router(license.router, prefix="/license", tags=["License"])
 
 # --- Routes protégées par authentification admin ---
 api_router.include_router(tree.router, prefix="/tree", tags=["Tree"], dependencies=[RequireAdmin])
@@ -19,3 +21,13 @@ api_router.include_router(evaluate.router, prefix="/evaluate", tags=["Evaluate"]
 
 # --- Routes publiques (auth propre via X-API-Key) ---
 api_router.include_router(ingest.public_router, tags=["Ingest"])
+
+# --- Routes Enterprise (enregistrement dynamique) ---
+if is_enterprise():
+    try:
+        from app.enterprise.modules import get_enterprise_routers
+
+        for _router, _prefix, _tag in get_enterprise_routers():
+            api_router.include_router(_router, prefix=_prefix, tags=[_tag])
+    except ImportError:
+        pass

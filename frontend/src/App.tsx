@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { TreeBuilder } from './components/TreeBuilder'
 import { Login } from './components/Login'
+import { useEnterpriseStore } from './enterprise/enterpriseStore'
 
 function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
+    // Charger le statut de licence (Community/Enterprise)
+    useEnterpriseStore.getState().loadLicense().catch(() => {})
+
     fetch('/api/v1/auth/check', { credentials: 'same-origin' })
       .then(res => res.json())
       .then(data => setAuthenticated(data.authenticated))
