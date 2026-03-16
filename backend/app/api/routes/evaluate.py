@@ -14,6 +14,7 @@ from app.filename_validation import sanitize_filename
 from app.config import settings
 from app.engine import BatchProcessor, InferenceEngine
 from app.engine.export import export_csv, export_json
+from app.engine.vex import build_vex_document
 from app.models import Tree
 from app.schemas.evaluation import (
     EvaluationRequest,
@@ -22,6 +23,7 @@ from app.schemas.evaluation import (
     ExportRequest,
     SingleEvaluationRequest,
 )
+from app.schemas.vex import VexGenerationResult, VexRequest
 from app.schemas.tree import TreeStructure
 from app.schemas.vulnerability import VulnerabilityInput
 from app.services.webhook_dispatch import schedule_webhook_dispatch
@@ -364,6 +366,70 @@ async def export_csv_file(
     response = await processor.process_batch(vulnerabilities, lookups, True)
 
     return _build_export_response(response, format, tree.name)
+
+
+# --- VEX Generator ---
+
+
+@router.post("/vex", response_model=VexGenerationResult)
+async def evaluate_vex(
+    data: VexRequest,
+    tree_service: TreeServiceDep,
+    asset_service: AssetServiceDep,
+):
+    """
+    Évalue des vulnérabilités et génère un document CycloneDX VEX 1.6.
+
+    Les nœuds Output de l'arbre doivent avoir un `vex_status` dans leur config
+    pour être inclus dans le document VEX. Les vulnérabilités sans `vex_status`
+    ou en erreur sont exclues avec un warning.
+    """
+    if len(data.vulnerabilities) > settings.max_batch_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Batch trop grand. Maximum: {settings.max_batch_size}",
+        )
+
+    tree = await tree_service.get_tree()
+    if not tree:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aucun arbre de décision configuré",
+        )
+
+    structure = tree_service.get_tree_structure(tree)
+    engine = InferenceEngine(structure)
+
+    # Prépare les lookups
+    lookups: dict[str, dict[str, dict[str, Any]]] = {}
+    if "assets" in engine.get_lookup_tables():
+        lookups["assets"] = await asset_service.get_lookup_cache(tree.id)
+
+    # Évaluer toutes les vulnérabilités
+    results = []
+    for vuln_data in data.vulnerabilities:
+        vuln = VulnerabilityInput.model_validate(vuln_data)
+        result = engine.evaluate(vuln, lookups, include_path=True)
+        results.append(result)
+
+    # Générer le document VEX
+    document, warnings = build_vex_document(
+        results=results,
+        tree_structure=tree.structure,
+        product_name=data.product_name,
+        product_version=data.product_version,
+    )
+
+    total = len(results)
+    included = len(document["vulnerabilities"])
+
+    return VexGenerationResult(
+        document=document,
+        total_evaluated=total,
+        included_in_vex=included,
+        excluded=total - included,
+        warnings=warnings,
+    )
 
 
 # --- Endpoint dédié par slug d'arbre ---

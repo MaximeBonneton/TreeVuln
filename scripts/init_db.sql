@@ -304,3 +304,199 @@ FROM (VALUES
     ('net-sw-001', 'Core Switch', 'High', '{"environment": "network", "team": "network"}', '{"vendor": "Cisco", "role": "switch"}')
 ) AS t(asset_id, name, criticality, tags, extra_data)
 ON CONFLICT (tree_id, asset_id) DO NOTHING;
+
+-- =============================================================================
+-- Arbre VEX Triage — Determine l'exploitabilite d'une vulnerabilite dans son contexte
+-- Criteres : composant deploye, code atteignable, exposition reseau, controle compensatoire
+-- Sorties : not_affected, in_triage, exploitable (statuts CycloneDX VEX)
+-- =============================================================================
+INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
+    'VEX Triage',
+    'Arbre de triage VEX — Determine si une vulnerabilite est reellement exploitable dans le contexte du produit. Produit des statuts CycloneDX VEX standardises.',
+    FALSE,
+    TRUE,
+    'vex-triage',
+    '{
+        "nodes": [
+            {
+                "id": "component-deployed",
+                "type": "input",
+                "label": "Composant deploye ?",
+                "position": {"x": 0, "y": 300},
+                "config": {"field": "component_deployed"},
+                "conditions": [
+                    {"operator": "eq", "value": false, "label": "Non"},
+                    {"operator": "eq", "value": true, "label": "Oui"}
+                ]
+            },
+            {
+                "id": "code-reachable",
+                "type": "input",
+                "label": "Code atteignable ?",
+                "position": {"x": 350, "y": 300},
+                "config": {"field": "code_reachable"},
+                "conditions": [
+                    {"operator": "eq", "value": "unknown", "label": "Inconnu"},
+                    {"operator": "eq", "value": false, "label": "Non"},
+                    {"operator": "eq", "value": true, "label": "Oui"}
+                ]
+            },
+            {
+                "id": "network-exposed",
+                "type": "input",
+                "label": "Expose au reseau ?",
+                "position": {"x": 700, "y": 300},
+                "config": {"field": "network_exposed"},
+                "conditions": [
+                    {"operator": "eq", "value": false, "label": "Non"},
+                    {"operator": "eq", "value": true, "label": "Oui"}
+                ]
+            },
+            {
+                "id": "compensating-ctrl-internal",
+                "type": "input",
+                "label": "Controle compensatoire ?",
+                "position": {"x": 1050, "y": 150},
+                "config": {"field": "compensating_control"},
+                "conditions": [
+                    {"operator": "eq", "value": true, "label": "Oui"},
+                    {"operator": "eq", "value": false, "label": "Non"}
+                ]
+            },
+            {
+                "id": "compensating-ctrl-exposed",
+                "type": "input",
+                "label": "Controle compensatoire ?",
+                "position": {"x": 1050, "y": 500},
+                "config": {"field": "compensating_control"},
+                "conditions": [
+                    {"operator": "eq", "value": true, "label": "Oui"},
+                    {"operator": "eq", "value": false, "label": "Non"}
+                ]
+            },
+            {
+                "id": "output-not-affected-absent",
+                "type": "output",
+                "label": "Not Affected (absent)",
+                "position": {"x": 1400, "y": 0},
+                "config": {"decision": "Not Affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "code_not_present"},
+                "conditions": []
+            },
+            {
+                "id": "output-in-triage",
+                "type": "output",
+                "label": "In Triage",
+                "position": {"x": 1400, "y": 120},
+                "config": {"decision": "In Triage", "color": "#eab308", "vex_status": "in_triage"},
+                "conditions": []
+            },
+            {
+                "id": "output-not-affected-unreachable",
+                "type": "output",
+                "label": "Not Affected (unreachable)",
+                "position": {"x": 1400, "y": 240},
+                "config": {"decision": "Not Affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "code_not_reachable"},
+                "conditions": []
+            },
+            {
+                "id": "output-not-affected-mitigated",
+                "type": "output",
+                "label": "Not Affected (mitigated)",
+                "position": {"x": 1400, "y": 360},
+                "config": {"decision": "Not Affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "protected_by_mitigating_control"},
+                "conditions": []
+            },
+            {
+                "id": "output-exploitable-internal",
+                "type": "output",
+                "label": "Exploitable (internal)",
+                "position": {"x": 1400, "y": 480},
+                "config": {"decision": "Exploitable", "color": "#f97316", "vex_status": "exploitable"},
+                "conditions": []
+            },
+            {
+                "id": "output-not-affected-mitigated-exposed",
+                "type": "output",
+                "label": "Not Affected (mitigated)",
+                "position": {"x": 1400, "y": 600},
+                "config": {"decision": "Not Affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "protected_by_mitigating_control"},
+                "conditions": []
+            },
+            {
+                "id": "output-exploitable",
+                "type": "output",
+                "label": "Exploitable",
+                "position": {"x": 1400, "y": 720},
+                "config": {"decision": "Exploitable", "color": "#dc2626", "vex_status": "exploitable"},
+                "conditions": []
+            }
+        ],
+        "edges": [
+            {"id": "e-deploy-no", "source": "component-deployed", "target": "output-not-affected-absent", "source_handle": "handle-0"},
+            {"id": "e-deploy-yes", "source": "component-deployed", "target": "code-reachable", "source_handle": "handle-1"},
+
+            {"id": "e-reach-unknown", "source": "code-reachable", "target": "output-in-triage", "source_handle": "handle-0"},
+            {"id": "e-reach-no", "source": "code-reachable", "target": "output-not-affected-unreachable", "source_handle": "handle-1"},
+            {"id": "e-reach-yes", "source": "code-reachable", "target": "network-exposed", "source_handle": "handle-2"},
+
+            {"id": "e-net-no", "source": "network-exposed", "target": "compensating-ctrl-internal", "source_handle": "handle-0"},
+            {"id": "e-net-yes", "source": "network-exposed", "target": "compensating-ctrl-exposed", "source_handle": "handle-1"},
+
+            {"id": "e-ctrl-int-yes", "source": "compensating-ctrl-internal", "target": "output-not-affected-mitigated", "source_handle": "handle-0"},
+            {"id": "e-ctrl-int-no", "source": "compensating-ctrl-internal", "target": "output-exploitable-internal", "source_handle": "handle-1"},
+
+            {"id": "e-ctrl-exp-yes", "source": "compensating-ctrl-exposed", "target": "output-not-affected-mitigated-exposed", "source_handle": "handle-0"},
+            {"id": "e-ctrl-exp-no", "source": "compensating-ctrl-exposed", "target": "output-exploitable", "source_handle": "handle-1"}
+        ],
+        "metadata": {
+            "viewport": {"x": 0, "y": 0, "zoom": 0.7},
+            "field_mapping": {
+                "fields": [
+                    {"name": "cve_id", "type": "string", "description": "Identifiant CVE", "examples": ["CVE-2024-1234"], "required": true},
+                    {"name": "component_name", "type": "string", "description": "Nom du composant/librairie affecte", "examples": ["log4j-core", "openssl", "spring-boot"], "required": false},
+                    {"name": "component_version", "type": "string", "description": "Version du composant", "examples": ["2.14.1", "3.0.7"], "required": false},
+                    {"name": "component_deployed", "type": "boolean", "description": "Le composant est-il deploye dans le produit ?", "examples": [true, false], "required": true},
+                    {"name": "code_reachable", "type": "string", "description": "Le code vulnerable est-il atteignable ? (true, false, unknown)", "examples": [true, false, "unknown"], "required": true},
+                    {"name": "network_exposed", "type": "boolean", "description": "Le service est-il expose au reseau/internet ?", "examples": [true, false], "required": true},
+                    {"name": "compensating_control", "type": "boolean", "description": "Un controle compensatoire est-il en place ? (WAF, isolation, etc.)", "examples": [true, false], "required": true}
+                ],
+                "source": "default",
+                "version": 1
+            }
+        }
+    }'::jsonb
+) ON CONFLICT DO NOTHING;
+
+-- Exemples de vulnerabilites pour illustrer le triage VEX
+-- Ces donnees servent de documentation pour l'arbre VEX Triage
+-- Utilisation : POST /api/v1/evaluate/tree/vex-triage avec ces donnees
+
+-- Exemple 1 : Log4Shell dans un composant non deploye → not_affected
+-- {"cve_id": "CVE-2021-44228", "component_name": "log4j-core", "component_version": "2.14.1",
+--  "component_deployed": false, "code_reachable": true, "network_exposed": true, "compensating_control": false}
+-- → Decision: Not Affected (absent) / VEX: not_affected / Justification: code_not_present
+
+-- Exemple 2 : Spring4Shell, code non atteignable → not_affected
+-- {"cve_id": "CVE-2022-22965", "component_name": "spring-core", "component_version": "5.3.17",
+--  "component_deployed": true, "code_reachable": false, "network_exposed": true, "compensating_control": false}
+-- → Decision: Not Affected (unreachable) / VEX: not_affected / Justification: code_not_reachable
+
+-- Exemple 3 : OpenSSL vuln, deploye, atteignable, expose, pas de controle → exploitable
+-- {"cve_id": "CVE-2024-5535", "component_name": "openssl", "component_version": "3.0.7",
+--  "component_deployed": true, "code_reachable": true, "network_exposed": true, "compensating_control": false}
+-- → Decision: Exploitable / VEX: exploitable
+
+-- Exemple 4 : Vuln interne mitigee par WAF → not_affected
+-- {"cve_id": "CVE-2024-3094", "component_name": "xz-utils", "component_version": "5.6.1",
+--  "component_deployed": true, "code_reachable": true, "network_exposed": true, "compensating_control": true}
+-- → Decision: Not Affected (mitigated) / VEX: not_affected / Justification: protected_by_mitigating_control
+
+-- Exemple 5 : Analyse en cours → in_triage
+-- {"cve_id": "CVE-2024-9999", "component_name": "internal-lib", "component_version": "1.0.0",
+--  "component_deployed": true, "code_reachable": "unknown", "network_exposed": false, "compensating_control": false}
+-- → Decision: In Triage / VEX: in_triage
+
+-- Exemple 6 : Vuln interne sans exposition reseau ni controle → exploitable (internal)
+-- {"cve_id": "CVE-2024-8888", "component_name": "jackson-databind", "component_version": "2.13.0",
+--  "component_deployed": true, "code_reachable": true, "network_exposed": false, "compensating_control": false}
+-- → Decision: Exploitable (internal) / VEX: exploitable
