@@ -1,12 +1,26 @@
-# TreeVuln - SSVC Decision Tree Builder
+# TreeVuln — Security Decision Engine
 
-Outil de priorisation de vulnérabilités basé sur la méthodologie **SSVC** (Stakeholder-Specific Vulnerability Categorization).
+Moteur de decision de securite visuel et auditable. Construisez graphiquement vos arbres de decision et utilisez-les pour automatiser le traitement de volumes massifs de vulnerabilites, non-conformites, audits cloud, containers et plus encore.
 
-Construisez graphiquement vos arbres de décision et utilisez-les pour traiter automatiquement des volumes massifs de vulnérabilités.
+## Pourquoi TreeVuln ?
 
-## Fonctionnalités
+Le score CVSS seul ne suffit plus. Avec des milliers d'alertes par jour, les equipes SecOps ont besoin de **contexte** pour prioriser : l'asset est-il critique ? L'exploit est-il actif ? Le service est-il expose sur Internet ?
 
-- **Editeur visuel** : Construisez vos arbres de décision par glisser-deposer
+TreeVuln applique la methodologie **SSVC** (Stakeholder-Specific Vulnerability Categorization) pour transformer ces criteres en decisions actionnables — de facon **transparente**, **auditable** et **personnalisable**.
+
+Contrairement aux "black boxes" proprietaires, TreeVuln vous permet de **dessiner votre propre logique de decision** et de l'expliquer a un auditeur ou a un RSSI.
+
+## Cas d'usage
+
+- **Vulnerabilites** : Priorisation SSVC (Act / Attend / Track* / Track) basee sur KEV, EPSS, CVSS et criticite des assets
+- **Cloud** : Evaluation des droits IAM excessifs, security groups ouverts, buckets exposes
+- **Containers** : Detection d'images Docker avec CVE critiques, execution root, secrets en clair
+- **Conformite** : Controles ISO 27001, SOC2, PCI-DSS avec decisions automatisees
+- **Audit** : Evaluation de maturite et plans de remediation
+
+## Fonctionnalites
+
+- **Editeur visuel** : Construisez vos arbres de decision par glisser-deposer
 - **Methodologie SSVC** : Arbre par defaut implementant les 4 criteres SSVC
 - **4 types de noeuds** : Input, Lookup, Equation et Output
 - **Conditions composees** : Combinez plusieurs criteres avec AND/OR sur les branches
@@ -585,13 +599,51 @@ TreeVuln/
         └── types/               # Types TypeScript
 ```
 
+## Editions
+
+TreeVuln est disponible en deux editions :
+
+### Community (gratuit, AGPL-3.0)
+
+Tout ce dont vous avez besoin pour construire et executer vos arbres de decision :
+
+- Editeur visuel complet (React Flow)
+- Moteur d'inference (evaluation unitaire, batch, CSV)
+- 4 types de noeuds (Input, Lookup, Equation, Output)
+- Multi-arbres avec contextes isoles
+- Webhooks sortants et ingestion entrante
+- Parsing CVSS v3.1 et v4.0
+- Audit trail complet
+- Export/Import d'arbres (Decision-as-Code)
+- VEX Generator (CycloneDX / OpenVEX) *(a venir)*
+- Bibliotheque de templates d'arbres *(a venir)*
+
+### Enterprise (licence commerciale)
+
+Pour les equipes qui ont besoin de gouvernance, d'integrations et de reporting :
+
+- SSO (SAML / OIDC) et RBAC (roles granulaires)
+- Visual Diff entre versions d'arbres
+- Connecteurs natifs (Tenable, Qualys, Jira, ServiceNow)
+- Noeuds specialises (Threat Intel, CMDB externe)
+- Audit trail avance (certificats de decision PDF/JSON)
+- Reporting multi-arbres et simulation What-if
+
+Pour obtenir une licence Enterprise, contactez-nous via les issues du repository.
+
 ## Licence
 
-Ce projet est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+Le code source de TreeVuln Community est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
 Cela signifie que vous pouvez librement utiliser, modifier et distribuer ce logiciel, a condition de :
 - Conserver la meme licence pour les oeuvres derivees
 - Rendre le code source disponible si vous deployez une version modifiee accessible via reseau
+
+Les modules Enterprise sont sous licence commerciale separee.
+
+## Contribuer
+
+Les contributions sont les bienvenues. Avant de contribuer, veuillez signer le [CLA (Contributor License Agreement)](CLA.md) afin de permettre la distribution du projet sous double licence.
 
 ## Support
 

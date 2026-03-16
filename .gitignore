@@ -105,6 +105,13 @@ logs/
 CLAUDE.md
 
 # ===========================
+# Internal docs (not public)
+# ===========================
+ROADMAP.md
+LICENSE-COMMERCIAL.md
+docs/superpowers/
+
+# ===========================
 # Testing
 # ===========================
 coverage/
