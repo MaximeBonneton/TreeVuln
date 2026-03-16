@@ -1,6 +1,14 @@
 # TreeVuln — Security Decision Engine
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg)](https://fastapi.tiangolo.com)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](docker-compose.yml)
+
 Moteur de decision de securite visuel et auditable. Construisez graphiquement vos arbres de decision et utilisez-les pour automatiser le traitement de volumes massifs de vulnerabilites, non-conformites, audits cloud, containers et plus encore.
+
+![TreeVuln — Editeur visuel d'arbres de decision SSVC](docs/images/tree-editor.png)
 
 ## Pourquoi TreeVuln ?
 
@@ -10,361 +18,73 @@ TreeVuln applique la methodologie **SSVC** (Stakeholder-Specific Vulnerability C
 
 Contrairement aux "black boxes" proprietaires, TreeVuln vous permet de **dessiner votre propre logique de decision** et de l'expliquer a un auditeur ou a un RSSI.
 
-## Cas d'usage
-
-- **Vulnerabilites** : Priorisation SSVC (Act / Attend / Track* / Track) basee sur KEV, EPSS, CVSS et criticite des assets
-- **Cloud** : Evaluation des droits IAM excessifs, security groups ouverts, buckets exposes
-- **Containers** : Detection d'images Docker avec CVE critiques, execution root, secrets en clair
-- **Conformite** : Controles ISO 27001, SOC2, PCI-DSS avec decisions automatisees
-- **Audit** : Evaluation de maturite et plans de remediation
-
-## Fonctionnalites
-
-- **Editeur visuel** : Construisez vos arbres de decision par glisser-deposer
-- **Methodologie SSVC** : Arbre par defaut implementant les 4 criteres SSVC
-- **4 types de noeuds** : Input, Lookup, Equation et Output
-- **Conditions composees** : Combinez plusieurs criteres avec AND/OR sur les branches
-- **Noeuds multi-entrees** : Optimisez vos arbres en mutualisant les noeuds similaires
-- **Noeud Equation** : Calculez des scores personnalises via formules mathematiques avec mapping texte vers nombre
-- **Parsing CVSS** : Extrayez les metriques individuelles des vecteurs CVSS (v3.1 et v4.0)
-- **Multi-arbres** : Gerez plusieurs arbres avec contextes isoles et API dediee par arbre
-- **Referentiel d'assets** : Enrichissez vos decisions avec la criticite des assets
-- **Import/Export** : Import bulk d'assets (CSV/JSON) et export des resultats d'evaluation
-- **Webhooks sortants** : Notifications vers ticketing/SIEM (HMAC-SHA256, retry, logs)
-- **Webhooks entrants** : Ingestion temps reel avec mapping de champs et cle API
-- **Audit trail** : Tracez le chemin de decision complet pour chaque evaluation
-- **Versioning** : Historique des modifications avec restauration
-
-## Installation rapide
-
-### Prerequis
-
-- Docker et Docker Compose
-
-### Demarrage
+## Quick Start
 
 ```bash
-# Cloner le repository
-git clone <repository-url>
-cd TreeVuln
-
-# Lancer l'application
+git clone <repository-url> && cd TreeVuln
 docker compose up -d
-
-# Verifier que tout fonctionne
-docker compose ps
 ```
-
-### Acces
 
 | Service | URL |
 |---------|-----|
 | Application | http://localhost:3000 |
 | API | http://localhost:8000 |
-| Documentation API | http://localhost:8000/docs |
+| Documentation API (Swagger) | http://localhost:8000/docs |
 
-## Guide d'utilisation
+<details>
+<summary>Plus de captures d'ecran</summary>
 
-### 1. Interface principale
+| Palette de noeuds & sidebar | Configuration d'un noeud |
+|:--:|:--:|
+| ![Palette](docs/images/node-palette.png) | ![Config](docs/images/node-config.png) |
 
-L'interface se compose de 3 zones :
+| Mapping des champs | Test & audit trail |
+|:--:|:--:|
+| ![Mapping](docs/images/field-mapping.png) | ![Test](docs/images/test-panel.png) |
 
-```
-+-------------------------------------------------------------+
-|  Toolbar (Sauvegarder, Annuler, Historique, Test)            |
-+----------+---------------------------------+-----------------+
-|          |                                 |                 |
-| Sidebar  |      Zone de travail            |    Panel de     |
-| (Arbres) |      (React Flow)               | configuration   |
-|          |                                 |                 |
-+----------+---------------------------------+-----------------+
-```
+</details>
 
-### 2. Creer un arbre de decision
+## Fonctionnalites
 
-#### Types de noeuds disponibles
+### Editeur visuel
 
-| Type | Description | Utilisation |
-|------|-------------|-------------|
-| **Input** | Lit un champ de la vulnerabilite | CVSS, EPSS, KEV, etc. |
-| **Lookup** | Recherche dans une table externe | Criticite d'un asset |
-| **Equation** | Calcule un score via formule | Score de risque composite |
-| **Output** | Decision finale | Act, Attend, Track*, Track |
+- **Drag & drop** : 4 types de noeuds — Input, Lookup, Equation, Output
+- **Conditions composees** : combinez plusieurs criteres avec AND/OR sur les branches
+- **Noeuds multi-entrees** : mutualisez la logique (8 noeuds au lieu de 26 pour un arbre SSVC)
+- **Auto-layout** : reorganisez automatiquement les noeuds en un clic
+- **Export image** : PNG ou SVG pour vos rapports et presentations
 
-#### Ajouter un noeud
+### Moteur d'inference
 
-1. Cliquez sur un type de noeud dans la palette
-2. Le noeud apparait dans la zone de travail
-3. Glissez-le a la position souhaitee
+- **Evaluation unitaire et batch** : jusqu'a 50 000 vulnerabilites par requete
+- **Parsing CVSS** : extraction automatique des metriques CVSS v3.1 et v4.0
+- **Noeud Equation** : formules mathematiques avec mapping texte-vers-nombre
+- **Audit trail** : chemin de decision complet pour chaque evaluation
 
-#### Configurer un noeud
+### Multi-arbres & API
 
-1. Cliquez sur un noeud pour ouvrir le panneau de configuration
-2. Definissez le champ a evaluer (pour Input/Lookup) ou la formule (pour Equation)
-3. Ajoutez des conditions de sortie avec leurs operateurs
+- **Contextes isoles** : chaque arbre a ses propres assets, webhooks et endpoints
+- **API dediee par arbre** : endpoint configurable via slug (`/evaluate/tree/mon-arbre`)
+- **Decision-as-Code** : exportez/importez vos arbres en JSON pour les versionner dans Git
+- **Versioning** : historique des modifications avec restauration
 
-#### Connecter les noeuds
+### Integration
 
-1. Cliquez sur un handle de sortie (rond a droite du noeud)
-2. Glissez vers le noeud cible
-3. Relachez sur le handle d'entree (rond a gauche)
+- **Webhooks sortants** : notifications HMAC-SHA256 vers ticketing/SIEM
+- **Webhooks entrants** : ingestion temps reel avec mapping de champs et cle API
+- **Import/Export** : assets en CSV/JSON, resultats avec audit trail
 
-### 3. Conditions de sortie
+## Cas d'usage
 
-Chaque noeud (sauf Output) definit des conditions qui determinent la branche a suivre.
+| Domaine | Exemple |
+|---------|---------|
+| **Vulnerabilites** | Priorisation SSVC (Act / Attend / Track* / Track) basee sur KEV, EPSS, CVSS |
+| **Cloud** | Evaluation des droits IAM excessifs, security groups ouverts, buckets exposes |
+| **Containers** | Detection d'images Docker avec CVE critiques, execution root, secrets en clair |
+| **Conformite** | Controles ISO 27001, SOC2, PCI-DSS avec decisions automatisees |
+| **Audit** | Evaluation de maturite et plans de remediation |
 
-#### Operateurs disponibles
-
-| Operateur | Description | Exemple |
-|-----------|-------------|---------|
-| `=` | Egal | `kev = true` |
-| `!=` | Different | `status != "closed"` |
-| `>` | Superieur | `cvss_score > 7` |
-| `>=` | Superieur ou egal | `epss_score >= 0.2` |
-| `<` | Inferieur | `cvss_score < 4` |
-| `<=` | Inferieur ou egal | `epss_score <= 0.1` |
-| `in` | Dans une liste | `criticality in ["High", "Critical"]` |
-| `contains` | Contient | `description contains "RCE"` |
-| `is_null` | Est null/vide | `kev is_null` |
-| `regex` | Expression reguliere | `cve_id regex "CVE-2024-.*"` |
-
-#### Types de valeurs
-
-L'editeur de conditions supporte 3 types de valeurs :
-- **Texte** : `"High"`, `"CVE-2024-1234"`
-- **Nombre** : `9.0`, `0.2`
-- **Booleen** : `true`, `false`
-
-#### Conditions composees (AND/OR)
-
-Pour des regles plus complexes, basculez en **mode Compose** pour combiner plusieurs criteres :
-
-1. Cliquez sur le bouton **Compose** dans l'editeur de condition
-2. Choisissez la logique : **AND** (toutes vraies) ou **OR** (au moins une vraie)
-3. Ajoutez vos criteres avec le bouton **+ Ajouter critere**
-
-Chaque critere peut evaluer un champ different :
-
-```
-+-- Branche "Critical Network Risk" ----------------+
-| Logique: AND                                       |
-|                                                    |
-| +-- Critere 1 ---------------------------------+  |
-| | Champ: cvss_av  |  =  |  Network             |  |
-| +-----------------------------------------------+  |
-| +-- Critere 2 ---------------------------------+  |
-| | Champ: cvss_ac  |  =  |  Low                 |  |
-| +-----------------------------------------------+  |
-+----------------------------------------------------+
-```
-
-Cette branche ne sera suivie que si `cvss_av = "Network"` **ET** `cvss_ac = "Low"`.
-
-### 4. Noeud Equation
-
-Le noeud Equation permet de calculer un score numerique a partir d'une formule combinant plusieurs champs.
-
-#### Configuration
-
-1. Saisissez une **formule** dans le champ dedie (ex: `cvss_score * 0.4 + epss_score * 100 * 0.3`)
-2. Les **variables** sont detectees automatiquement depuis la formule
-3. Cliquez sur les champs disponibles pour les inserer dans la formule
-4. Definissez un **label de sortie** (ex: "Risk Score")
-5. Ajoutez des **conditions de seuil** pour router vers les noeuds suivants
-
-#### Syntaxe des formules
-
-| Element | Exemples |
-|---------|----------|
-| Operateurs | `+ - * / ** %` |
-| Fonctions | `min() max() abs() round()` |
-| Ternaire | `condition ? val_true : val_false` |
-| Comparaisons | `< > <= >= == !=` |
-| Logique | `and or not` |
-
-Exemples :
-```
-cvss_score * 0.4 + epss_score * 100 * 0.3
-max(cvss_score, epss_score * 10)
-kev ? 30 : 0
-```
-
-#### Mapping de valeurs (texte vers nombre)
-
-Les champs textuels comme `asset_criticality` ne peuvent pas etre utilises directement dans une formule. Le **mapping de valeurs** permet de leur associer une valeur numerique.
-
-Dans la section "Mapping de valeurs" du noeud Equation :
-1. Depliez la variable textuelle (ex: `asset_criticality`)
-2. Ajoutez les correspondances :
-
-| Texte | Valeur |
-|-------|--------|
-| Low | 1 |
-| Medium | 2 |
-| High | 3 |
-| Critical | 4 |
-| **Defaut** | **0** |
-
-Lors de l'evaluation, `asset_criticality = "High"` sera automatiquement remplace par `3` avant le calcul de la formule. Si la valeur n'est pas trouvee dans la table, la valeur par defaut est utilisee.
-
-### 5. Metriques CVSS
-
-TreeVuln peut parser les vecteurs CVSS (v3.1 et v4.0) pour extraire les metriques individuelles.
-
-#### Utilisation
-
-1. Incluez le champ `cvss_vector` dans vos donnees de vulnerabilite :
-```json
-{
-  "cve_id": "CVE-2024-1234",
-  "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
-}
-```
-
-2. Dans un noeud Input, selectionnez une metrique CVSS (groupee sous "Metriques CVSS") :
-
-| Champ | Description | Valeurs possibles |
-|-------|-------------|-------------------|
-| `cvss_av` | Attack Vector | Network, Adjacent, Local, Physical |
-| `cvss_ac` | Attack Complexity | Low, High |
-| `cvss_pr` | Privileges Required | None, Low, High |
-| `cvss_ui` | User Interaction | None, Required |
-| `cvss_s` | Scope | Unchanged, Changed |
-| `cvss_c` | Confidentiality Impact | None, Low, High |
-| `cvss_i` | Integrity Impact | None, Low, High |
-| `cvss_a` | Availability Impact | None, Low, High |
-
-CVSS 4.0 ajoute des metriques supplementaires (`cvss_at`, `cvss_vc`, `cvss_vi`, `cvss_va`, `cvss_sc`, `cvss_si`, `cvss_sa`).
-
-### 6. Noeuds multi-entrees
-
-Les noeuds peuvent avoir plusieurs entrees pour mutualiser la logique de decision.
-
-#### Configuration
-
-Dans le panneau de configuration d'un noeud Input ou Lookup, definissez le nombre d'entrees souhaite. Chaque entree :
-- Recoit une connexion independante depuis un noeud precedent
-- Evalue les memes conditions
-- Produit ses propres sorties vers les noeuds suivants
-
-#### Avantage
-
-Un arbre SSVC classique necessite ~26 noeuds. Avec les noeuds multi-entrees, le meme arbre n'en requiert que 8, tout en conservant la meme logique de decision.
-
-### 7. Tester l'arbre
-
-1. Cliquez sur **Test** dans la toolbar
-2. Saisissez un JSON de vulnerabilite :
-
-```json
-{
-  "cve_id": "CVE-2024-1234",
-  "kev": true,
-  "epss_score": 0.5,
-  "cvss_score": 9.8,
-  "asset_criticality": "High"
-}
-```
-
-3. Cliquez sur **Evaluer**
-4. Le chemin de decision s'affiche avec la decision finale
-
-### 8. Gerer les assets
-
-Le referentiel d'assets permet d'enrichir les decisions avec des donnees contextuelles.
-
-1. Cliquez sur l'onglet **Assets** dans la sidebar
-2. Ajoutez vos assets avec leur criticite (Low, Medium, High, Critical)
-3. Utilisez un noeud **Lookup** pour recuperer la criticite via `asset_id`
-
-#### Import bulk
-
-Importez vos assets depuis un fichier CSV ou JSON :
-
-1. Cliquez sur **Importer** dans l'onglet Assets
-2. Selectionnez votre fichier
-3. Previewez et mappez les colonnes
-4. Validez l'import
-
-### 9. Export des resultats
-
-Apres une evaluation batch, exportez les resultats avec l'audit trail complet :
-
-```bash
-# Evaluer et exporter en CSV
-curl -X POST 'http://localhost:8000/api/v1/evaluate/export' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "vulnerabilities": [...],
-    "format": "csv"
-  }' -o results.csv
-
-# Evaluer un CSV et exporter
-curl -X POST 'http://localhost:8000/api/v1/evaluate/export/csv' \
-  -F 'file=@vulns.csv' \
-  -F 'format=json' -o results.json
-```
-
-### 10. Webhooks sortants
-
-Envoyez automatiquement les resultats d'evaluation vers vos outils (ticketing, SIEM, etc.).
-
-#### Configuration
-
-1. Ouvrez les parametres d'un arbre
-2. Ajoutez un webhook avec l'URL cible
-3. Configurez les options : evenements, secret HMAC-SHA256, retry
-
-#### Securite
-
-Les webhooks sont signes avec HMAC-SHA256. Le header `X-Webhook-Signature` permet au destinataire de verifier l'authenticite du payload.
-
-### 11. Webhooks entrants (ingestion)
-
-Recevez des vulnerabilites en temps reel depuis des sources externes.
-
-#### Configuration
-
-1. Creez un endpoint d'ingestion pour un arbre
-2. Configurez le mapping des champs (adaptation du format source)
-3. Une cle API est generee automatiquement
-
-#### Utilisation
-
-```bash
-curl -X POST 'http://localhost:8000/api/v1/ingest/mon-endpoint' \
-  -H 'Content-Type: application/json' \
-  -H 'X-API-Key: <cle-api>' \
-  -d '{"cve": "CVE-2024-1234", "score": 9.8, ...}'
-```
-
-Les vulnerabilites sont evaluees automatiquement par l'arbre associe.
-
-## Arbre SSVC par defaut
-
-L'application inclut un arbre SSVC complet evaluant 4 criteres :
-
-### Criteres d'evaluation
-
-| Critere | Champ | Valeurs |
-|---------|-------|---------|
-| **Exploitation** | `kev` | null -> None, false -> PoC, true -> Active |
-| **Automatable** | `epss_score` | < 0.2 -> No, >= 0.2 -> Yes |
-| **Technical Impact** | `cvss_score` | < 9 -> Partial, >= 9 -> Total |
-| **Mission & Well-being** | `asset_criticality` | Low, Medium, High, Critical |
-
-### Decisions possibles
-
-| Decision | Couleur | Signification |
-|----------|---------|---------------|
-| **Act** | Rouge | Action immediate requise |
-| **Attend** | Orange | Surveillance active, planifier correction |
-| **Track*** | Jaune | Suivre de pres |
-| **Track** | Vert | Suivre dans le flux normal |
-
-## Utilisation de l'API
-
-### Evaluer une vulnerabilite
+## Exemple API
 
 ```bash
 curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
@@ -379,8 +99,6 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
     }
   }'
 ```
-
-**Reponse :**
 
 ```json
 {
@@ -399,164 +117,7 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
 }
 ```
 
-### Evaluer un batch
-
-```bash
-curl -X POST 'http://localhost:8000/api/v1/evaluate' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "vulnerabilities": [
-      {"cve_id": "CVE-2024-001", "kev": true, "epss_score": 0.5, "cvss_score": 9.8, "asset_criticality": "High"},
-      {"cve_id": "CVE-2024-002", "kev": false, "epss_score": 0.1, "cvss_score": 5.0, "asset_criticality": "Low"}
-    ]
-  }'
-```
-
-### Evaluer un fichier CSV
-
-```bash
-curl -X POST 'http://localhost:8000/api/v1/evaluate/csv' \
-  -F 'file=@vulnerabilities.csv'
-```
-
-Format CSV attendu :
-```csv
-cve_id,kev,epss_score,cvss_score,asset_criticality
-CVE-2024-001,true,0.5,9.8,High
-CVE-2024-002,false,0.1,5.0,Low
-```
-
-### Endpoints principaux
-
-#### Gestion des arbres
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/v1/trees` | Liste tous les arbres |
-| GET | `/api/v1/tree` | Recupere l'arbre par defaut |
-| POST | `/api/v1/tree` | Sauvegarde l'arbre |
-| GET | `/api/v1/tree/{id}/versions` | Historique des versions |
-| POST | `/api/v1/tree/{id}/restore/{version_id}` | Restaurer une version |
-| POST | `/api/v1/tree/{id}/duplicate` | Dupliquer un arbre |
-| PUT | `/api/v1/tree/{id}/api-config` | Configurer l'API dediee |
-| PUT | `/api/v1/tree/{id}/set-default` | Definir comme arbre par defaut |
-
-#### Evaluation
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| POST | `/api/v1/evaluate/single` | Evaluer 1 vulnerabilite |
-| POST | `/api/v1/evaluate` | Evaluer un batch JSON |
-| POST | `/api/v1/evaluate/csv` | Evaluer un fichier CSV |
-| POST | `/api/v1/evaluate/export` | Evaluer batch et exporter CSV/JSON |
-| POST | `/api/v1/evaluate/export/csv` | Evaluer CSV et exporter CSV/JSON |
-| POST | `/api/v1/evaluate/tree/{slug}` | Evaluer via API dediee d'un arbre |
-| POST | `/api/v1/evaluate/tree/{slug}/batch` | Evaluer batch via API dediee |
-
-#### Assets
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/v1/assets?tree_id=X` | Lister les assets d'un arbre |
-| POST | `/api/v1/assets` | Creer un asset |
-| POST | `/api/v1/assets/import` | Import bulk depuis CSV/JSON |
-| POST | `/api/v1/assets/import/preview` | Preview colonnes d'un fichier |
-
-#### Webhooks sortants
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/v1/tree/{tree_id}/webhooks` | Lister les webhooks d'un arbre |
-| POST | `/api/v1/tree/{tree_id}/webhooks` | Creer un webhook |
-| PUT | `/api/v1/webhooks/{id}` | Modifier un webhook |
-| DELETE | `/api/v1/webhooks/{id}` | Supprimer un webhook |
-| POST | `/api/v1/webhooks/{id}/test` | Tester un webhook |
-| GET | `/api/v1/webhooks/{id}/logs` | Historique des envois |
-
-#### Webhooks entrants (ingestion)
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| POST | `/api/v1/ingest/{slug}` | Recevoir et evaluer (auth X-API-Key) |
-| GET | `/api/v1/tree/{tree_id}/ingest-endpoints` | Lister les endpoints |
-| POST | `/api/v1/tree/{tree_id}/ingest-endpoints` | Creer un endpoint |
-| PUT | `/api/v1/ingest-endpoints/{id}` | Modifier un endpoint |
-| DELETE | `/api/v1/ingest-endpoints/{id}` | Supprimer un endpoint |
-| POST | `/api/v1/ingest-endpoints/{id}/regenerate-key` | Regenerer cle API |
-| GET | `/api/v1/ingest-endpoints/{id}/logs` | Historique des receptions |
-
-#### Field mapping
-
-| Methode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/v1/mapping` | Field mapping de l'arbre |
-| PUT | `/api/v1/mapping` | Mettre a jour le mapping |
-| POST | `/api/v1/mapping/scan` | Scanner un fichier pour detecter les champs |
-| GET | `/api/v1/mapping/cvss-fields` | Definitions des champs CVSS |
-
-## Configuration avancee
-
-### Variables d'environnement
-
-| Variable | Defaut | Description |
-|----------|--------|-------------|
-| `DATABASE_URL` | (voir docker-compose) | URL PostgreSQL |
-| `BACKEND_PORT` | 8000 | Port du backend |
-| `FRONTEND_PORT` | 3000 | Port du frontend |
-
-### Multi-arbres
-
-Chaque arbre peut avoir :
-- Son propre referentiel d'assets (contexte isole)
-- Une API dediee via un slug personnalise
-- Ses propres webhooks sortants et endpoints d'ingestion
-
-```bash
-# Activer l'API dediee pour un arbre
-curl -X PUT 'http://localhost:8000/api/v1/tree/1/api-config' \
-  -H 'Content-Type: application/json' \
-  -d '{"api_enabled": true, "api_slug": "mon-arbre"}'
-
-# Evaluer via l'URL dediee
-curl -X POST 'http://localhost:8000/api/v1/evaluate/tree/mon-arbre' \
-  -H 'Content-Type: application/json' \
-  -d '{"vulnerability": {...}}'
-```
-
-## Commandes utiles
-
-```bash
-# Demarrer
-docker compose up -d
-
-# Arreter
-docker compose down
-
-# Voir les logs
-docker compose logs -f backend
-
-# Reinitialiser la base de donnees
-docker compose down -v && docker compose up -d
-
-# Reconstruire apres modification du code
-docker compose up -d --build
-```
-
-## Developpement local (sans Docker)
-
-```bash
-# Backend
-cd backend
-pip install -e .
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (dans un autre terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Necessite une instance PostgreSQL locale avec les variables d'environnement configurees.
+L'API complete est documentee sur [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
 
 ## Stack technique
 
@@ -564,59 +125,21 @@ Necessite une instance PostgreSQL locale avec les variables d'environnement conf
 |-----------|-------------|
 | Frontend | React 18, TypeScript, React Flow, TailwindCSS, Zustand |
 | Backend | FastAPI, Pydantic v2, Polars, SQLAlchemy 2.0 async |
-| Base de donnees | PostgreSQL 15 (JSONB pour arbres) |
+| Base de donnees | PostgreSQL 15 (JSONB) |
 | Deploiement | Docker Compose |
 
-## Structure du projet
-
-```
-TreeVuln/
-├── docker-compose.yml
-├── scripts/
-│   └── init_db.sql
-├── backend/
-│   ├── Dockerfile
-│   ├── pyproject.toml
-│   └── app/
-│       ├── main.py
-│       ├── config.py
-│       ├── database.py
-│       ├── models/
-│       ├── schemas/
-│       ├── engine/          # Moteur d'inference (nodes, formula, inference, batch)
-│       ├── services/
-│       └── api/routes/
-└── frontend/
-    ├── Dockerfile
-    ├── nginx.conf
-    ├── package.json
-    └── src/
-        ├── components/
-        │   ├── TreeBuilder/     # Interface drag & drop
-        │   └── panels/          # Panneaux de configuration
-        ├── stores/              # Etat Zustand
-        ├── api/                 # Clients API
-        └── types/               # Types TypeScript
-```
-
 ## Editions
-
-TreeVuln est disponible en deux editions :
 
 ### Community (gratuit, AGPL-3.0)
 
 Tout ce dont vous avez besoin pour construire et executer vos arbres de decision :
 
-- Editeur visuel complet (React Flow)
-- Moteur d'inference (evaluation unitaire, batch, CSV)
-- 4 types de noeuds (Input, Lookup, Equation, Output)
-- Multi-arbres avec contextes isoles
-- Webhooks sortants et ingestion entrante
-- Parsing CVSS v3.1 et v4.0
-- Audit trail complet
-- Export/Import d'arbres (Decision-as-Code)
-- VEX Generator (CycloneDX / OpenVEX) *(a venir)*
-- Bibliotheque de templates d'arbres *(a venir)*
+- Editeur visuel complet avec drag & drop
+- Moteur d'inference (unitaire, batch, CSV)
+- Multi-arbres, webhooks, ingestion
+- Decision-as-Code (export/import JSON)
+- Auto-layout et export image (PNG/SVG)
+- Parsing CVSS v3.1 et v4.0, audit trail
 
 ### Enterprise (licence commerciale)
 
@@ -631,20 +154,39 @@ Pour les equipes qui ont besoin de gouvernance, d'integrations et de reporting :
 
 Pour obtenir une licence Enterprise, contactez-nous via les issues du repository.
 
+## Developpement
+
+```bash
+# Backend
+cd backend && pip install -e . && uvicorn app.main:app --reload --port 8000
+
+# Frontend
+cd frontend && npm install && npm run dev
+
+# Tests
+cd backend && python -m pytest tests/ -v
+cd frontend && npm test
+```
+
+<details>
+<summary>Commandes Docker utiles</summary>
+
+```bash
+docker compose up -d              # Demarrer
+docker compose down               # Arreter
+docker compose down -v            # Arreter + supprimer les donnees
+docker compose up -d --build      # Reconstruire
+docker compose logs -f backend    # Logs backend
+```
+
+</details>
+
 ## Licence
 
 Le code source de TreeVuln Community est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
-
-Cela signifie que vous pouvez librement utiliser, modifier et distribuer ce logiciel, a condition de :
-- Conserver la meme licence pour les oeuvres derivees
-- Rendre le code source disponible si vous deployez une version modifiee accessible via reseau
 
 Les modules Enterprise sont sous licence commerciale separee.
 
 ## Contribuer
 
 Les contributions sont les bienvenues. Avant de contribuer, veuillez signer le [CLA (Contributor License Agreement)](CLA.md) afin de permettre la distribution du projet sous double licence.
-
-## Support
-
-Pour signaler un bug ou demander une fonctionnalite, ouvrez une issue sur le repository.
