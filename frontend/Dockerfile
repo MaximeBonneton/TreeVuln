@@ -30,8 +30,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx config and entrypoint
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh && \
+    chown -R nginx-user:nginx-user /usr/share/nginx/html
 
-EXPOSE 80 443
+EXPOSE 8080 8443
 
+# L'entrypoint tourne en root pour générer les certs TLS,
+# puis nginx s'exécute en tant que nginx-user via la config
 ENTRYPOINT ["/docker-entrypoint.sh"]
