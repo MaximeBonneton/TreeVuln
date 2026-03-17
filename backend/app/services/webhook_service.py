@@ -8,10 +8,11 @@ import hmac
 import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook import Webhook, WebhookLog
@@ -118,6 +119,19 @@ class WebhookService:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def purge_old_logs(self, days: int = 30) -> int:
+        """Supprime les logs webhook plus anciens que `days` jours.
+
+        Returns:
+            Nombre de logs supprimés.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(WebhookLog).where(WebhookLog.created_at < cutoff)
+        )
+        await self.db.commit()
+        return result.rowcount
 
     async def test_webhook(self, webhook_id: int) -> WebhookTestResult:
         """Envoie un payload de test à un webhook et enregistre le résultat."""

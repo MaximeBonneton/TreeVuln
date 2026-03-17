@@ -5,9 +5,10 @@ Service pour la gestion des webhooks entrants (endpoints d'ingestion).
 import logging
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -132,6 +133,19 @@ class IngestService:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def purge_old_logs(self, days: int = 30) -> int:
+        """Supprime les logs d'ingestion plus anciens que `days` jours.
+
+        Returns:
+            Nombre de logs supprimés.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(IngestLog).where(IngestLog.created_at < cutoff)
+        )
+        await self.db.commit()
+        return result.rowcount
 
     async def ingest(
         self,
