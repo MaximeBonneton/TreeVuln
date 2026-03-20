@@ -6,7 +6,7 @@ Support multi-arbres avec contextes isolés.
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
 
-from app.api.deps import TreeServiceDep
+from app.api.deps import TreeServiceDep, require_role
 from app.filename_validation import sanitize_filename
 from app.models import Tree
 from app.schemas.tree import (
@@ -67,6 +67,7 @@ async def get_tree(
 async def create_tree(
     data: TreeCreate,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """Crée un nouvel arbre de décision."""
     tree = await tree_service.create_tree(data)
@@ -82,6 +83,7 @@ async def create_tree(
 async def import_tree(
     data: TreeImportRequest,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """Importer un arbre depuis un fichier Decision-as-Code (JSON)."""
     tree = await tree_service.import_tree(data)
@@ -117,6 +119,7 @@ async def update_tree(
     tree_id: int,
     data: TreeUpdate,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
     create_version: bool = True,
 ):
     """
@@ -140,6 +143,7 @@ async def update_tree(
 async def delete_tree(
     tree_id: int,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Supprime un arbre de décision.
@@ -165,6 +169,7 @@ async def duplicate_tree(
     tree_id: int,
     request: TreeDuplicateRequest,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Duplique un arbre de décision.
@@ -185,6 +190,7 @@ async def update_api_config(
     tree_id: int,
     config: TreeApiConfig,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Configure l'accès API dédié pour un arbre.
@@ -210,6 +216,7 @@ async def update_api_config(
 async def set_default_tree(
     tree_id: int,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Définit un arbre comme arbre par défaut.
@@ -273,6 +280,7 @@ async def restore_version(
     tree_id: int,
     version_id: int,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Restaure une version précédente de l'arbre.
