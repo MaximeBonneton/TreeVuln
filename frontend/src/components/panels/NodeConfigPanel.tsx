@@ -29,6 +29,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
   const deleteNode = useTreeStore((state) => state.deleteNode);
   const duplicateNode = useTreeStore((state) => state.duplicateNode);
   const fieldMapping = useTreeStore((state) => state.fieldMapping);
+  const isAdminUser = useTreeStore((state) => state.isAdmin);
   const { confirm, confirmDialogProps } = useConfirm();
 
   const [label, setLabel] = useState(node.data.label);
@@ -99,7 +100,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={`p-4 space-y-4 ${!isAdminUser() ? 'pointer-events-none opacity-60' : ''}`}>
         {/* Label */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

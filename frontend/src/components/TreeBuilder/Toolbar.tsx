@@ -25,6 +25,8 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     setSidebarOpen,
   } = useTreeStore();
 
+  const isAdminUser = useTreeStore((s) => s.isAdmin);
+
   const [saveComment, setSaveComment] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
@@ -151,13 +153,15 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             <RotateCcw size={20} />
           </button>
 
-          <button
-            onClick={handleImport}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title="Importer JSON"
-          >
-            <Upload size={20} />
-          </button>
+          {isAdminUser() && (
+            <button
+              onClick={handleImport}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              title="Importer JSON"
+            >
+              <Upload size={20} />
+            </button>
+          )}
 
           <button
             onClick={handleExport}
@@ -233,22 +237,24 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             <span className="text-sm font-medium">Tester</span>
           </button>
 
-          <button
-            onClick={handleSave}
-            disabled={!hasUnsavedChanges || isSaving}
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm
-              ${
-                hasUnsavedChanges
-                  ? 'bg-blue-500 text-white hover:bg-blue-600'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }
-            `}
-            title="Sauvegarder (Ctrl+S)"
-          >
-            <Save size={18} />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </button>
+          {isAdminUser() && (
+            <button
+              onClick={handleSave}
+              disabled={!hasUnsavedChanges || isSaving}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm
+                ${
+                  hasUnsavedChanges
+                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }
+              `}
+              title="Sauvegarder (Ctrl+S)"
+            >
+              <Save size={18} />
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          )}
         </div>
       </div>
 
