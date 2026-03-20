@@ -5,3 +5,7 @@ export { fieldMappingApi } from './fieldMapping';
 export { assetsApi } from './assets';
 export { webhooksApi } from './webhooks';
 export { ingestApi } from './ingest';
+export { authApi } from './auth';
+export type { AuthUser, AuthStatus } from './auth';
+export { usersApi } from './users';
+export type { UserResponse } from './users';

@@ -29,6 +29,9 @@ import { getLayoutedNodes } from '@/utils/autoLayout';
 let _loadTreeController: AbortController | null = null;
 
 interface TreeState {
+  // Utilisateur courant
+  currentUser: { id: string; username: string; role: 'admin' | 'operator' } | null;
+
   // Multi-arbres
   trees: TreeListItem[];
   isDefault: boolean;
@@ -56,6 +59,10 @@ interface TreeState {
   hasUnsavedChanges: boolean;
   error: string | null;
   sidebarOpen: boolean;
+
+  // Actions utilisateur
+  setCurrentUser: (user: { id: string; username: string; role: 'admin' | 'operator' } | null) => void;
+  isAdmin: () => boolean;
 
   // Actions
   setNodes: (nodes: TreeNode[]) => void;
@@ -135,6 +142,11 @@ const getDefaultLabel = (type: NodeType): string => {
 };
 
 export const useTreeStore = create<TreeState>((set, get) => ({
+  // Utilisateur courant
+  currentUser: null,
+  setCurrentUser: (user) => set({ currentUser: user }),
+  isAdmin: () => get().currentUser?.role === 'admin',
+
   // État initial
   trees: [],
   isDefault: false,
