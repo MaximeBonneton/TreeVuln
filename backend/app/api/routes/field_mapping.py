@@ -4,7 +4,7 @@ Routes API pour la gestion du mapping des champs.
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.api.deps import TreeServiceDep
+from app.api.deps import TreeServiceDep, require_role
 from app.filename_validation import sanitize_filename
 from app.engine.cvss import get_cvss_field_definitions
 from app.schemas.field_mapping import (
@@ -48,6 +48,7 @@ async def update_mapping(
     tree_id: int,
     data: FieldMappingUpdate,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Met à jour le mapping des champs pour un arbre.
@@ -96,6 +97,7 @@ async def import_mapping(
     tree_id: int,
     file: UploadFile = File(...),
     tree_service: TreeServiceDep = None,
+    _=require_role("admin"),
 ):
     """
     Importe un mapping depuis un fichier JSON.
@@ -163,6 +165,7 @@ async def import_mapping(
 async def delete_mapping(
     tree_id: int,
     tree_service: TreeServiceDep,
+    _=require_role("admin"),
 ):
     """
     Supprime le mapping des champs pour un arbre.

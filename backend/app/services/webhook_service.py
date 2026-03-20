@@ -8,10 +8,11 @@ import hmac
 import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.webhook import Webhook, WebhookLog
@@ -44,14 +45,11 @@ class WebhookService:
 
     async def create_webhook(self, tree_id: int, data: WebhookCreate) -> Webhook:
         """Crée un nouveau webhook (secret chiffré en BDD)."""
-        from app.config import settings
         from app.crypto import encrypt_secret
 
         stored_secret = None
-        if data.secret and settings.admin_api_key:
-            stored_secret = encrypt_secret(data.secret, settings.admin_api_key)
-        elif data.secret:
-            stored_secret = data.secret
+        if data.secret:
+            stored_secret = encrypt_secret(data.secret)
 
         webhook = Webhook(
             tree_id=tree_id,
@@ -80,13 +78,9 @@ class WebhookService:
         if data.secret is not None:
             # Chaîne vide = supprimer le secret
             if data.secret:
-                from app.config import settings
                 from app.crypto import encrypt_secret
 
-                if settings.admin_api_key:
-                    webhook.secret = encrypt_secret(data.secret, settings.admin_api_key)
-                else:
-                    webhook.secret = data.secret
+                webhook.secret = encrypt_secret(data.secret)
             else:
                 webhook.secret = None
         if data.headers is not None:
@@ -118,6 +112,19 @@ class WebhookService:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def purge_old_logs(self, days: int = 30) -> int:
+        """Supprime les logs webhook plus anciens que `days` jours.
+
+        Returns:
+            Nombre de logs supprimés.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(WebhookLog).where(WebhookLog.created_at < cutoff)
+        )
+        await self.db.commit()
+        return result.rowcount
 
     async def test_webhook(self, webhook_id: int) -> WebhookTestResult:
         """Envoie un payload de test à un webhook et enregistre le résultat."""
@@ -183,10 +190,9 @@ async def _send_webhook(
 
     # Signature HMAC-SHA256 si un secret est configuré
     if webhook.secret:
-        from app.config import settings as _settings
         from app.crypto import decrypt_secret
 
-        secret_plain = decrypt_secret(webhook.secret, _settings.admin_api_key) if _settings.admin_api_key else webhook.secret
+        secret_plain = decrypt_secret(webhook.secret)
         signature = hmac.new(
             secret_plain.encode("utf-8"),
             body.encode("utf-8"),

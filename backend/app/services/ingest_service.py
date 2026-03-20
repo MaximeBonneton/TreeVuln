@@ -5,12 +5,12 @@ Service pour la gestion des webhooks entrants (endpoints d'ingestion).
 import logging
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.crypto import encrypt_secret
 from app.engine import InferenceEngine
 from app.models.ingest import IngestEndpoint, IngestLog
@@ -133,6 +133,19 @@ class IngestService:
         )
         return list(result.scalars().all())
 
+    async def purge_old_logs(self, days: int = 30) -> int:
+        """Supprime les logs d'ingestion plus anciens que `days` jours.
+
+        Returns:
+            Nombre de logs supprimés.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(IngestLog).where(IngestLog.created_at < cutoff)
+        )
+        await self.db.commit()
+        return result.rowcount
+
     async def ingest(
         self,
         endpoint: IngestEndpoint,
@@ -208,10 +221,8 @@ def generate_api_key() -> str:
 
 
 def _encrypt_key(plain_key: str) -> str:
-    """Chiffre une clé API si admin_api_key est configuré, sinon plain-text."""
-    if settings.admin_api_key:
-        return encrypt_secret(plain_key, settings.admin_api_key)
-    return plain_key
+    """Chiffre une clé API pour le stockage en BDD."""
+    return encrypt_secret(plain_key)
 
 
 def transform_payload(entry: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:

@@ -12,6 +12,7 @@ interface EdgeConfigPanelProps {
 
 export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
   const { nodes, edges, setEdges } = useTreeStore();
+  const isAdminUser = useTreeStore((s) => s.isAdmin);
   const { confirm, confirmDialogProps } = useConfirm();
   const [label, setLabel] = useState(typeof edge.label === 'string' ? edge.label : '');
 
@@ -63,7 +64,7 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={`p-4 space-y-4 ${!isAdminUser() ? 'pointer-events-none opacity-60' : ''}`}>
         {/* Source -> Target */}
         <div className="flex items-center gap-2 text-sm">
           <div className="flex-1 p-2 bg-gray-50 rounded text-center truncate">

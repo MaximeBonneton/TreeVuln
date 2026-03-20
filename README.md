@@ -6,17 +6,17 @@
 [![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](docker-compose.yml)
 
-Moteur de decision de securite visuel et auditable. Construisez graphiquement vos arbres de decision et utilisez-les pour automatiser le traitement de volumes massifs de vulnerabilites, non-conformites, audits cloud, containers et plus encore.
+A visual, auditable security decision engine. Build decision trees graphically and use them to automate the processing of massive volumes of vulnerabilities, non-compliance findings, cloud audits, containers, and more.
 
-![TreeVuln — Editeur visuel d'arbres de decision](docs/images/tree-editor.png)
+![TreeVuln — Visual decision tree editor](docs/images/tree-editor.png)
 
-## Pourquoi TreeVuln ?
+## Why TreeVuln?
 
-Les equipes securite croulent sous les alertes. Scanners de vulnerabilites, audits cloud, non-conformites, rapports containers — chaque outil produit des centaines de resultats, mais aucun ne dit **quoi faire en premier**.
+Security teams are drowning in alerts. Vulnerability scanners, cloud audits, compliance checks, container reports — every tool produces hundreds of results, but none tells you **what to act on first**.
 
-TreeVuln vous permet de **dessiner votre propre logique de decision** sous forme d'arbre visuel, puis de l'appliquer automatiquement a des volumes massifs de donnees. Chaque decision est **transparente** (audit trail complet), **auditable** (exportable) et **personnalisable** (vos criteres, vos seuils, votre politique).
+TreeVuln lets you **design your own decision logic** as a visual tree, then apply it automatically to massive data volumes. Every decision is **transparent** (full audit trail), **auditable** (exportable), and **customizable** (your criteria, your thresholds, your policy).
 
-Que ce soit pour prioriser des CVE avec la methodologie SSVC, evaluer l'exploitabilite d'une vulnerabilite (VEX), trier des non-conformites cloud ou automatiser des controles d'audit — TreeVuln est le moteur qui transforme vos regles en decisions actionnables.
+Whether you need to prioritize CVEs using the SSVC methodology, assess vulnerability exploitability (VEX), triage cloud non-compliance findings, or automate audit controls — TreeVuln is the engine that turns your rules into actionable decisions.
 
 ## Quick Start
 
@@ -25,72 +25,88 @@ git clone <repository-url> && cd TreeVuln
 docker compose up -d
 ```
 
+Open http://localhost:3000 — on first launch, you'll be prompted to create your admin account (no default credentials).
+
 | Service | URL |
 |---------|-----|
 | Application | http://localhost:3000 |
 | API | http://localhost:8000 |
-| Documentation API (Swagger) | http://localhost:8000/docs |
+| API Documentation (Swagger) | http://localhost:8000/docs |
 
 <details>
-<summary>Plus de captures d'ecran</summary>
+<summary>More screenshots</summary>
 
-| Palette de noeuds & sidebar | Configuration d'un noeud |
+| Node palette & sidebar | Node configuration |
 |:--:|:--:|
 | ![Palette](docs/images/node-palette.png) | ![Config](docs/images/node-config.png) |
 
-| Mapping des champs | Test & audit trail |
+| Field mapping | Test & audit trail |
 |:--:|:--:|
 | ![Mapping](docs/images/field-mapping.png) | ![Test](docs/images/test-panel.png) |
 
 </details>
 
-## Fonctionnalites
+## Features
 
-### Editeur visuel
+### Visual Editor
 
-- **Drag & drop** : 4 types de noeuds — Input, Lookup, Equation, Output
-- **Conditions composees** : combinez plusieurs criteres avec AND/OR sur les branches
-- **Noeuds multi-entrees** : mutualisez la logique pour optimiser les arbres complexes
-- **Auto-layout** : reorganisez automatiquement les noeuds en un clic
-- **Export image** : PNG ou SVG pour vos rapports et presentations
+- **Drag & drop**: 4 node types — Input, Lookup, Equation, Output
+- **Compound conditions**: combine multiple criteria with AND/OR on branches
+- **Multi-input nodes**: share logic to optimize complex trees
+- **Auto-layout**: reorganize nodes automatically in one click
+- **Image export**: PNG or SVG for your reports and presentations
 
-### Moteur d'inference
+### Inference Engine
 
-- **Evaluation unitaire et batch** : jusqu'a 50 000 elements par requete
-- **Parsing CVSS** : extraction automatique des metriques CVSS v3.1 et v4.0
-- **Noeud Equation** : formules mathematiques avec mapping texte-vers-nombre
-- **Audit trail** : chemin de decision complet pour chaque evaluation
+- **Single and batch evaluation**: up to 50,000 items per request
+- **CVSS parsing**: automatic extraction of CVSS v3.1 and v4.0 metrics
+- **Equation node**: mathematical formulas with text-to-number mapping
+- **Audit trail**: full decision path for every evaluation
 
-### Multi-arbres & API
+### Multi-tree & API
 
-- **Contextes isoles** : chaque arbre a ses propres assets, webhooks et endpoints
-- **API dediee par arbre** : endpoint configurable via slug (`/evaluate/tree/mon-arbre`)
-- **Decision-as-Code** : exportez/importez vos arbres en JSON pour les versionner dans Git
-- **Versioning** : historique des modifications avec restauration
+- **Isolated contexts**: each tree has its own assets, webhooks, and endpoints
+- **Per-tree dedicated API**: configurable endpoint via slug (`/evaluate/tree/my-tree`)
+- **Decision-as-Code**: export/import your trees as JSON to version them in Git
+- **Versioning**: modification history with restore capability
+
+### Authentication & Access Control
+
+- **Multi-user**: username/password accounts with bcrypt hashing
+- **Two roles**: admin (full access) and operator (read + evaluate)
+- **Setup wizard**: first admin account created on initial launch
+- **Server-side sessions**: stored in PostgreSQL, 24h expiry
+- **User management**: create, deactivate, reset password, change role (admin only)
 
 ### Integration
 
-- **Webhooks sortants** : notifications HMAC-SHA256 vers ticketing/SIEM
-- **Webhooks entrants** : ingestion temps reel avec mapping de champs et cle API
-- **Import/Export** : assets en CSV/JSON, resultats avec audit trail
+- **Outbound webhooks**: HMAC-SHA256 notifications to ticketing/SIEM systems
+- **Inbound webhooks**: real-time ingestion with field mapping and API key
+- **Import/Export**: assets in CSV/JSON, results with audit trail
 
-## Cas d'usage
+## Use Cases
 
-| Domaine | Exemple | Decisions typiques |
-|---------|---------|-------------------|
-| **Vulnerabilites** | Priorisation basee sur KEV, EPSS, CVSS et criticite des assets | Act, Attend, Track |
-| **VEX** | Exploitabilite reelle d'une CVE dans le contexte du produit | Not Affected, Exploitable, In Triage |
-| **Cloud** | Droits IAM excessifs, security groups ouverts, buckets exposes | Remedier, Accepter, Investiguer |
-| **Containers** | Images Docker avec CVE, execution root, secrets en clair | Bloquer, Alerter, Ignorer |
-| **Conformite** | Controles ISO 27001, SOC2, PCI-DSS | Conforme, Non-conforme, Exception |
-| **Audit** | Evaluation de maturite, plan de remediation | Critique, A ameliorer, Conforme |
+| Domain | Example | Typical Decisions |
+|--------|---------|-------------------|
+| **Vulnerabilities** | Prioritization based on KEV, EPSS, CVSS, and asset criticality | Act, Attend, Track |
+| **VEX** | Actual exploitability of a CVE in the product context | Not Affected, Exploitable, In Triage |
+| **Cloud** | Excessive IAM permissions, open security groups, exposed buckets | Remediate, Accept, Investigate |
+| **Containers** | Docker images with CVEs, root execution, plaintext secrets | Block, Alert, Ignore |
+| **Compliance** | ISO 27001, SOC2, PCI-DSS controls | Compliant, Non-compliant, Exception |
+| **Audit** | Maturity assessment, remediation plan | Critical, Needs Improvement, Compliant |
 
-## Exemple API
+## API Example
 
-Evaluation d'une vulnerabilite avec l'arbre SSVC par defaut (un des arbres fournis) :
+Authenticate first, then evaluate a vulnerability with the default SSVC tree:
 
 ```bash
-curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
+# Login (stores session cookie)
+curl -c cookies.txt -X POST 'http://localhost:8000/api/v1/auth/login' \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "admin", "password": "yourpassword"}'
+
+# Evaluate a vulnerability
+curl -b cookies.txt -X POST 'http://localhost:8000/api/v1/evaluate/single' \
   -H 'Content-Type: application/json' \
   -d '{
     "vulnerability": {
@@ -120,44 +136,45 @@ curl -X POST 'http://localhost:8000/api/v1/evaluate/single' \
 }
 ```
 
-L'API complete est documentee sur [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
+The full API is documented at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
 
-## Stack technique
+## Tech Stack
 
-| Composant | Technologie |
-|-----------|-------------|
+| Component | Technology |
+|-----------|------------|
 | Frontend | React 18, TypeScript, React Flow, TailwindCSS, Zustand |
 | Backend | FastAPI, Pydantic v2, Polars, SQLAlchemy 2.0 async |
-| Base de donnees | PostgreSQL 15 (JSONB) |
-| Deploiement | Docker Compose |
+| Database | PostgreSQL 15 (JSONB) |
+| Deployment | Docker Compose |
 
 ## Editions
 
-### Community (gratuit, AGPL-3.0)
+### Community (free, AGPL-3.0)
 
-Tout ce dont vous avez besoin pour construire et executer vos arbres de decision :
+Everything you need to build and run your decision trees:
 
-- Editeur visuel complet avec drag & drop
-- Moteur d'inference (unitaire, batch, CSV)
-- Multi-arbres, webhooks, ingestion
-- Decision-as-Code (export/import JSON)
-- Auto-layout et export image (PNG/SVG)
-- Parsing CVSS v3.1 et v4.0, audit trail
+- Full visual editor with drag & drop
+- Inference engine (single, batch, CSV)
+- Multi-user with admin/operator roles
+- Multi-tree, webhooks, ingestion
+- Decision-as-Code (JSON export/import)
+- Auto-layout and image export (PNG/SVG)
+- CVSS v3.1 and v4.0 parsing, audit trail
 
-### Enterprise (licence commerciale)
+### Enterprise (commercial license)
 
-Pour les equipes qui ont besoin de gouvernance, d'integrations et de reporting :
+For teams that need governance, integrations, and reporting:
 
-- SSO (SAML / OIDC) et RBAC (roles granulaires)
-- Visual Diff entre versions d'arbres
-- Connecteurs natifs (Tenable, Qualys, Jira, ServiceNow)
-- Noeuds specialises (Threat Intel, CMDB externe)
-- Audit trail avance (certificats de decision PDF/JSON)
-- Reporting multi-arbres et simulation What-if
+- SSO (SAML / OIDC) and RBAC (granular roles)
+- Visual Diff between tree versions
+- Native connectors (Tenable, Qualys, Jira, ServiceNow)
+- Specialized nodes (Threat Intel, external CMDB)
+- Advanced audit trail (PDF/JSON decision certificates)
+- Multi-tree reporting and What-if simulation
 
-Pour obtenir une licence Enterprise, contactez-nous via les issues du repository.
+For an Enterprise license, contact us via the repository issues.
 
-## Developpement
+## Development
 
 ```bash
 # Backend
@@ -172,24 +189,24 @@ cd frontend && npm test
 ```
 
 <details>
-<summary>Commandes Docker utiles</summary>
+<summary>Useful Docker commands</summary>
 
 ```bash
-docker compose up -d              # Demarrer
-docker compose down               # Arreter
-docker compose down -v            # Arreter + supprimer les donnees
-docker compose up -d --build      # Reconstruire
-docker compose logs -f backend    # Logs backend
+docker compose up -d              # Start
+docker compose down               # Stop
+docker compose down -v            # Stop + delete data
+docker compose up -d --build      # Rebuild
+docker compose logs -f backend    # Backend logs
 ```
 
 </details>
 
-## Licence
+## License
 
-Le code source de TreeVuln Community est sous licence [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+TreeVuln Community source code is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
-Les modules Enterprise sont sous licence commerciale separee.
+Enterprise modules are under a separate commercial license.
 
-## Contribuer
+## Contributing
 
-Les contributions sont les bienvenues. Pour signaler un bug ou proposer une fonctionnalite, ouvrez une issue sur le repository.
+Contributions are welcome. To report a bug or suggest a feature, open an issue on the repository.

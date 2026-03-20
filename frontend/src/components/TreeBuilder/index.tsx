@@ -34,6 +34,7 @@ export function TreeBuilder() {
   const deleteNode = useTreeStore((state) => state.deleteNode);
   const deleteEdge = useTreeStore((state) => state.deleteEdge);
   const selectedNodeId = useTreeStore((state) => state.selectedNodeId);
+  const isAdminUser = useTreeStore((state) => state.isAdmin);
 
   // Charge l'arbre et la liste au montage
   useEffect(() => {
@@ -47,18 +48,21 @@ export function TreeBuilder() {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
 
-      // Ctrl/Cmd+S : Sauvegarder
+      // Ctrl/Cmd+S : Sauvegarder (admin uniquement)
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        saveTree();
+        if (isAdminUser()) {
+          saveTree();
+        }
         return;
       }
 
       // Ne pas traiter Delete/Escape si focus dans un champ de saisie
       if (isInput) return;
 
-      // Delete/Backspace : Supprimer nœud ou edge sélectionné
+      // Delete/Backspace : Supprimer nœud ou edge sélectionné (admin uniquement)
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!isAdminUser()) return;
         if (selectedNodeId) {
           deleteNode(selectedNodeId);
           selectNode(null);

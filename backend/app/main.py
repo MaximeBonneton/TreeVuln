@@ -3,16 +3,21 @@ Point d'entrée principal de l'API TreeVuln.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 
 from app.api import api_router
 from app.config import settings
-from app.database import engine
+from app.crypto import derive_key_from_admin_key, set_encryption_key
+from app.database import async_session_maker, engine
 from app.models import Asset, IngestEndpoint, IngestLog, Tree, TreeVersion, Webhook, WebhookLog  # noqa: F401
+from app.models.user import EncryptionKey
 
 logger = logging.getLogger(__name__)
 
@@ -21,22 +26,32 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application."""
     # Startup
-    if not settings.admin_api_key:
-        if settings.debug:
-            logger.warning(
-                "ADMIN_API_KEY non configurée — les endpoints de gestion sont "
-                "accessibles sans authentification (mode debug)."
-            )
-        else:
-            raise RuntimeError(
-                "ADMIN_API_KEY doit être configurée en production. "
-                'Générer avec : python -c "import secrets; print(secrets.token_urlsafe(32))"\n'
-                "Définir DEBUG=true pour désactiver ce contrôle en développement."
-            )
     # Note: En production, utiliser Alembic pour les migrations
     from app.database import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Initialisation de la clé de chiffrement depuis la BDD (singleton id=1)
+    async with async_session_maker() as session:
+        result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))
+        enc_key = result.scalar_one_or_none()
+
+        if enc_key:
+            set_encryption_key(enc_key.key_value)
+        else:
+            legacy_key = os.environ.get("ADMIN_API_KEY", "")
+            if legacy_key:
+                key_value = derive_key_from_admin_key(legacy_key)
+                logger.info("Migration: ADMIN_API_KEY détectée, dérivation de la clé de chiffrement. "
+                            "Vous pouvez retirer ADMIN_API_KEY du .env.")
+            else:
+                key_value = Fernet.generate_key().decode()
+                logger.info("Nouvelle clé de chiffrement générée.")
+
+            enc_key_row = EncryptionKey(id=1, key_value=key_value)
+            session.add(enc_key_row)
+            await session.commit()
+            set_encryption_key(key_value)
 
     # Initialisation Enterprise (détection licence + modules)
     from app.enterprise import init_enterprise

@@ -25,7 +25,13 @@ import type {
 import { treeApi, fieldMappingApi } from '@/api';
 import { getLayoutedNodes } from '@/utils/autoLayout';
 
+// AbortController pour annuler les requêtes loadTree en vol (M-6)
+let _loadTreeController: AbortController | null = null;
+
 interface TreeState {
+  // Utilisateur courant
+  currentUser: { id: string; username: string; role: 'admin' | 'operator' } | null;
+
   // Multi-arbres
   trees: TreeListItem[];
   isDefault: boolean;
@@ -53,6 +59,10 @@ interface TreeState {
   hasUnsavedChanges: boolean;
   error: string | null;
   sidebarOpen: boolean;
+
+  // Actions utilisateur
+  setCurrentUser: (user: { id: string; username: string; role: 'admin' | 'operator' } | null) => void;
+  isAdmin: () => boolean;
 
   // Actions
   setNodes: (nodes: TreeNode[]) => void;
@@ -132,6 +142,11 @@ const getDefaultLabel = (type: NodeType): string => {
 };
 
 export const useTreeStore = create<TreeState>((set, get) => ({
+  // Utilisateur courant
+  currentUser: null,
+  setCurrentUser: (user) => set({ currentUser: user }),
+  isAdmin: () => get().currentUser?.role === 'admin',
+
   // État initial
   trees: [],
   isDefault: false,
@@ -331,11 +346,20 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }
   },
 
-  // Charge l'arbre depuis l'API
+  // Charge l'arbre depuis l'API (annule la requête précédente si en vol)
   loadTree: async (treeId?: number) => {
+    // Annuler la requête précédente si elle est en cours
+    if (_loadTreeController) {
+      _loadTreeController.abort();
+    }
+    _loadTreeController = new AbortController();
+    const { signal } = _loadTreeController;
+
     set({ isLoading: true, error: null });
     try {
       const tree = await treeApi.getTree(treeId);
+      // Vérifier que la requête n'a pas été annulée pendant l'attente
+      if (signal.aborted) return;
       if (tree) {
         get().fromApiStructure(tree.structure);
         set({
@@ -348,12 +372,18 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           hasUnsavedChanges: false,
         });
         // Charge le mapping des champs
-        await get().loadFieldMapping();
+        if (!signal.aborted) {
+          await get().loadFieldMapping();
+        }
       }
     } catch (err) {
+      // Ignorer les erreurs d'annulation
+      if (signal.aborted) return;
       set({ error: err instanceof Error ? err.message : 'Erreur de chargement' });
     } finally {
-      set({ isLoading: false });
+      if (!signal.aborted) {
+        set({ isLoading: false });
+      }
     }
   },
 

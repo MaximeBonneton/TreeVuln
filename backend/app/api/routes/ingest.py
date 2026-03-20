@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Header, Query, Request, status
 
-from app.api.deps import AssetServiceDep, IngestServiceDep, TreeServiceDep, WebhookServiceDep
+from app.api.deps import AssetServiceDep, IngestServiceDep, TreeServiceDep, WebhookServiceDep, require_role
 from app.config import settings
 from app.crypto import decrypt_secret
 from app.engine import InferenceEngine
@@ -25,7 +25,7 @@ from app.schemas.ingest import (
 # Route publique (authentifiée par X-API-Key)
 public_router = APIRouter()
 
-# Routes d'administration (protégées par RequireAdmin via api/__init__.py)
+# Routes d'administration (protégées par RequireAuth + require_role("admin") per-route)
 admin_router = APIRouter()
 
 
@@ -62,11 +62,7 @@ async def ingest_vulnerabilities(
 
     # Déchiffre la clé stockée puis comparaison constant-time (timing attacks)
     try:
-        stored_plain = (
-            decrypt_secret(endpoint.api_key, settings.admin_api_key)
-            if settings.admin_api_key
-            else endpoint.api_key
-        )
+        stored_plain = decrypt_secret(endpoint.api_key)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -127,6 +123,7 @@ async def ingest_vulnerabilities(
 async def list_ingest_endpoints(
     tree_id: int,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
 ):
     """Liste les endpoints d'ingestion d'un arbre (clé API masquée)."""
     endpoints = await ingest_service.list_endpoints(tree_id)
@@ -142,6 +139,7 @@ async def create_ingest_endpoint(
     tree_id: int,
     data: IngestEndpointCreate,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
 ):
     """Crée un nouveau endpoint d'ingestion. Retourne la clé API en clair (une seule fois)."""
     endpoint, plain_key = await ingest_service.create_endpoint(tree_id, data)
@@ -155,6 +153,7 @@ async def update_ingest_endpoint(
     endpoint_id: int,
     data: IngestEndpointUpdate,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
 ):
     """Met à jour un endpoint d'ingestion (clé API masquée)."""
     endpoint = await ingest_service.update_endpoint(endpoint_id, data)
@@ -170,6 +169,7 @@ async def update_ingest_endpoint(
 async def delete_ingest_endpoint(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
 ):
     """Supprime un endpoint d'ingestion."""
     deleted = await ingest_service.delete_endpoint(endpoint_id)
@@ -187,6 +187,7 @@ async def delete_ingest_endpoint(
 async def regenerate_api_key(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
 ):
     """Régénère la clé API d'un endpoint. Retourne la clé API en clair (une seule fois)."""
     result = await ingest_service.regenerate_key(endpoint_id)
@@ -205,6 +206,7 @@ async def regenerate_api_key(
 async def get_ingest_logs(
     endpoint_id: int,
     ingest_service: IngestServiceDep,
+    _=require_role("admin"),
     limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Récupère l'historique de réception d'un endpoint."""

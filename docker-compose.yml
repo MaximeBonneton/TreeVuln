@@ -20,6 +20,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     logging:
       driver: json-file
       options:
@@ -48,6 +53,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
     logging:
       driver: json-file
       options:
@@ -62,12 +72,22 @@ services:
       dockerfile: Dockerfile
     container_name: treevuln-frontend
     ports:
-      - "127.0.0.1:3000:443"
-      - "127.0.0.1:3080:80"
+      - "127.0.0.1:3000:8443"
+      - "127.0.0.1:3080:8080"
     volumes:
       - tls_certs:/etc/nginx/certs
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --no-check-certificate https://localhost:8443/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
     logging:
       driver: json-file
       options:

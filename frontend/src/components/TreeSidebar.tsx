@@ -14,10 +14,16 @@ import {
   Upload,
   Bell,
   Download,
+  LogOut,
+  KeyRound,
+  Users,
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { authApi } from '@/api/auth';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import { UsersPanel } from '@/components/panels/UsersPanel';
 import type { TreeListItem } from '@/types';
 
 interface TreeSidebarProps {
@@ -41,11 +47,25 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
     deleteCurrentTree,
     sidebarOpen,
     setSidebarOpen,
+    currentUser,
+    isAdmin,
   } = useTreeStore();
 
   const { confirm, confirmDialogProps } = useConfirm();
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [duplicateName, setDuplicateName] = useState('');
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showUsersPanel, setShowUsersPanel] = useState(false);
+
+  // Déconnexion
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore les erreurs de logout
+    }
+    window.location.reload();
+  };
 
   // Charge la liste des arbres au montage
   useEffect(() => {
@@ -121,13 +141,15 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={onOpenCreateDialog}
-            className="p-1.5 hover:bg-gray-100 rounded-md"
-            title="Nouvel arbre"
-          >
-            <Plus size={18} className="text-gray-600" />
-          </button>
+          {isAdmin() && (
+            <button
+              onClick={onOpenCreateDialog}
+              className="p-1.5 hover:bg-gray-100 rounded-md"
+              title="Nouvel arbre"
+            >
+              <Plus size={18} className="text-gray-600" />
+            </button>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1.5 hover:bg-gray-100 rounded-md"
@@ -219,8 +241,8 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                   </div>
                 </div>
 
-                {/* Actions (visibles uniquement pour l'arbre sélectionné) */}
-                {tree.id === treeId && (
+                {/* Actions (visibles uniquement pour l'arbre sélectionné, admin uniquement) */}
+                {tree.id === treeId && isAdmin() && (
                   <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200 flex-wrap">
                     <button
                       onClick={(e) => handleDuplicateStart(tree, e)}
@@ -301,7 +323,66 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
           </div>
         )}
       </div>
+
+      {/* Section utilisateur (bas de la sidebar) */}
+      {currentUser && (
+        <div className="border-t p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-800 truncate">
+              {currentUser.username}
+            </span>
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                currentUser.role === 'admin'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {currentUser.role}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded px-2 py-1 w-full text-left"
+            >
+              <KeyRound size={14} />
+              Changer le mot de passe
+            </button>
+            {isAdmin() && (
+              <button
+                onClick={() => setShowUsersPanel(true)}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded px-2 py-1 w-full text-left"
+              >
+                <Users size={14} />
+                Utilisateurs
+              </button>
+            )}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-2 py-1 w-full text-left"
+            >
+              <LogOut size={14} />
+              Déconnexion
+            </button>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog {...confirmDialogProps} />
+
+      {/* Modal changement de mot de passe */}
+      {showChangePassword && (
+        <ChangePasswordDialog
+          onComplete={() => setShowChangePassword(false)}
+          onClose={() => setShowChangePassword(false)}
+        />
+      )}
+
+      {/* Modal gestion des utilisateurs (admin uniquement) */}
+      {showUsersPanel && (
+        <UsersPanel onClose={() => setShowUsersPanel(false)} />
+      )}
     </div>
   );
 }

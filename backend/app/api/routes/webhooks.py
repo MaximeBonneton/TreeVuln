@@ -5,7 +5,7 @@ Toutes les routes sont scopées par tree_id pour la sécurité.
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import WebhookServiceDep
+from app.api.deps import WebhookServiceDep, require_role
 from app.models.webhook import Webhook
 from app.schemas.webhook import (
     WebhookCreate,
@@ -38,6 +38,7 @@ def _to_response(w: Webhook) -> WebhookResponse:
 async def list_webhooks(
     tree_id: int,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
 ):
     """Liste les webhooks configurés pour un arbre."""
     webhooks = await webhook_service.list_webhooks(tree_id)
@@ -53,6 +54,7 @@ async def create_webhook(
     tree_id: int,
     data: WebhookCreate,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
 ):
     """Crée un nouveau webhook pour un arbre."""
     webhook = await webhook_service.create_webhook(tree_id, data)
@@ -65,6 +67,7 @@ async def update_webhook(
     webhook_id: int,
     data: WebhookUpdate,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
 ):
     """Met à jour un webhook."""
     webhook = await webhook_service.update_webhook(webhook_id, data)
@@ -84,6 +87,7 @@ async def delete_webhook(
     tree_id: int,
     webhook_id: int,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
 ):
     """Supprime un webhook."""
     # Vérifie l'appartenance au tree
@@ -104,6 +108,7 @@ async def test_webhook(
     tree_id: int,
     webhook_id: int,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
 ):
     """Envoie un payload de test au webhook."""
     # Vérifie l'appartenance au tree
@@ -124,6 +129,7 @@ async def get_webhook_logs(
     tree_id: int,
     webhook_id: int,
     webhook_service: WebhookServiceDep,
+    _=require_role("admin"),
     limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Récupère l'historique des envois d'un webhook."""
