@@ -15,9 +15,6 @@ class Settings(BaseSettings):
     app_name: str = "TreeVuln API"
     debug: bool = False
 
-    # Authentication — clé obligatoire pour les endpoints de gestion
-    admin_api_key: str = ""
-
     # Database
     database_url: str = ""
 

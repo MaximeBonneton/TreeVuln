@@ -154,10 +154,9 @@ async def _send_single(
 
     # Signature HMAC-SHA256 (déchiffre le secret stocké en BDD)
     if webhook.secret:
-        from app.config import settings as _settings
         from app.crypto import decrypt_secret
 
-        secret_plain = decrypt_secret(webhook.secret, _settings.admin_api_key) if _settings.admin_api_key else webhook.secret
+        secret_plain = decrypt_secret(webhook.secret)
         signature = hmac.new(
             secret_plain.encode("utf-8"),
             body.encode("utf-8"),

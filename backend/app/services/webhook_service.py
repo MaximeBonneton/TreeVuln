@@ -45,14 +45,11 @@ class WebhookService:
 
     async def create_webhook(self, tree_id: int, data: WebhookCreate) -> Webhook:
         """Crée un nouveau webhook (secret chiffré en BDD)."""
-        from app.config import settings
         from app.crypto import encrypt_secret
 
         stored_secret = None
-        if data.secret and settings.admin_api_key:
-            stored_secret = encrypt_secret(data.secret, settings.admin_api_key)
-        elif data.secret:
-            stored_secret = data.secret
+        if data.secret:
+            stored_secret = encrypt_secret(data.secret)
 
         webhook = Webhook(
             tree_id=tree_id,
@@ -81,13 +78,9 @@ class WebhookService:
         if data.secret is not None:
             # Chaîne vide = supprimer le secret
             if data.secret:
-                from app.config import settings
                 from app.crypto import encrypt_secret
 
-                if settings.admin_api_key:
-                    webhook.secret = encrypt_secret(data.secret, settings.admin_api_key)
-                else:
-                    webhook.secret = data.secret
+                webhook.secret = encrypt_secret(data.secret)
             else:
                 webhook.secret = None
         if data.headers is not None:
@@ -197,10 +190,9 @@ async def _send_webhook(
 
     # Signature HMAC-SHA256 si un secret est configuré
     if webhook.secret:
-        from app.config import settings as _settings
         from app.crypto import decrypt_secret
 
-        secret_plain = decrypt_secret(webhook.secret, _settings.admin_api_key) if _settings.admin_api_key else webhook.secret
+        secret_plain = decrypt_secret(webhook.secret)
         signature = hmac.new(
             secret_plain.encode("utf-8"),
             body.encode("utf-8"),

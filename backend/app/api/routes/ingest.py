@@ -62,11 +62,7 @@ async def ingest_vulnerabilities(
 
     # Déchiffre la clé stockée puis comparaison constant-time (timing attacks)
     try:
-        stored_plain = (
-            decrypt_secret(endpoint.api_key, settings.admin_api_key)
-            if settings.admin_api_key
-            else endpoint.api_key
-        )
+        stored_plain = decrypt_secret(endpoint.api_key)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
