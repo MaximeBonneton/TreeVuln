@@ -4,6 +4,9 @@ import type {
   EvaluationRequest,
   EvaluationResult,
   EvaluationResponse,
+  PreviewEvaluationRequest,
+  DiagnosticResult,
+  TreeStructure,
 } from '@/types';
 
 export const evaluateApi = {
@@ -77,4 +80,68 @@ export const evaluateApi = {
 
     return response.blob();
   },
+
+  // Preview : evalue sur un arbre non sauvegarde
+  evaluatePreview: (data: PreviewEvaluationRequest) =>
+    api.post<EvaluationResult>('/evaluate/preview', data),
+
+  evaluatePreviewCsv: async (
+    file: File,
+    structure: TreeStructure,
+    treeId?: number | null,
+    includePath = true,
+  ): Promise<EvaluationResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const params = new URLSearchParams();
+    params.set('structure', JSON.stringify(structure));
+    if (treeId) params.set('tree_id', String(treeId));
+    if (!includePath) params.set('include_path', 'false');
+
+    const response = await fetch(`/api/v1/evaluate/preview/csv?${params}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(error.detail);
+    }
+
+    return response.json();
+  },
+
+  exportPreviewCsv: async (
+    file: File,
+    structure: TreeStructure,
+    format: 'csv' | 'json' = 'csv',
+    treeId?: number | null,
+  ): Promise<Blob> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const params = new URLSearchParams();
+    params.set('structure', JSON.stringify(structure));
+    params.set('format', format);
+    if (treeId) params.set('tree_id', String(treeId));
+
+    const response = await fetch(`/api/v1/evaluate/preview/export/csv?${params}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(error.detail);
+    }
+
+    return response.blob();
+  },
+
+  // Diagnostic
+  diagnoseTree: (structure: TreeStructure) =>
+    api.post<DiagnosticResult>('/tree/diagnose', { structure }),
 };

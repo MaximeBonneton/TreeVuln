@@ -60,6 +60,11 @@ interface TreeState {
   error: string | null;
   sidebarOpen: boolean;
 
+  // Diagnostic highlighting
+  diagnosticHighlights: Record<string, 'error' | 'warning'>;
+  setDiagnosticHighlights: (highlights: Record<string, 'error' | 'warning'>) => void;
+  clearDiagnosticHighlights: () => void;
+
   // Actions utilisateur
   setCurrentUser: (user: { id: string; username: string; role: 'admin' | 'operator' } | null) => void;
   isAdmin: () => boolean;
@@ -166,6 +171,10 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   hasUnsavedChanges: false,
   error: null,
   sidebarOpen: false,
+
+  diagnosticHighlights: {},
+  setDiagnosticHighlights: (highlights) => set({ diagnosticHighlights: highlights }),
+  clearDiagnosticHighlights: () => set({ diagnosticHighlights: {} }),
 
   // Setters de base
   setNodes: (nodes) => set({ nodes, hasUnsavedChanges: true }),

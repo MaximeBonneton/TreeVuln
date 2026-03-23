@@ -53,3 +53,25 @@ export interface EvaluationResponse {
   results: EvaluationResult[];
   decision_summary: Record<string, number>;
 }
+
+// Diagnostic
+export interface DiagnosticItem {
+  code: string;
+  message: string;
+  severity: 'error' | 'warning';
+  node_id?: string | null;
+  edge_id?: string | null;
+}
+
+export interface DiagnosticResult {
+  errors: DiagnosticItem[];
+  warnings: DiagnosticItem[];
+}
+
+// Preview evaluation
+export interface PreviewEvaluationRequest {
+  structure: import('./tree').TreeStructure;
+  vulnerability: VulnerabilityInput;
+  tree_id?: number | null;
+  include_path?: boolean;
+}

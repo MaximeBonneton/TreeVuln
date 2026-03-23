@@ -47,7 +47,16 @@ function getInputCount(data: TreeNodeData): number {
 function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   const selectNode = useTreeStore((state) => state.selectNode);
   const setHoveredNode = useTreeStore((state) => state.setHoveredNode);
+  const diagnosticSeverity = useTreeStore(
+    (state) => state.diagnosticHighlights[id]
+  );
   const style = nodeStyles[data.nodeType];
+
+  const diagnosticBorder = diagnosticSeverity === 'error'
+    ? 'ring-2 ring-red-500 ring-offset-1'
+    : diagnosticSeverity === 'warning'
+    ? 'ring-2 ring-orange-400 ring-offset-1'
+    : '';
   const Icon = style.icon;
   const inputCount = getInputCount(data);
   const isMultiInput = inputCount > 1;
@@ -74,7 +83,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         className={`
           min-w-[160px] rounded-lg shadow-md border-2
           ${style.bg} ${style.border}
-          ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+          ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : diagnosticBorder}
         `}
         onClick={() => selectNode(id)}
       >
@@ -195,7 +204,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
       className={`
         min-w-[140px] rounded-lg shadow-md border-2 flex
         ${style.bg} ${style.border}
-        ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+        ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : diagnosticBorder}
       `}
       onClick={() => selectNode(id)}
     >

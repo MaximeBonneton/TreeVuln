@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Upload, Download, FileSpreadsheet, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, Play, Upload, Download, FileSpreadsheet, ChevronRight, ChevronDown, AlertTriangle, AlertCircle } from 'lucide-react';
 import { evaluateApi } from '@/api';
+import { useTreeStore } from '@/stores/treeStore';
 import { DECISION_COLORS } from '@/constants/decisions';
-import type { VulnerabilityInput, EvaluationResult, EvaluationResponse, DecisionPath } from '@/types';
+import type { VulnerabilityInput, EvaluationResult, EvaluationResponse, DecisionPath, DiagnosticResult, DiagnosticItem } from '@/types';
 
 interface TestPanelProps {
   onClose: () => void;
 }
 
-type TabType = 'single' | 'batch';
+type TabType = 'single' | 'batch' | 'diagnostic';
 
 const SAMPLE_VULN: VulnerabilityInput = {
   id: 'test-001',
@@ -55,10 +56,26 @@ export function TestPanel({ onClose }: TestPanelProps) {
         >
           Test batch (CSV)
         </button>
+        <button
+          onClick={() => setActiveTab('diagnostic')}
+          className={`flex-1 px-4 py-2 text-sm font-medium ${
+            activeTab === 'diagnostic'
+              ? 'border-b-2 border-purple-500 text-purple-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Diagnostic
+        </button>
       </div>
 
       {/* Content */}
-      {activeTab === 'single' ? <SingleTestTab /> : <BatchTestTab />}
+      {activeTab === 'single' ? (
+        <SingleTestTab />
+      ) : activeTab === 'batch' ? (
+        <BatchTestTab />
+      ) : (
+        <DiagnosticTab />
+      )}
     </div>
   );
 }
@@ -72,6 +89,8 @@ function SingleTestTab() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const toApiStructure = useTreeStore((state) => state.toApiStructure);
+  const treeId = useTreeStore((state) => state.treeId);
 
   const handleTest = async () => {
     setIsLoading(true);
@@ -80,8 +99,11 @@ function SingleTestTab() {
 
     try {
       const vuln = JSON.parse(vulnJson) as VulnerabilityInput;
-      const response = await evaluateApi.evaluateSingle({
+      const structure = toApiStructure();
+      const response = await evaluateApi.evaluatePreview({
+        structure,
         vulnerability: vuln,
+        tree_id: treeId,
         include_path: true,
       });
       setResult(response);
@@ -178,6 +200,8 @@ function BatchTestTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toApiStructure = useTreeStore((state) => state.toApiStructure);
+  const treeId = useTreeStore((state) => state.treeId);
 
   const handleFileSelect = (selectedFile: File) => {
     if (selectedFile.name.endsWith('.csv')) {
@@ -210,7 +234,8 @@ function BatchTestTab() {
     setError(null);
 
     try {
-      const result = await evaluateApi.evaluateCsv(file, true);
+      const structure = toApiStructure();
+      const result = await evaluateApi.evaluatePreviewCsv(file, structure, treeId, true);
       setResponse(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'évaluation');
@@ -240,7 +265,8 @@ function BatchTestTab() {
     setShowExportMenu(false);
 
     try {
-      const blob = await evaluateApi.exportCsvFile(file, format);
+      const structure = toApiStructure();
+      const blob = await evaluateApi.exportPreviewCsv(file, structure, format, treeId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -495,6 +521,152 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
 
 // ============================================
 // COMPOSANTS PARTAGÉS
+// ============================================
+
+// ============================================
+// ONGLET DIAGNOSTIC
+// ============================================
+
+function DiagnosticTab() {
+  const [result, setResult] = useState<DiagnosticResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const toApiStructure = useTreeStore((state) => state.toApiStructure);
+  const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
+  const clearDiagnosticHighlights = useTreeStore((state) => state.clearDiagnosticHighlights);
+  const allHighlightsRef = useRef<Record<string, 'error' | 'warning'>>({});
+
+  useEffect(() => {
+    return () => clearDiagnosticHighlights();
+  }, [clearDiagnosticHighlights]);
+
+  const handleDiagnose = async () => {
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+    clearDiagnosticHighlights();
+
+    try {
+      const structure = toApiStructure();
+      const response = await evaluateApi.diagnoseTree(structure);
+      setResult(response);
+
+      const highlights: Record<string, 'error' | 'warning'> = {};
+      for (const item of response.errors) {
+        if (item.node_id) highlights[item.node_id] = 'error';
+      }
+      for (const item of response.warnings) {
+        if (item.node_id && !highlights[item.node_id]) highlights[item.node_id] = 'warning';
+      }
+      setDiagnosticHighlights(highlights);
+      allHighlightsRef.current = highlights;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du diagnostic');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalIssues = result ? result.errors.length + result.warnings.length : 0;
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="p-4 border-b">
+        <button
+          onClick={handleDiagnose}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:opacity-50"
+        >
+          <AlertTriangle size={18} />
+          {isLoading ? 'Analyse en cours...' : "Analyser l'arbre"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="flex-1 overflow-y-auto p-4">
+          {totalIssues === 0 ? (
+            <div className="text-center py-8 text-green-600">
+              <p className="font-medium">Aucun probleme detecte</p>
+              <p className="text-sm text-gray-500 mt-1">L'arbre est valide</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                {result.errors.length} erreur(s), {result.warnings.length} warning(s)
+              </p>
+
+              {result.errors.map((item, i) => (
+                <DiagnosticItemRow key={`err-${i}`} item={item} allHighlights={allHighlightsRef.current} />
+              ))}
+
+              {result.warnings.map((item, i) => (
+                <DiagnosticItemRow key={`warn-${i}`} item={item} allHighlights={allHighlightsRef.current} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!result && !error && (
+        <div className="text-center text-gray-500 py-8">
+          <p className="text-sm">Cliquez sur "Analyser" pour verifier votre arbre</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiagnosticItemRow({ item, allHighlights }: { item: DiagnosticItem; allHighlights: Record<string, 'error' | 'warning'> }) {
+  const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
+
+  const isError = item.severity === 'error';
+  const bgClass = isError ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200';
+  const textClass = isError ? 'text-red-700' : 'text-orange-700';
+  const badgeClass = isError ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800';
+  const IconComponent = isError ? AlertCircle : AlertTriangle;
+
+  const handleMouseEnter = () => {
+    if (item.node_id) {
+      setDiagnosticHighlights({ [item.node_id]: item.severity });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setDiagnosticHighlights(allHighlights);
+  };
+
+  return (
+    <div
+      className={`p-3 border rounded-md ${bgClass} cursor-pointer`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="flex items-start gap-2">
+        <IconComponent size={16} className={`mt-0.5 flex-shrink-0 ${textClass}`} />
+        <div className="flex-1">
+          <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${badgeClass}`}>
+            {item.code}
+          </span>
+          <p className={`text-sm mt-1 ${textClass}`}>{item.message}</p>
+          {item.node_id && (
+            <p className="text-xs text-gray-500 mt-1 font-mono">
+              Noeud: {item.node_id}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// COMPOSANTS PARTAGES
 // ============================================
 
 function PathStep({ step, isLast }: { step: DecisionPath; isLast: boolean }) {
