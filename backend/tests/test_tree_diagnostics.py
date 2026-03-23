@@ -215,6 +215,27 @@ class TestConfigurationChecks:
         codes = [w.code for w in result.warnings]
         assert "EQUATION_NO_VALUE_MAP" not in codes
 
+    def test_equation_numeric_field_no_warning(self):
+        """Pas de warning si la variable est un champ numerique dans le field mapping."""
+        nodes = [
+            NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
+                       config={"formula": "epss * 100", "variables": ["epss"]},
+                       conditions=[NodeCondition(operator=ConditionOperator.GREATER_THAN, value=50, label="High")]),
+            NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
+        ]
+        edges = [EdgeSchema(id="e1", source="n1", target="out", source_handle="handle-0")]
+        metadata = {
+            "field_mapping": {
+                "fields": [
+                    {"name": "epss", "type": "number"},
+                    {"name": "status", "type": "string"},
+                ],
+            },
+        }
+        result = diagnose_tree(TreeStructure(nodes=nodes, edges=edges, metadata=metadata))
+        codes = [w.code for w in result.warnings]
+        assert "EQUATION_NO_VALUE_MAP" not in codes
+
     def test_isolated_node(self):
         nodes = [
             NodeSchema(id="n1", type=NodeType.INPUT, label="In", config={"field": "x"},

@@ -569,10 +569,16 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       label: typeof edge.label === 'string' ? edge.label : undefined,
     }));
 
+    const { fieldMapping } = get();
+    const metadata: Record<string, unknown> = {};
+    if (fieldMapping) {
+      metadata.field_mapping = fieldMapping;
+    }
+
     return {
       nodes: apiNodes,
       edges: apiEdges,
-      metadata: {},
+      metadata,
     };
   },
 

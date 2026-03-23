@@ -15,6 +15,16 @@ _NUMERIC_OPS = {
 }
 
 
+def _get_numeric_fields(structure: TreeStructure) -> set[str]:
+    """Extrait les noms de champs numeriques ou booleens depuis le field mapping dans metadata."""
+    mapping_data = structure.metadata.get("field_mapping")
+    if not mapping_data:
+        return set()
+    fields = mapping_data.get("fields", [])
+    numeric_types = {"number", "boolean"}
+    return {f["name"] for f in fields if isinstance(f, dict) and f.get("type") in numeric_types}
+
+
 def diagnose_tree(structure: TreeStructure) -> DiagnosticResult:
     """Analyse complete d'un arbre. Retourne erreurs et warnings."""
     errors: list[DiagnosticItem] = []
@@ -224,10 +234,12 @@ def _check_configuration(
                     severity="error", node_id=node.id,
                 ))
             # Variables sans value_map : risque de texte dans un calcul numerique
+            # On skip les variables connues comme numeriques ou booleennes via le field mapping
             variables = node.config.get("variables", [])
             value_maps = node.config.get("value_maps", {})
+            numeric_fields = _get_numeric_fields(structure)
             for var_name in variables:
-                if var_name not in value_maps:
+                if var_name not in value_maps and var_name not in numeric_fields:
                     warnings.append(DiagnosticItem(
                         code="EQUATION_NO_VALUE_MAP",
                         message=f"La variable '{var_name}' du noeud equation '{node.id}' n'a pas de correspondance texte/nombre (value_map). Si ce champ contient du texte, l'evaluation echouera.",
