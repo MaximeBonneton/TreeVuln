@@ -1,7 +1,7 @@
 import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid, Image } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { treeApi } from '@/api';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { toPng, toSvg } from 'html-to-image';
 import type { TreeExportFile } from '@/types';
 
@@ -29,26 +29,6 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
 
   const [saveComment, setSaveComment] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [editName, setEditName] = useState(treeName);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  const setTreeName = useTreeStore((s) => s.setTreeName);
-
-  const handleNameClick = () => {
-    if (!isAdminUser()) return;
-    setEditName(treeName);
-    setEditingName(true);
-    setTimeout(() => nameInputRef.current?.select(), 0);
-  };
-
-  const handleNameConfirm = () => {
-    const trimmed = editName.trim();
-    if (trimmed && trimmed !== treeName) {
-      setTreeName(trimmed);
-    }
-    setEditingName(false);
-  };
 
   const handleSave = async () => {
     if (hasUnsavedChanges) {
@@ -144,29 +124,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           </button>
 
           <div className="flex items-center gap-2">
-            {editingName ? (
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onBlur={handleNameConfirm}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleNameConfirm();
-                  if (e.key === 'Escape') setEditingName(false);
-                }}
-                className="text-lg font-bold text-gray-800 bg-transparent border-b-2 border-blue-500 outline-none px-1"
-                autoFocus
-              />
-            ) : (
-              <h1
-                className={`text-lg font-bold text-gray-800 ${isAdminUser() ? 'cursor-pointer hover:text-blue-600' : ''}`}
-                onClick={handleNameClick}
-                title={isAdminUser() ? 'Cliquer pour renommer' : undefined}
-              >
-                {treeName}
-              </h1>
-            )}
+            <h1 className="text-lg font-bold text-gray-800">{treeName}</h1>
             {isDefault && (
               <span title="Arbre par défaut">
                 <Star size={16} className="text-yellow-500 fill-yellow-500" />

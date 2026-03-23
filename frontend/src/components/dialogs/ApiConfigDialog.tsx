@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Link, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, Settings2 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 
 interface ApiConfigDialogProps {
@@ -7,8 +7,10 @@ interface ApiConfigDialogProps {
 }
 
 export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
-  const { treeName, apiEnabled, apiSlug, updateApiConfig } = useTreeStore();
+  const { treeName, treeDescription, apiEnabled, apiSlug, updateApiConfig, setTreeName, setTreeDescription } = useTreeStore();
 
+  const [name, setName] = useState(treeName);
+  const [description, setDescription] = useState(treeDescription);
   const [enabled, setEnabled] = useState(apiEnabled);
   const [slug, setSlug] = useState(apiSlug || '');
   const [saving, setSaving] = useState(false);
@@ -41,10 +43,20 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
       return;
     }
 
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('Le nom de l\'arbre est requis');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     try {
+      // Mise a jour du nom et description dans le store
+      if (trimmedName !== treeName) setTreeName(trimmedName);
+      if (description !== treeDescription) setTreeDescription(description);
+
       await updateApiConfig({
         api_enabled: enabled,
         api_slug: enabled ? slug.trim() : null,
@@ -71,8 +83,8 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <Link size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold">Configuration API</h2>
+            <Settings2 size={20} className="text-blue-600" />
+            <h2 className="text-lg font-semibold">Configuration de l'arbre</h2>
           </div>
           <button
             onClick={onClose}
@@ -84,6 +96,36 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
 
         {/* Content */}
         <div className="p-4 space-y-4">
+          {/* Nom de l'arbre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nom de l'arbre
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Mon arbre"
+              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description de l'arbre..."
+              rows={2}
+              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            />
+          </div>
+
+          <hr className="border-gray-200" />
+
           {/* Toggle activation */}
           <div className="flex items-center justify-between">
             <div>
