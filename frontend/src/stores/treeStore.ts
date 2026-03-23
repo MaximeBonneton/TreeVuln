@@ -27,6 +27,7 @@ import { getLayoutedNodes } from '@/utils/autoLayout';
 
 // AbortController pour annuler les requêtes loadTree en vol (M-6)
 let _loadTreeController: AbortController | null = null;
+let _isDragging = false;
 
 interface TreeState {
   // Utilisateur courant
@@ -59,6 +60,15 @@ interface TreeState {
   hasUnsavedChanges: boolean;
   error: string | null;
   sidebarOpen: boolean;
+
+  // Undo/Redo
+  undoStack: Array<{ nodes: TreeNode[]; edges: TreeEdge[] }>;
+  redoStack: Array<{ nodes: TreeNode[]; edges: TreeEdge[] }>;
+  pushUndoState: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 
   // Diagnostic highlighting
   diagnosticHighlights: Record<string, 'error' | 'warning'>;
@@ -176,21 +186,82 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   setDiagnosticHighlights: (highlights) => set({ diagnosticHighlights: highlights }),
   clearDiagnosticHighlights: () => set({ diagnosticHighlights: {} }),
 
+  // Undo/Redo
+  undoStack: [],
+  redoStack: [],
+
+  pushUndoState: () => {
+    const { nodes, edges, undoStack } = get();
+    const snapshot = {
+      nodes: structuredClone(nodes),
+      edges: structuredClone(edges),
+    };
+    const newStack = [...undoStack, snapshot];
+    if (newStack.length > 50) newStack.shift();
+    set({ undoStack: newStack, redoStack: [] });
+  },
+
+  undo: () => {
+    const { nodes, edges, undoStack, redoStack } = get();
+    if (undoStack.length === 0) return;
+    const newUndo = [...undoStack];
+    const previous = newUndo.pop()!;
+    set({
+      undoStack: newUndo,
+      redoStack: [...redoStack, { nodes: structuredClone(nodes), edges: structuredClone(edges) }],
+      nodes: previous.nodes,
+      edges: previous.edges,
+      hasUnsavedChanges: true,
+    });
+  },
+
+  redo: () => {
+    const { nodes, edges, undoStack, redoStack } = get();
+    if (redoStack.length === 0) return;
+    const newRedo = [...redoStack];
+    const next = newRedo.pop()!;
+    set({
+      redoStack: newRedo,
+      undoStack: [...undoStack, { nodes: structuredClone(nodes), edges: structuredClone(edges) }],
+      nodes: next.nodes,
+      edges: next.edges,
+      hasUnsavedChanges: true,
+    });
+  },
+
+  canUndo: () => get().undoStack.length > 0,
+  canRedo: () => get().redoStack.length > 0,
+
   // Setters de base
   setNodes: (nodes) => set({ nodes, hasUnsavedChanges: true }),
   setEdges: (edges) => set({ edges, hasUnsavedChanges: true }),
 
   // Handlers React Flow
   onNodesChange: (changes) => {
-    // Filtre les changements significatifs (vrais déplacements ou modifications)
-    // - position avec dragging=true = en train de déplacer
-    // - remove/add = suppression/ajout
-    // On ignore: select, dimensions, position avec dragging=false (init)
     const significantChanges = changes.filter((c) => {
       if (c.type === 'remove' || c.type === 'add') return true;
       if (c.type === 'position' && 'dragging' in c && c.dragging === true) return true;
       return false;
     });
+
+    const isDragStart = changes.some(
+      (c) => c.type === 'position' && 'dragging' in c && c.dragging === true
+    );
+    const isDragEnd = changes.some(
+      (c) => c.type === 'position' && 'dragging' in c && c.dragging === false
+    );
+    const isRemove = changes.some((c) => c.type === 'remove');
+
+    if (isRemove) {
+      get().pushUndoState();
+    } else if (isDragStart && !_isDragging) {
+      get().pushUndoState();
+      _isDragging = true;
+    }
+    if (isDragEnd) {
+      _isDragging = false;
+    }
+
     set({
       nodes: applyNodeChanges(changes, get().nodes) as TreeNode[],
       hasUnsavedChanges: significantChanges.length > 0 ? true : get().hasUnsavedChanges,
@@ -201,6 +272,9 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     const significantChanges = changes.filter(
       (c) => c.type === 'remove' || c.type === 'add'
     );
+    if (significantChanges.length > 0) {
+      get().pushUndoState();
+    }
     set({
       edges: applyEdgeChanges(changes, get().edges),
       hasUnsavedChanges: significantChanges.length > 0 ? true : get().hasUnsavedChanges,
@@ -208,6 +282,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   onConnect: (connection) => {
+    get().pushUndoState();
     const { edges } = get();
 
     const newEdge: TreeEdge = {
@@ -226,6 +301,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Ajoute un nouveau nœud
   addNode: (type, position) => {
+    get().pushUndoState();
     const newNode: TreeNode = {
       id: generateNodeId(type),
       type: 'treeNode',
@@ -249,6 +325,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     const { nodes } = get();
     const nodeToCopy = nodes.find((n) => n.id === nodeId);
     if (!nodeToCopy) return;
+    get().pushUndoState();
 
     const newNode: TreeNode = {
       id: generateNodeId(nodeToCopy.data.nodeType),
@@ -285,6 +362,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Supprime un nœud et ses edges associées
   deleteNode: (nodeId) => {
+    get().pushUndoState();
     set((state) => ({
       nodes: state.nodes.filter((n) => n.id !== nodeId),
       edges: state.edges.filter(
@@ -298,6 +376,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Supprime une edge
   deleteEdge: (edgeId) => {
+    get().pushUndoState();
     set((state) => ({
       edges: state.edges.filter((e) => e.id !== edgeId),
       hasUnsavedChanges: true,
@@ -379,6 +458,8 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           apiEnabled: tree.api_enabled,
           apiSlug: tree.api_slug,
           hasUnsavedChanges: false,
+          undoStack: [],
+          redoStack: [],
         });
         // Charge le mapping des champs
         if (!signal.aborted) {
@@ -543,6 +624,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   autoLayout: () => {
     const { nodes, edges } = get();
     if (nodes.length === 0) return;
+    get().pushUndoState();
     const layouted = getLayoutedNodes(nodes, edges);
     set({ nodes: layouted, hasUnsavedChanges: true });
   },
