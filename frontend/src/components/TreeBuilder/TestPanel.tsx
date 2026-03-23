@@ -532,9 +532,7 @@ function DiagnosticTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toApiStructure = useTreeStore((state) => state.toApiStructure);
-  const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
   const clearDiagnosticHighlights = useTreeStore((state) => state.clearDiagnosticHighlights);
-  const allHighlightsRef = useRef<Record<string, 'error' | 'warning'>>({});
   const [selectedDiagNodeId, setSelectedDiagNodeId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -552,15 +550,7 @@ function DiagnosticTab() {
       const response = await evaluateApi.diagnoseTree(structure);
       setResult(response);
 
-      const highlights: Record<string, 'error' | 'warning'> = {};
-      for (const item of response.errors) {
-        if (item.node_id) highlights[item.node_id] = 'error';
-      }
-      for (const item of response.warnings) {
-        if (item.node_id && !highlights[item.node_id]) highlights[item.node_id] = 'warning';
-      }
-      setDiagnosticHighlights(highlights);
-      allHighlightsRef.current = highlights;
+      setSelectedDiagNodeId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du diagnostic');
     } finally {
@@ -603,11 +593,11 @@ function DiagnosticTab() {
               </p>
 
               {result.errors.map((item, i) => (
-                <DiagnosticItemRow key={`err-${i}`} item={item} allHighlights={allHighlightsRef.current} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
+                <DiagnosticItemRow key={`err-${i}`} item={item} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
               ))}
 
               {result.warnings.map((item, i) => (
-                <DiagnosticItemRow key={`warn-${i}`} item={item} allHighlights={allHighlightsRef.current} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
+                <DiagnosticItemRow key={`warn-${i}`} item={item} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
               ))}
             </div>
           )}
@@ -623,13 +613,13 @@ function DiagnosticTab() {
   );
 }
 
-function DiagnosticItemRow({ item, allHighlights, selectedNodeId, onSelect }: {
+function DiagnosticItemRow({ item, selectedNodeId, onSelect }: {
   item: DiagnosticItem;
-  allHighlights: Record<string, 'error' | 'warning'>;
   selectedNodeId: string | null;
   onSelect: (nodeId: string | null) => void;
 }) {
   const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
+  const clearDiagnosticHighlights = useTreeStore((state) => state.clearDiagnosticHighlights);
 
   const isError = item.severity === 'error';
   const isSelected = item.node_id != null && item.node_id === selectedNodeId;
@@ -642,25 +632,11 @@ function DiagnosticItemRow({ item, allHighlights, selectedNodeId, onSelect }: {
   const handleClick = () => {
     if (!item.node_id) return;
     if (isSelected) {
-      // Deselectionner : revenir a tous les highlights
       onSelect(null);
-      setDiagnosticHighlights(allHighlights);
+      clearDiagnosticHighlights();
     } else {
-      // Selectionner : ne montrer que ce noeud
       onSelect(item.node_id);
       setDiagnosticHighlights({ [item.node_id]: item.severity });
-    }
-  };
-
-  const handleMouseEnter = () => {
-    if (item.node_id && !selectedNodeId) {
-      setDiagnosticHighlights({ [item.node_id]: item.severity });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (!selectedNodeId) {
-      setDiagnosticHighlights(allHighlights);
     }
   };
 
@@ -668,8 +644,6 @@ function DiagnosticItemRow({ item, allHighlights, selectedNodeId, onSelect }: {
     <div
       className={`p-3 border rounded-md ${bgClass} cursor-pointer transition-shadow ${isSelected ? selectedRing : ''}`}
       onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       <div className="flex items-start gap-2">
         <IconComponent size={16} className={`mt-0.5 flex-shrink-0 ${textClass}`} />
