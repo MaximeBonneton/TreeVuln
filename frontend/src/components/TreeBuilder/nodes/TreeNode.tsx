@@ -53,9 +53,9 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   const style = nodeStyles[data.nodeType];
 
   const diagnosticBorder = diagnosticSeverity === 'error'
-    ? 'ring-2 ring-red-500 ring-offset-1'
+    ? 'ring-4 ring-red-500 ring-offset-2'
     : diagnosticSeverity === 'warning'
-    ? 'ring-2 ring-orange-400 ring-offset-1'
+    ? 'ring-4 ring-orange-400 ring-offset-2'
     : '';
   const Icon = style.icon;
   const inputCount = getInputCount(data);

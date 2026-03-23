@@ -535,6 +535,7 @@ function DiagnosticTab() {
   const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
   const clearDiagnosticHighlights = useTreeStore((state) => state.clearDiagnosticHighlights);
   const allHighlightsRef = useRef<Record<string, 'error' | 'warning'>>({});
+  const [selectedDiagNodeId, setSelectedDiagNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => clearDiagnosticHighlights();
@@ -602,11 +603,11 @@ function DiagnosticTab() {
               </p>
 
               {result.errors.map((item, i) => (
-                <DiagnosticItemRow key={`err-${i}`} item={item} allHighlights={allHighlightsRef.current} />
+                <DiagnosticItemRow key={`err-${i}`} item={item} allHighlights={allHighlightsRef.current} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
               ))}
 
               {result.warnings.map((item, i) => (
-                <DiagnosticItemRow key={`warn-${i}`} item={item} allHighlights={allHighlightsRef.current} />
+                <DiagnosticItemRow key={`warn-${i}`} item={item} allHighlights={allHighlightsRef.current} selectedNodeId={selectedDiagNodeId} onSelect={setSelectedDiagNodeId} />
               ))}
             </div>
           )}
@@ -622,28 +623,51 @@ function DiagnosticTab() {
   );
 }
 
-function DiagnosticItemRow({ item, allHighlights }: { item: DiagnosticItem; allHighlights: Record<string, 'error' | 'warning'> }) {
+function DiagnosticItemRow({ item, allHighlights, selectedNodeId, onSelect }: {
+  item: DiagnosticItem;
+  allHighlights: Record<string, 'error' | 'warning'>;
+  selectedNodeId: string | null;
+  onSelect: (nodeId: string | null) => void;
+}) {
   const setDiagnosticHighlights = useTreeStore((state) => state.setDiagnosticHighlights);
 
   const isError = item.severity === 'error';
+  const isSelected = item.node_id != null && item.node_id === selectedNodeId;
   const bgClass = isError ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200';
+  const selectedRing = isError ? 'ring-2 ring-red-400' : 'ring-2 ring-orange-400';
   const textClass = isError ? 'text-red-700' : 'text-orange-700';
   const badgeClass = isError ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800';
   const IconComponent = isError ? AlertCircle : AlertTriangle;
 
+  const handleClick = () => {
+    if (!item.node_id) return;
+    if (isSelected) {
+      // Deselectionner : revenir a tous les highlights
+      onSelect(null);
+      setDiagnosticHighlights(allHighlights);
+    } else {
+      // Selectionner : ne montrer que ce noeud
+      onSelect(item.node_id);
+      setDiagnosticHighlights({ [item.node_id]: item.severity });
+    }
+  };
+
   const handleMouseEnter = () => {
-    if (item.node_id) {
+    if (item.node_id && !selectedNodeId) {
       setDiagnosticHighlights({ [item.node_id]: item.severity });
     }
   };
 
   const handleMouseLeave = () => {
-    setDiagnosticHighlights(allHighlights);
+    if (!selectedNodeId) {
+      setDiagnosticHighlights(allHighlights);
+    }
   };
 
   return (
     <div
-      className={`p-3 border rounded-md ${bgClass} cursor-pointer`}
+      className={`p-3 border rounded-md ${bgClass} cursor-pointer transition-shadow ${isSelected ? selectedRing : ''}`}
+      onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
