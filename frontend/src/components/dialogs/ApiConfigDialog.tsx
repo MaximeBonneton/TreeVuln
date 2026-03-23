@@ -53,10 +53,6 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
     setError(null);
 
     try {
-      // Mise a jour du nom et description dans le store
-      if (trimmedName !== treeName) setTreeName(trimmedName);
-      if (description !== treeDescription) setTreeDescription(description);
-
       await updateApiConfig({
         api_enabled: enabled,
         api_slug: enabled ? slug.trim() : null,
@@ -104,7 +100,11 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                const trimmed = e.target.value.trim();
+                if (trimmed) setTreeName(trimmed);
+              }}
               placeholder="Mon arbre"
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
@@ -117,7 +117,10 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setTreeDescription(e.target.value);
+              }}
               placeholder="Description de l'arbre..."
               rows={2}
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
