@@ -43,6 +43,7 @@ interface TreeState {
   treeId: number | null;
   treeName: string;
   treeDescription: string;
+  setTreeName: (name: string) => void;
 
   // Nœuds et edges React Flow
   nodes: TreeNode[];
@@ -170,6 +171,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   treeId: null,
   treeName: 'Nouvel arbre',
   treeDescription: '',
+  setTreeName: (name) => set({ treeName: name, hasUnsavedChanges: true }),
   nodes: [],
   edges: [],
   fieldMapping: null,
