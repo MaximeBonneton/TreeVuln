@@ -35,6 +35,8 @@ export function TreeBuilder() {
   const deleteEdge = useTreeStore((state) => state.deleteEdge);
   const selectedNodeId = useTreeStore((state) => state.selectedNodeId);
   const isAdminUser = useTreeStore((state) => state.isAdmin);
+  const undo = useTreeStore((state) => state.undo);
+  const redo = useTreeStore((state) => state.redo);
 
   // Charge l'arbre et la liste au montage
   useEffect(() => {
@@ -59,6 +61,24 @@ export function TreeBuilder() {
 
       // Ne pas traiter Delete/Escape si focus dans un champ de saisie
       if (isInput) return;
+
+      // Ctrl/Cmd+Z : Undo
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+Z ou Ctrl/Cmd+Y : Redo
+      if ((e.ctrlKey || e.metaKey) && (
+        (e.shiftKey && e.key === 'z') ||
+        (e.shiftKey && e.key === 'Z') ||
+        (!e.shiftKey && e.key === 'y')
+      )) {
+        e.preventDefault();
+        redo();
+        return;
+      }
 
       // Delete/Backspace : Supprimer nœud ou edge sélectionné (admin uniquement)
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -85,7 +105,7 @@ export function TreeBuilder() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedNodeId, selectedEdge, saveTree, deleteNode, deleteEdge, selectNode]);
+  }, [selectedNodeId, selectedEdge, saveTree, deleteNode, deleteEdge, selectNode, undo, redo]);
 
   // Synchronise le nœud sélectionné avec le store
   useEffect(() => {
