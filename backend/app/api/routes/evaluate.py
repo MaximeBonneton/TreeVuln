@@ -20,6 +20,7 @@ from app.schemas.evaluation import (
     EvaluationResponse,
     EvaluationResult,
     ExportRequest,
+    PreviewEvaluationRequest,
     SingleEvaluationRequest,
 )
 from app.schemas.tree import TreeStructure
@@ -119,6 +120,30 @@ async def evaluate_single(
     schedule_webhook_dispatch(tree_id, event, payload)
 
     return result
+
+
+@router.post("/preview", response_model=EvaluationResult)
+async def evaluate_preview(
+    request: PreviewEvaluationRequest,
+    asset_service: AssetServiceDep,
+):
+    """
+    Evalue une vulnerabilite sur un arbre non sauvegarde (preview).
+    Ne declenche PAS de webhooks.
+    """
+    engine = InferenceEngine(request.structure)
+
+    # Charge les lookups d'assets si tree_id fourni
+    lookups: dict[str, dict[str, dict[str, Any]]] = {}
+    if request.tree_id and "assets" in engine.get_lookup_tables():
+        asset_ids = []
+        if request.vulnerability.asset_id:
+            asset_ids.append(request.vulnerability.asset_id)
+        lookups["assets"] = await asset_service.get_lookup_cache(
+            request.tree_id, asset_ids or None
+        )
+
+    return engine.evaluate(request.vulnerability, lookups, request.include_path)
 
 
 @router.post("", response_model=EvaluationResponse)
@@ -247,6 +272,110 @@ async def evaluate_csv(
     schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
     return response
+
+
+# --- Endpoints preview CSV ---
+
+
+@router.post("/preview/csv", response_model=EvaluationResponse)
+async def evaluate_preview_csv(
+    file: UploadFile,
+    asset_service: AssetServiceDep,
+    structure: str = Query(...),
+    tree_id: int | None = Query(None),
+    include_path: bool = Query(True),
+):
+    """
+    Evalue un fichier CSV sur un arbre non sauvegarde (preview).
+    Ne declenche PAS de webhooks.
+    """
+    import json
+    from app.schemas.tree import TreeStructure as TreeStructureSchema
+
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name or not safe_name.endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le fichier doit etre au format CSV",
+        )
+
+    content = await read_upload_with_limit(file)
+
+    try:
+        tree_structure = TreeStructureSchema.model_validate(json.loads(structure))
+    except (json.JSONDecodeError, Exception) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Structure d'arbre invalide: {e}",
+        )
+
+    df = BatchProcessor.from_csv(content)
+    if len(df) > settings.max_batch_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Fichier trop grand ({len(df)} lignes). Maximum: {settings.max_batch_size}",
+        )
+
+    vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
+
+    lookups: dict[str, dict[str, dict[str, Any]]] = {}
+    processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
+    if tree_id and "assets" in processor.engine.get_lookup_tables():
+        asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+        lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+
+    return await processor.process_batch(vulnerabilities, lookups, include_path)
+
+
+@router.post("/preview/export/csv")
+async def export_preview_csv(
+    file: UploadFile,
+    asset_service: AssetServiceDep,
+    structure: str = Query(...),
+    format: str = Query("csv"),
+    tree_id: int | None = Query(None),
+):
+    """
+    Exporte les resultats d'evaluation preview en CSV ou JSON.
+    """
+    import json
+    from app.schemas.tree import TreeStructure as TreeStructureSchema
+
+    safe_name = sanitize_filename(file.filename)
+    if not safe_name or not safe_name.endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le fichier doit etre au format CSV",
+        )
+
+    content = await read_upload_with_limit(file)
+
+    try:
+        tree_structure = TreeStructureSchema.model_validate(json.loads(structure))
+    except (json.JSONDecodeError, Exception) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Structure d'arbre invalide: {e}",
+        )
+
+    df = BatchProcessor.from_csv(content)
+    if len(df) > settings.max_batch_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Fichier trop grand ({len(df)} lignes). Maximum: {settings.max_batch_size}",
+        )
+
+    vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
+
+    lookups: dict[str, dict[str, dict[str, Any]]] = {}
+    processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
+    if tree_id and "assets" in processor.engine.get_lookup_tables():
+        asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+        lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+
+    response = await processor.process_batch(vulnerabilities, lookups, True)
+
+    return _build_export_response(response, format)
 
 
 # --- Endpoints d'export ---

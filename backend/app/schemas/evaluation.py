@@ -2,6 +2,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.tree import TreeStructure
 from app.schemas.vulnerability import VulnerabilityInput
 
 
@@ -80,6 +81,15 @@ class EvaluationResponse(BaseModel):
         default_factory=dict,
         description="Comptage par décision (ex: {'Act': 5, 'Track': 10})",
     )
+
+
+class PreviewEvaluationRequest(BaseModel):
+    """Requete d'evaluation preview (arbre non sauvegarde)."""
+
+    structure: TreeStructure
+    vulnerability: VulnerabilityInput
+    tree_id: int | None = None
+    include_path: bool = True
 
 
 class ExportRequest(EvaluationRequest):

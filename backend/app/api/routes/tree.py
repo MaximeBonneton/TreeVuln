@@ -20,6 +20,8 @@ from app.schemas.tree import (
     TreeUpdate,
     TreeVersionResponse,
 )
+from app.schemas.diagnostic import DiagnosticRequest, DiagnosticResult
+from app.services.tree_diagnostics import diagnose_tree
 from app.services.tree_validation import validate_tree_structure
 
 router = APIRouter()
@@ -294,3 +296,11 @@ async def restore_version(
             detail="Arbre ou version non trouvé",
         )
     return tree
+
+
+@router.post("/diagnose", response_model=DiagnosticResult)
+async def diagnose_tree_endpoint(
+    request: DiagnosticRequest,
+):
+    """Analyse un arbre et retourne les diagnostics."""
+    return diagnose_tree(request.structure)
