@@ -185,6 +185,36 @@ class TestConfigurationChecks:
         codes = [e.code for e in result.errors]
         assert "EQUATION_NO_FORMULA" in codes
 
+    def test_equation_variable_no_value_map(self):
+        """Warning si une variable d'equation n'a pas de value_map."""
+        nodes = [
+            NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
+                       config={"formula": "x * 2", "variables": ["x"]},
+                       conditions=[NodeCondition(operator=ConditionOperator.GREATER_THAN, value=5, label="High")]),
+            NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
+        ]
+        edges = [EdgeSchema(id="e1", source="n1", target="out", source_handle="handle-0")]
+        result = diagnose_tree(TreeStructure(nodes=nodes, edges=edges))
+        codes = [w.code for w in result.warnings]
+        assert "EQUATION_NO_VALUE_MAP" in codes
+
+    def test_equation_variable_with_value_map_no_warning(self):
+        """Pas de warning si la variable a un value_map."""
+        nodes = [
+            NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
+                       config={
+                           "formula": "x * 2",
+                           "variables": ["x"],
+                           "value_maps": {"x": {"entries": [{"text": "High", "value": 10}], "default_value": 0}},
+                       },
+                       conditions=[NodeCondition(operator=ConditionOperator.GREATER_THAN, value=5, label="High")]),
+            NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
+        ]
+        edges = [EdgeSchema(id="e1", source="n1", target="out", source_handle="handle-0")]
+        result = diagnose_tree(TreeStructure(nodes=nodes, edges=edges))
+        codes = [w.code for w in result.warnings]
+        assert "EQUATION_NO_VALUE_MAP" not in codes
+
     def test_isolated_node(self):
         nodes = [
             NodeSchema(id="n1", type=NodeType.INPUT, label="In", config={"field": "x"},

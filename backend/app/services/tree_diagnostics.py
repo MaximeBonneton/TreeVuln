@@ -218,6 +218,16 @@ def _check_configuration(
                     message=f"Le noeud equation '{node.id}' n'a pas de formule configuree",
                     severity="error", node_id=node.id,
                 ))
+            # Variables sans value_map : risque de texte dans un calcul numerique
+            variables = node.config.get("variables", [])
+            value_maps = node.config.get("value_maps", {})
+            for var_name in variables:
+                if var_name not in value_maps:
+                    warnings.append(DiagnosticItem(
+                        code="EQUATION_NO_VALUE_MAP",
+                        message=f"La variable '{var_name}' du noeud equation '{node.id}' n'a pas de correspondance texte/nombre (value_map). Si ce champ contient du texte, l'evaluation echouera.",
+                        severity="warning", node_id=node.id,
+                    ))
 
         # Noeud isole
         if node.id not in connected_nodes:
