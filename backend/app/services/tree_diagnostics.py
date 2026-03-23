@@ -173,6 +173,14 @@ def _check_configuration(
             outgoing_handles[edge.source].add(edge.source_handle)
 
     for node in structure.nodes:
+        # Noeuds non-output sans conditions de sortie
+        if node.type in (NodeType.INPUT, NodeType.LOOKUP, NodeType.EQUATION) and not node.conditions:
+            errors.append(DiagnosticItem(
+                code="NO_CONDITIONS",
+                message=f"Le noeud '{node.id}' ({node.label}) n'a aucune condition de sortie",
+                severity="error", node_id=node.id,
+            ))
+
         # Config manquante
         if node.type == NodeType.INPUT:
             field = node.config.get("field")

@@ -103,6 +103,28 @@ class TestStructuralChecks:
         codes = [e.code for e in result.errors]
         assert "NO_OUTPUT" in codes
 
+    def test_no_conditions_input(self):
+        """Un noeud input sans condition de sortie."""
+        nodes = [
+            NodeSchema(id="n1", type=NodeType.INPUT, label="In", config={"field": "x"}, conditions=[]),
+            NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
+        ]
+        edges = [EdgeSchema(id="e1", source="n1", target="out")]
+        result = diagnose_tree(TreeStructure(nodes=nodes, edges=edges))
+        codes = [e.code for e in result.errors]
+        assert "NO_CONDITIONS" in codes
+
+    def test_no_conditions_equation(self):
+        """Un noeud equation sans condition de sortie."""
+        nodes = [
+            NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq", config={"formula": "x * 2", "variables": ["x"]}, conditions=[]),
+            NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
+        ]
+        edges = [EdgeSchema(id="e1", source="n1", target="out")]
+        result = diagnose_tree(TreeStructure(nodes=nodes, edges=edges))
+        codes = [e.code for e in result.errors]
+        assert "NO_CONDITIONS" in codes
+
     def test_edge_from_output(self):
         nodes = [
             NodeSchema(id="out1", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
