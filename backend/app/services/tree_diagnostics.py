@@ -168,9 +168,14 @@ def _check_configuration(
 
     # Edges sortantes par noeud, indexees par source_handle
     outgoing_handles: dict[str, set[str]] = {n.id: set() for n in structure.nodes}
+    # Noeuds qui ont au moins une edge sortante sans source_handle
+    has_unhandled_edges: set[str] = set()
     for edge in structure.edges:
-        if edge.source in node_ids and edge.source_handle:
-            outgoing_handles[edge.source].add(edge.source_handle)
+        if edge.source in node_ids:
+            if edge.source_handle:
+                outgoing_handles[edge.source].add(edge.source_handle)
+            else:
+                has_unhandled_edges.add(edge.source)
 
     for node in structure.nodes:
         # Noeuds non-output sans conditions de sortie
@@ -238,7 +243,8 @@ def _check_configuration(
             ))
 
         # Handles orphelins (conditions sans edge)
-        if node.type != NodeType.OUTPUT and node.conditions:
+        # Skip si le noeud a des edges sortantes sans source_handle (on ne peut pas determiner le mapping)
+        if node.type != NodeType.OUTPUT and node.conditions and node.id not in has_unhandled_edges:
             input_count = node.config.get("input_count", 1)
             for cond_idx in range(len(node.conditions)):
                 if input_count > 1:
