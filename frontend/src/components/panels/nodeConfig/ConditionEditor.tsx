@@ -33,6 +33,7 @@ export function ConditionEditor({
   index,
   total,
   onChange,
+  onReplace,
   onRemove,
   onMove,
   numericOnly,
@@ -41,6 +42,7 @@ export function ConditionEditor({
   index: number;
   total: number;
   onChange: (index: number, field: keyof NodeCondition, value: unknown) => void;
+  onReplace: (index: number, condition: NodeCondition) => void;
   onRemove: (index: number) => void;
   onMove: (index: number, direction: 'up' | 'down') => void;
   numericOnly?: boolean;
@@ -49,17 +51,9 @@ export function ConditionEditor({
 
   const toggleMode = () => {
     if (isCompound) {
-      const simple = toSimpleCondition(condition);
-      onChange(index, 'logic', undefined);
-      onChange(index, 'criteria', undefined);
-      onChange(index, 'operator', simple.operator);
-      onChange(index, 'value', simple.value);
+      onReplace(index, toSimpleCondition(condition));
     } else {
-      const compound = toCompoundCondition(condition);
-      onChange(index, 'operator', undefined);
-      onChange(index, 'value', undefined);
-      onChange(index, 'logic', compound.logic);
-      onChange(index, 'criteria', compound.criteria);
+      onReplace(index, toCompoundCondition(condition));
     }
   };
 

@@ -71,6 +71,12 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
     setConditions(newConditions);
   };
 
+  const replaceCondition = (index: number, condition: NodeCondition) => {
+    const newConditions = [...conditions];
+    newConditions[index] = condition;
+    setConditions(newConditions);
+  };
+
   const removeCondition = (index: number) => {
     setConditions(conditions.filter((_, i) => i !== index));
   };
@@ -169,6 +175,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
                   index={index}
                   total={conditions.length}
                   onChange={updateCondition}
+                  onReplace={replaceCondition}
                   onRemove={removeCondition}
                   onMove={moveCondition}
                   numericOnly={node.data.nodeType === 'equation'}

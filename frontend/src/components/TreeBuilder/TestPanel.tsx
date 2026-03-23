@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Play, Upload, Download, FileSpreadsheet, ChevronRight, ChevronDown } from 'lucide-react';
 import { evaluateApi } from '@/api';
 import { DECISION_COLORS } from '@/constants/decisions';
@@ -221,6 +221,18 @@ function BatchTestTab() {
 
   const [exporting, setExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
 
   const handleExport = async (format: 'csv' | 'json') => {
     if (!file) return;
@@ -313,7 +325,7 @@ function BatchTestTab() {
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium text-gray-700">Résumé</h4>
-              <div className="relative">
+              <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
                   disabled={exporting}
