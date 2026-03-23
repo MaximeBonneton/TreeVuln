@@ -42,7 +42,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       DEBUG: ${DEBUG:-false}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["https://localhost:3000"]}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:3000"]}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -72,14 +72,11 @@ services:
       dockerfile: Dockerfile
     container_name: treevuln-frontend
     ports:
-      - "127.0.0.1:3000:8443"
-      - "127.0.0.1:3080:8080"
-    volumes:
-      - tls_certs:/etc/nginx/certs
+      - "127.0.0.1:3000:8080"
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider --no-check-certificate https://localhost:8443/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -98,7 +95,6 @@ services:
 
 volumes:
   postgres_data:
-  tls_certs:
 
 networks:
   treevuln-net:

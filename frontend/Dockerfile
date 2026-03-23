@@ -14,13 +14,9 @@ RUN npm run build
 # Production stage
 FROM nginx:1.27-alpine3.21
 
-# Install openssl for self-signed cert generation
-RUN apk add --no-cache openssl
-
-# Create non-root user and cert directory
+# Create non-root user
 RUN adduser -D -H -u 1001 -s /sbin/nologin nginx-user && \
-    mkdir -p /etc/nginx/certs && \
-    chown -R nginx-user:nginx-user /var/cache/nginx /var/log/nginx /etc/nginx/certs && \
+    chown -R nginx-user:nginx-user /var/cache/nginx /var/log/nginx && \
     touch /var/run/nginx.pid && \
     chown nginx-user:nginx-user /var/run/nginx.pid
 
@@ -33,8 +29,6 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh && \
     chown -R nginx-user:nginx-user /usr/share/nginx/html
 
-EXPOSE 8080 8443
+EXPOSE 8080
 
-# L'entrypoint tourne en root pour générer les certs TLS,
-# puis nginx s'exécute en tant que nginx-user via la config
 ENTRYPOINT ["/docker-entrypoint.sh"]
