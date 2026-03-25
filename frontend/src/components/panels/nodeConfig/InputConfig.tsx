@@ -39,7 +39,7 @@ export function InputConfig({
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Champ à lire
+          Field to read
         </label>
 
         {hasMapping ? (
@@ -49,8 +49,8 @@ export function InputConfig({
               onChange={(e) => onChange({ ...config, field: e.target.value })}
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              <option value="">-- Sélectionner un champ --</option>
-              <optgroup label="Champs standards">
+              <option value="">-- Select a field --</option>
+              <optgroup label="Standard fields">
                 {standardFields.map((field) => (
                   <option key={field.name} value={field.name}>
                     {field.label || field.name}
@@ -59,7 +59,7 @@ export function InputConfig({
                 ))}
               </optgroup>
               {cvssFields.length > 0 && (
-                <optgroup label="Métriques CVSS">
+                <optgroup label="CVSS Metrics">
                   {cvssFields.map((field) => (
                     <option key={field.name} value={field.name}>
                       {field.label || field.name}
@@ -77,7 +77,7 @@ export function InputConfig({
                 )}
                 {currentField.examples.length > 0 && (
                   <p className="mt-0.5">
-                    Exemples: {currentField.examples.slice(0, 3).map(String).join(', ')}
+                    Examples: {currentField.examples.slice(0, 3).map(String).join(', ')}
                   </p>
                 )}
               </div>
@@ -87,7 +87,7 @@ export function InputConfig({
               <div className="mt-2 flex items-start gap-1 text-xs text-amber-600">
                 <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                 <span>
-                  Le champ "{config.field}" n'existe pas dans le mapping actuel.
+                  The field "{config.field}" does not exist in the current mapping.
                 </span>
               </div>
             )}
@@ -102,7 +102,7 @@ export function InputConfig({
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Champs standards: cvss_score, epss_score, kev, asset_id, cve_id
+              Standard fields: cvss_score, epss_score, kev, asset_id, cve_id
             </p>
           </>
         )}
@@ -111,7 +111,7 @@ export function InputConfig({
       {/* Input count configuration */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nombre d'entrées
+          Number of inputs
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -124,12 +124,12 @@ export function InputConfig({
           />
           {inputCount > 1 && (
             <span className="text-xs text-blue-600">
-              Mode multi-entrées actif
+              Multi-input mode active
             </span>
           )}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Plusieurs entrées permettent de réutiliser ce nœud depuis différents chemins avec des sorties distinctes.
+          Multiple inputs allow reusing this node from different paths with distinct outputs.
         </p>
       </div>
     </div>

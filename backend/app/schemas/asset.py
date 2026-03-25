@@ -5,30 +5,30 @@ from pydantic import BaseModel, Field
 
 
 class AssetBase(BaseModel):
-    """Champs communs pour les assets."""
+    """Common fields for assets."""
 
-    asset_id: str = Field(max_length=255, description="Identifiant unique de l'asset")
+    asset_id: str = Field(max_length=255, description="Unique asset identifier")
     name: str | None = Field(default=None, max_length=255)
     criticality: str = Field(
         default="Medium",
         max_length=50,
-        description="Criticité: Low, Medium, High, Critical",
+        description="Criticality: Low, Medium, High, Critical",
     )
     tags: dict[str, Any] = Field(default_factory=dict)
     extra_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class AssetCreate(AssetBase):
-    """Schéma pour la création d'un asset."""
+    """Schema for creating an asset."""
 
     tree_id: int | None = Field(
         default=None,
-        description="ID de l'arbre propriétaire. Si non fourni, utilise l'arbre par défaut.",
+        description="Owner tree ID. If not provided, uses the default tree.",
     )
 
 
 class AssetUpdate(BaseModel):
-    """Schéma pour la mise à jour d'un asset."""
+    """Schema for updating an asset."""
 
     name: str | None = Field(default=None, max_length=255)
     criticality: str | None = Field(default=None, max_length=50)
@@ -37,7 +37,7 @@ class AssetUpdate(BaseModel):
 
 
 class AssetResponse(AssetBase):
-    """Schéma de réponse pour un asset."""
+    """Response schema for an asset."""
 
     id: int
     tree_id: int
@@ -48,17 +48,17 @@ class AssetResponse(AssetBase):
 
 
 class AssetBulkCreate(BaseModel):
-    """Schéma pour l'import bulk d'assets."""
+    """Schema for bulk asset import."""
 
     tree_id: int | None = Field(
         default=None,
-        description="ID de l'arbre propriétaire. Si non fourni, utilise l'arbre par défaut.",
+        description="Owner tree ID. If not provided, uses the default tree.",
     )
     assets: list[AssetCreate]
 
 
 class AssetBulkResponse(BaseModel):
-    """Réponse pour l'import bulk."""
+    """Response for bulk import."""
 
     created: int
     updated: int
@@ -66,26 +66,26 @@ class AssetBulkResponse(BaseModel):
 
 
 class AssetImportError(BaseModel):
-    """Détail d'une erreur d'import."""
+    """Import error detail."""
 
-    row: int = Field(description="Numéro de ligne dans le fichier")
+    row: int = Field(description="Row number in the file")
     asset_id: str | None = Field(default=None, description="Asset ID si disponible")
-    error: str = Field(description="Description de l'erreur")
+    error: str = Field(description="Error description")
 
 
 class AssetColumnMapping(BaseModel):
-    """Mapping des colonnes du fichier vers les champs asset."""
+    """Mapping of file columns to asset fields."""
 
-    asset_id: str = Field(description="Nom de la colonne pour asset_id")
-    name: str | None = Field(default=None, description="Nom de la colonne pour name")
-    criticality: str | None = Field(default=None, description="Nom de la colonne pour criticality")
+    asset_id: str = Field(description="Column name for asset_id")
+    name: str | None = Field(default=None, description="Column name for name")
+    criticality: str | None = Field(default=None, description="Column name for criticality")
 
 
 class AssetImportResponse(BaseModel):
-    """Réponse détaillée pour l'import fichier."""
+    """Detailed response for file import."""
 
-    total_rows: int = Field(description="Nombre total de lignes lues")
-    created: int = Field(description="Nombre d'assets créés")
-    updated: int = Field(description="Nombre d'assets mis à jour")
-    errors: int = Field(description="Nombre d'erreurs")
+    total_rows: int = Field(description="Total number of rows read")
+    created: int = Field(description="Number of assets created")
+    updated: int = Field(description="Number of assets updated")
+    errors: int = Field(description="Number of errors")
     error_details: list[AssetImportError] = Field(default_factory=list)

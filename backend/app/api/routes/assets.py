@@ -1,7 +1,7 @@
 """
-Routes API pour la gestion des assets.
-Support multi-arbres: chaque asset appartient à un arbre spécifique.
-Support import bulk depuis CSV/JSON.
+API routes for managing assets.
+Multi-tree support: each asset belongs to a specific tree.
+Bulk import support from CSV/JSON.
 """
 
 import csv
@@ -30,20 +30,20 @@ async def list_assets(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut.",
+        description="Tree ID. If not provided, uses the default tree.",
     ),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
     criticality: str | None = None,
 ):
     """
-    Liste les assets d'un arbre avec pagination et filtrage optionnel.
+    List assets of a tree with pagination and optional filtering.
 
     Args:
-        tree_id: ID de l'arbre (défaut si non fourni)
-        limit: Nombre maximum d'assets à retourner (défaut: 100)
-        offset: Offset pour la pagination
-        criticality: Filtrer par criticité (Low, Medium, High, Critical)
+        tree_id: Tree ID (default if not provided)
+        limit: Maximum number of assets to return (default: 100)
+        offset: Offset for pagination
+        criticality: Filter by criticality (Low, Medium, High, Critical)
     """
     assets = await asset_service.list_assets(tree_id, limit, offset, criticality)
     return assets
@@ -55,17 +55,17 @@ async def get_asset(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut.",
+        description="Tree ID. If not provided, uses the default tree.",
     ),
 ):
     """
-    Récupère un asset par son identifiant dans le contexte d'un arbre.
+    Retrieve an asset by its identifier in the context of a tree.
     """
     asset = await asset_service.get_asset(asset_id, tree_id)
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset '{asset_id}' non trouvé",
+            detail=f"Asset '{asset_id}' not found",
         )
     return asset
 
@@ -76,20 +76,20 @@ async def create_asset(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut ou data.tree_id.",
+        description="Tree ID. If not provided, uses the default tree or data.tree_id.",
     ),
 ):
     """
-    Crée un nouvel asset dans le contexte d'un arbre.
+    Create a new asset in the context of a tree.
 
-    L'unicité est vérifiée par couple (tree_id, asset_id).
+    Uniqueness is enforced by the (tree_id, asset_id) pair.
     """
-    # Vérifie si l'asset existe déjà dans cet arbre
+    # Check if asset already exists in this tree
     existing = await asset_service.get_asset(data.asset_id, tree_id or data.tree_id)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Asset '{data.asset_id}' existe déjà dans cet arbre",
+            detail=f"Asset '{data.asset_id}' already exists in this tree",
         )
     asset = await asset_service.create_asset(data, tree_id)
     return asset
@@ -102,15 +102,15 @@ async def update_asset(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut.",
+        description="Tree ID. If not provided, uses the default tree.",
     ),
 ):
-    """Met à jour un asset existant dans le contexte d'un arbre."""
+    """Update an existing asset in the context of a tree."""
     asset = await asset_service.update_asset(asset_id, data, tree_id)
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset '{asset_id}' non trouvé",
+            detail=f"Asset '{asset_id}' not found",
         )
     return asset
 
@@ -121,15 +121,15 @@ async def delete_asset(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut.",
+        description="Tree ID. If not provided, uses the default tree.",
     ),
 ):
-    """Supprime un asset dans le contexte d'un arbre."""
+    """Delete an asset in the context of a tree."""
     deleted = await asset_service.delete_asset(asset_id, tree_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset '{asset_id}' non trouvé",
+            detail=f"Asset '{asset_id}' not found",
         )
 
 
@@ -139,52 +139,52 @@ async def bulk_create_assets(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre. Si non fourni, utilise l'arbre par défaut ou data.tree_id.",
+        description="Tree ID. If not provided, uses the default tree or data.tree_id.",
     ),
 ):
     """
-    Import bulk d'assets (upsert) dans le contexte d'un arbre.
+    Bulk import of assets (upsert) in the context of a tree.
 
-    Les assets existants sont mis à jour, les nouveaux sont créés.
+    Existing assets are updated, new ones are created.
     """
     if not data.assets:
         return AssetBulkResponse(created=0, updated=0)
 
-    # Utilise tree_id du query param, sinon celui du body
+    # Use tree_id from query param, otherwise from body
     final_tree_id = tree_id or data.tree_id
     created, updated = await asset_service.bulk_upsert(data.assets, final_tree_id)
     return AssetBulkResponse(created=created, updated=updated)
 
 
 def _parse_upload_file(content: bytes, filename: str) -> list[dict]:
-    """Parse un fichier CSV ou JSON en liste de dictionnaires."""
+    """Parse a CSV or JSON file into a list of dictionaries."""
     if filename.endswith(".json"):
         data = json.loads(content.decode("utf-8"))
         if isinstance(data, list):
             return data
         if isinstance(data, dict) and "assets" in data:
             return data["assets"]
-        raise ValueError("Le JSON doit être un tableau ou un objet avec une clé 'assets'")
+        raise ValueError("JSON must be an array or an object with an 'assets' key")
 
     if filename.endswith(".csv"):
         text = content.decode("utf-8")
         reader = csv.DictReader(io.StringIO(text))
         return list(reader)
 
-    raise ValueError("Format non supporté. Utilisez CSV ou JSON.")
+    raise ValueError("Unsupported format. Use CSV or JSON.")
 
 
 @router.post("/import/preview")
 async def preview_import(file: UploadFile):
     """
-    Scanne un fichier CSV/JSON et retourne les colonnes détectées.
-    Utile pour configurer le mapping avant import.
+    Scan a CSV/JSON file and return detected columns.
+    Useful for configuring mapping before import.
     """
     safe_name = sanitize_filename(file.filename)
     if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nom de fichier manquant",
+            detail="Filename missing",
         )
 
     content = await file.read()
@@ -193,14 +193,14 @@ async def preview_import(file: UploadFile):
     except (ValueError, json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Erreur de parsing: {e}",
+            detail=f"Parsing error: {e}",
         )
 
     if not rows:
         return {"columns": [], "row_count": 0, "preview": []}
 
     columns = list(rows[0].keys())
-    preview = rows[:5]  # 5 premières lignes pour prévisualisation
+    preview = rows[:5]  # First 5 rows for preview
 
     return {
         "columns": columns,
@@ -215,38 +215,38 @@ async def import_assets(
     asset_service: AssetServiceDep,
     tree_id: int | None = Query(
         default=None,
-        description="ID de l'arbre cible. Si non fourni, utilise l'arbre par défaut.",
+        description="Target tree ID. If not provided, uses the default tree.",
     ),
     col_asset_id: str = Query(
         default="asset_id",
-        description="Nom de la colonne pour l'identifiant de l'asset",
+        description="Column name for the asset identifier",
     ),
     col_name: str | None = Query(
         default=None,
-        description="Nom de la colonne pour le nom de l'asset",
+        description="Column name for the asset name",
     ),
     col_criticality: str | None = Query(
         default=None,
-        description="Nom de la colonne pour la criticité",
+        description="Column name for criticality",
     ),
 ):
     """
-    Importe des assets depuis un fichier CSV ou JSON.
+    Import assets from a CSV or JSON file.
 
-    Le mapping des colonnes est configuré via les query params.
-    Les assets existants (même asset_id dans le même arbre) sont mis à jour.
+    Column mapping is configured via query params.
+    Existing assets (same asset_id in the same tree) are updated.
     """
     safe_name = sanitize_filename(file.filename)
     if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nom de fichier manquant",
+            detail="Filename missing",
         )
 
     if not (safe_name.endswith(".csv") or safe_name.endswith(".json")):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le fichier doit être au format CSV ou JSON",
+            detail="File must be in CSV or JSON format",
         )
 
     content = await file.read()
@@ -255,7 +255,7 @@ async def import_assets(
     except (ValueError, json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Erreur de parsing: {e}",
+            detail=f"Parsing error: {e}",
         )
 
     if not rows:

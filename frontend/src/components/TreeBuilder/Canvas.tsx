@@ -80,7 +80,7 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     [onEdgeClick]
   );
 
-  // Handlers pour le survol des nœuds
+  // Handlers for node hover
   const handleNodeMouseEnter = useCallback(
     (_: React.MouseEvent, node: Node<TreeNodeData>) => {
       setHoveredNode(node.id);
@@ -92,32 +92,32 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     setHoveredNode(null);
   }, [setHoveredNode]);
 
-  // Calcule les edges avec couleurs et highlighting
+  // Compute edges with colors and highlighting
   const styledEdges = useMemo(() => {
     return edges.map((edge) => {
       let isConnectedToHovered = false;
 
       if (hoveredNodeId !== null) {
-        // Vérifie si l'edge est connecté au nœud survolé
+        // Check if the edge is connected to the hovered node
         const isSourceMatch = edge.source === hoveredNodeId;
         const isTargetMatch = edge.target === hoveredNodeId;
 
         if (hoveredInputIndex !== null) {
-          // Mode multi-input : filtrer par handle spécifique
+          // Multi-input mode: filter by specific handle
           if (isSourceMatch) {
-            // Edge sortant : vérifier si le sourceHandle correspond à l'entrée survolée
+            // Outgoing edge: check if the sourceHandle matches the hovered input
             // Format: "handle-{inputIndex}-{conditionIndex}"
             const handlePrefix = `handle-${hoveredInputIndex}-`;
             isConnectedToHovered = edge.sourceHandle?.startsWith(handlePrefix) ?? false;
           }
           if (isTargetMatch) {
-            // Edge entrant : vérifier si le targetHandle correspond à l'entrée survolée
+            // Incoming edge: check if the targetHandle matches the hovered input
             // Format: "input-{inputIndex}"
             const expectedHandle = `input-${hoveredInputIndex}`;
             isConnectedToHovered = isConnectedToHovered || edge.targetHandle === expectedHandle;
           }
         } else {
-          // Mode standard : highlighter tous les edges du nœud
+          // Standard mode: highlight all edges of the node
           isConnectedToHovered = isSourceMatch || isTargetMatch;
         }
       }

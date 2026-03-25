@@ -15,7 +15,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Génère un slug par défaut basé sur le nom
+  // Generate a default slug based on the name
   useEffect(() => {
     if (!apiSlug && treeName) {
       const generated = treeName
@@ -30,14 +30,14 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
 
   const handleSave = async () => {
     if (enabled && !slug.trim()) {
-      setError('Le slug est requis quand l\'API est activée');
+      setError('Slug is required when the API is enabled');
       return;
     }
 
-    // Valide le format du slug
+    // Validate slug format
     const slugRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
     if (enabled && !slugRegex.test(slug)) {
-      setError('Le slug doit contenir uniquement des lettres minuscules, chiffres et tirets');
+      setError('Slug must contain only lowercase letters, numbers, and hyphens');
       return;
     }
 
@@ -51,7 +51,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
+      setError(err instanceof Error ? err.message : 'Save error');
     } finally {
       setSaving(false);
     }
@@ -72,7 +72,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Link size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold">Configuration API</h2>
+            <h2 className="text-lg font-semibold">API Configuration</h2>
           </div>
           <button
             onClick={onClose}
@@ -88,10 +88,10 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
           <div className="flex items-center justify-between">
             <div>
               <label className="font-medium text-gray-800">
-                Activer l'endpoint API dédié
+                Enable dedicated API endpoint
               </label>
               <p className="text-sm text-gray-500">
-                Permet d'évaluer des vulnérabilités via une URL spécifique à cet arbre
+                Evaluate vulnerabilities via a URL specific to this tree
               </p>
             </div>
             <button
@@ -115,17 +115,17 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
             <div className="space-y-3 pt-3 border-t">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Slug de l'URL
+                  URL Slug
                 </label>
                 <input
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value.toLowerCase())}
-                  placeholder="mon-arbre"
+                  placeholder="my-tree"
                   className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Lettres minuscules, chiffres et tirets uniquement
+                  Lowercase letters, numbers, and hyphens only
                 </p>
               </div>
 
@@ -133,7 +133,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
               {slug && (
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">URL de l'API</span>
+                    <span className="text-sm font-medium text-gray-700">API URL</span>
                     <button
                       onClick={handleCopy}
                       className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
@@ -141,12 +141,12 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
                       {copied ? (
                         <>
                           <Check size={14} />
-                          Copié
+                          Copied
                         </>
                       ) : (
                         <>
                           <Copy size={14} />
-                          Copier
+                          Copy
                         </>
                       )}
                     </button>
@@ -160,7 +160,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
               {/* Documentation */}
               <div className="bg-blue-50 rounded-lg p-3">
                 <h4 className="text-sm font-medium text-blue-800 mb-2">
-                  Exemple d'utilisation
+                  Usage example
                 </h4>
                 <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
 {`curl -X POST '${apiUrl || '/api/v1/evaluate/tree/{slug}'}' \\
@@ -192,14 +192,14 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
           >
-            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

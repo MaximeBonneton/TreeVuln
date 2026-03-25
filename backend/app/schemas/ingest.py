@@ -5,20 +5,20 @@ from pydantic import BaseModel, Field
 
 
 class IngestEndpointCreate(BaseModel):
-    """Schéma pour la création d'un endpoint d'ingestion."""
+    """Schema for creating an ingestion endpoint."""
 
-    name: str = Field(max_length=255, description="Nom de l'endpoint")
-    slug: str = Field(max_length=100, description="Slug pour l'URL")
+    name: str = Field(max_length=255, description="Endpoint name")
+    slug: str = Field(max_length=100, description="Slug for the URL")
     field_mapping: dict[str, str] = Field(
         default_factory=dict,
         description="Mapping source -> TreeVuln (ex: {'vuln_id': 'cve_id', 'score': 'cvss_score'})",
     )
     is_active: bool = Field(default=True)
-    auto_evaluate: bool = Field(default=True, description="Évaluer automatiquement les vulnérabilités reçues")
+    auto_evaluate: bool = Field(default=True, description="Automatically evaluate received vulnerabilities")
 
 
 class IngestEndpointUpdate(BaseModel):
-    """Schéma pour la mise à jour d'un endpoint d'ingestion."""
+    """Schema for updating an ingestion endpoint."""
 
     name: str | None = Field(default=None, max_length=255)
     slug: str | None = Field(default=None, max_length=100)
@@ -28,7 +28,7 @@ class IngestEndpointUpdate(BaseModel):
 
 
 class IngestEndpointResponse(BaseModel):
-    """Schéma de réponse pour un endpoint d'ingestion (clé API non exposée)."""
+    """Response schema for an ingestion endpoint (API key not exposed)."""
 
     id: int
     tree_id: int
@@ -43,7 +43,7 @@ class IngestEndpointResponse(BaseModel):
 
     @classmethod
     def from_endpoint(cls, endpoint: object) -> "IngestEndpointResponse":
-        """Construit la réponse en indiquant la présence d'une clé API."""
+        """Build the response indicating the presence of an API key."""
         api_key = getattr(endpoint, "api_key", None)
         return cls(
             id=endpoint.id,  # type: ignore[union-attr]
@@ -60,7 +60,7 @@ class IngestEndpointResponse(BaseModel):
 
 
 class IngestEndpointWithKeyResponse(BaseModel):
-    """Schéma de réponse avec clé API complète (création/régénération)."""
+    """Response schema with full API key (creation/regeneration)."""
 
     id: int
     tree_id: int
@@ -77,7 +77,7 @@ class IngestEndpointWithKeyResponse(BaseModel):
 
 
 class IngestLogResponse(BaseModel):
-    """Schéma de réponse pour un log d'ingestion."""
+    """Response schema for an ingestion log."""
 
     id: int
     endpoint_id: int
@@ -93,12 +93,12 @@ class IngestLogResponse(BaseModel):
 
 
 class IngestResult(BaseModel):
-    """Résultat d'une ingestion."""
+    """Result of an ingestion."""
 
-    received: int = Field(description="Nombre de vulnérabilités reçues")
-    evaluated: int = Field(description="Nombre de vulnérabilités évaluées")
-    errors: int = Field(description="Nombre d'erreurs")
+    received: int = Field(description="Number of vulnerabilities received")
+    evaluated: int = Field(description="Number of vulnerabilities evaluated")
+    errors: int = Field(description="Number of errors")
     results: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="Résultats d'évaluation (si auto_evaluate=true)",
+        description="Evaluation results (if auto_evaluate=true)",
     )

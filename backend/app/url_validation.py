@@ -1,15 +1,15 @@
 """
-Validation d'URL pour la protection contre les SSRF.
+URL validation for SSRF protection.
 
-Bloque les requêtes vers les réseaux privés, le loopback,
-les adresses link-local, et les endpoints de métadonnées cloud.
+Blocks requests to private networks, loopback,
+link-local addresses, and cloud metadata endpoints.
 """
 
 import ipaddress
 import socket
 from urllib.parse import urlparse
 
-# Réseaux privés/internes à bloquer
+# Private/internal networks to block
 _BLOCKED_NETWORKS = [
     ipaddress.ip_network("0.0.0.0/8"),         # This network
     ipaddress.ip_network("10.0.0.0/8"),         # RFC 1918
@@ -25,7 +25,7 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("fe80::/10"),          # IPv6 link-local
 ]
 
-# Hostnames connus pour les endpoints de métadonnées cloud
+# Known hostnames for cloud metadata endpoints
 _BLOCKED_HOSTNAMES = {
     "metadata.google.internal",
     "metadata.goog",
@@ -34,7 +34,7 @@ _BLOCKED_HOSTNAMES = {
 
 
 def _is_private_ip(ip_str: str) -> bool:
-    """Vérifie si une adresse IP est dans un réseau bloqué."""
+    """Check if an IP address is in a blocked network."""
     try:
         addr = ipaddress.ip_address(ip_str)
     except ValueError:
@@ -45,48 +45,48 @@ def _is_private_ip(ip_str: str) -> bool:
 
 def resolve_and_validate_url(url: str) -> tuple[str, list[str]]:
     """
-    Valide une URL de webhook contre les attaques SSRF et résout le DNS.
+    Validate a webhook URL against SSRF attacks and resolve DNS.
 
-    Retourne l'URL et les IPs résolues pour permettre le pinning IP
-    (prévention du DNS rebinding / TOCTOU).
+    Returns the URL and resolved IPs to allow IP pinning
+    (prevention of DNS rebinding / TOCTOU).
 
     Raises:
-        ValueError si l'URL est invalide ou pointe vers un réseau bloqué.
+        ValueError if the URL is invalid or points to a blocked network.
 
     Returns:
-        Tuple (url_validée, liste_IPs_résolues).
+        Tuple (validated_url, resolved_IPs_list).
     """
     if not url.startswith(("http://", "https://")):
-        raise ValueError("L'URL doit commencer par http:// ou https://")
+        raise ValueError("URL must start with http:// or https://")
 
     parsed = urlparse(url)
     hostname = parsed.hostname
 
     if not hostname:
-        raise ValueError("L'URL doit contenir un hostname valide")
+        raise ValueError("URL must contain a valid hostname")
 
-    # Vérifie les hostnames bloqués connus
+    # Check known blocked hostnames
     if hostname.lower() in _BLOCKED_HOSTNAMES:
         raise ValueError(
-            f"L'URL pointe vers un endpoint de métadonnées interdit ({hostname})"
+            f"URL points to a forbidden metadata endpoint ({hostname})"
         )
 
-    # Résout le DNS et vérifie les IPs
+    # Resolve DNS and verify IPs
     try:
         addr_infos = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except socket.gaierror:
-        raise ValueError(f"Impossible de résoudre le hostname '{hostname}'")
+        raise ValueError(f"Unable to resolve hostname '{hostname}'")
 
     if not addr_infos:
-        raise ValueError(f"Aucune adresse IP trouvée pour '{hostname}'")
+        raise ValueError(f"No IP address found for '{hostname}'")
 
     resolved_ips: list[str] = []
     for addr_info in addr_infos:
         ip_str = addr_info[4][0]
         if _is_private_ip(ip_str):
             raise ValueError(
-                f"L'URL pointe vers un réseau privé/interne ({ip_str}). "
-                f"Les webhooks ne peuvent cibler que des adresses publiques."
+                f"URL points to a private/internal network ({ip_str}). "
+                f"Webhooks can only target public addresses."
             )
         resolved_ips.append(ip_str)
 
@@ -95,13 +95,13 @@ def resolve_and_validate_url(url: str) -> tuple[str, list[str]]:
 
 def validate_webhook_url(url: str) -> str:
     """
-    Valide une URL de webhook (wrapper pour les validateurs de schéma Pydantic).
+    Validate a webhook URL (wrapper for Pydantic schema validators).
 
     Raises:
-        ValueError si l'URL est invalide ou pointe vers un réseau bloqué.
+        ValueError if the URL is invalid or points to a blocked network.
 
     Returns:
-        L'URL validée.
+        The validated URL.
     """
     validated_url, _ = resolve_and_validate_url(url)
     return validated_url

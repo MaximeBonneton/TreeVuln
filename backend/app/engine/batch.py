@@ -15,7 +15,7 @@ from app.schemas.vulnerability import VulnerabilityInput
 
 class BatchProcessor:
     """
-    Processeur batch optimisé pour évaluer de gros volumes de vulnérabilités.
+    Optimized batch processor for evaluating large volumes of vulnerabilities.
     """
 
     def __init__(
@@ -33,26 +33,26 @@ class BatchProcessor:
         include_path: bool = True,
     ) -> EvaluationResponse:
         """
-        Traite un batch de vulnérabilités.
+        Process a batch of vulnerabilities.
 
         Args:
-            vulnerabilities: Liste des vulnérabilités à évaluer
-            lookups: Cache de lookup préchargé
-            include_path: Inclure le chemin de décision
+            vulnerabilities: List of vulnerabilities to evaluate
+            lookups: Pre-loaded lookup cache
+            include_path: Include the decision path
 
         Returns:
-            EvaluationResponse avec tous les résultats
+            EvaluationResponse with all results
         """
         results: list[EvaluationResult] = []
         error_count = 0
 
-        # Traitement par chunks pour éviter les problèmes de mémoire
+        # Process in chunks to avoid memory issues
         for i in range(0, len(vulnerabilities), self.chunk_size):
             chunk = vulnerabilities[i : i + self.chunk_size]
             chunk_results = self._process_chunk(chunk, lookups, include_path)
             results.extend(chunk_results)
 
-        # Compte les erreurs et les décisions
+        # Count errors and decisions
         decision_counter: Counter[str] = Counter()
         for result in results:
             if result.error:
@@ -74,7 +74,7 @@ class BatchProcessor:
         lookups: dict[str, dict[str, dict[str, Any]]] | None,
         include_path: bool,
     ) -> list[EvaluationResult]:
-        """Traite un chunk de vulnérabilités."""
+        """Process a chunk of vulnerabilities."""
         return [
             self.engine.evaluate(vuln, lookups, include_path)
             for vuln in chunk
@@ -87,14 +87,14 @@ class BatchProcessor:
         include_path: bool = False,
     ) -> pl.DataFrame:
         """
-        Traite un DataFrame Polars et retourne les résultats enrichis.
+        Process a Polars DataFrame and return enriched results.
 
-        Optimisé pour les très gros volumes où on n'a pas besoin du chemin détaillé.
+        Optimized for very large volumes where the detailed path is not needed.
 
         Args:
-            df: DataFrame avec les vulnérabilités
+            df: DataFrame with vulnerabilities
             lookups: Cache de lookup
-            include_path: Inclure le chemin (désactivé par défaut pour perf)
+            include_path: Include the path (disabled by default for performance)
 
         Returns:
             DataFrame enrichi avec les colonnes decision et decision_color
@@ -117,8 +117,8 @@ class BatchProcessor:
         ])
 
     def _row_to_vulnerability(self, row: dict[str, Any]) -> VulnerabilityInput:
-        """Convertit une ligne de DataFrame en VulnerabilityInput."""
-        # Champs standards connus
+        """Convert a DataFrame row to VulnerabilityInput."""
+        # Known standard fields
         standard_fields = {
             "id", "cve_id", "cvss_score", "cvss_vector",
             "epss_score", "epss_percentile", "kev",
@@ -132,12 +132,12 @@ class BatchProcessor:
 
     @classmethod
     def from_csv(cls, csv_content: str | bytes) -> pl.DataFrame:
-        """Charge un CSV en DataFrame Polars."""
+        """Load a CSV into a Polars DataFrame."""
         if isinstance(csv_content, str):
             csv_content = csv_content.encode("utf-8")
         return pl.read_csv(csv_content)
 
     @classmethod
     def from_json_list(cls, json_data: list[dict[str, Any]]) -> pl.DataFrame:
-        """Convertit une liste de dicts en DataFrame Polars."""
+        """Convert a list of dicts to a Polars DataFrame."""
         return pl.DataFrame(json_data)

@@ -1,6 +1,6 @@
 """
-Validation de la structure d'un arbre de décision.
-Retourne des warnings (non bloquants) pour ne pas casser les arbres existants.
+Validation of a decision tree structure.
+Returns warnings (non-blocking) to avoid breaking existing trees.
 """
 
 from app.engine.formula import FormulaError, validate_formula
@@ -9,42 +9,42 @@ from app.schemas.tree import NodeType, TreeStructure
 
 def validate_tree_structure(structure: TreeStructure) -> list[str]:
     """
-    Valide la structure d'un arbre et retourne une liste de warnings.
+    Validate a tree structure and return a list of warnings.
 
-    Validations effectuées :
-    - Edges référencent des nœuds existants
-    - Source handles correspondent aux conditions du nœud source
-    - Au moins un nœud racine (non ciblé par aucune edge)
-    - Détection de cycles (DFS)
-    - Au moins un nœud output
+    Validations performed:
+    - Edges reference existing nodes
+    - Source handles match the source node conditions
+    - At least one root node (not targeted by any edge)
+    - Cycle detection (DFS)
+    - At least one output node
     """
     warnings: list[str] = []
 
     if not structure.nodes:
-        warnings.append("L'arbre ne contient aucun nœud")
+        warnings.append("The tree contains no nodes")
         return warnings
 
     node_ids = {n.id for n in structure.nodes}
     node_map = {n.id: n for n in structure.nodes}
 
-    # Vérifie les edges
+    # Check edges
     for edge in structure.edges:
         if edge.source not in node_ids:
             warnings.append(
-                f"L'edge '{edge.id}' référence un nœud source inexistant: '{edge.source}'"
+                f"Edge '{edge.id}' references a non-existent source node: '{edge.source}'"
             )
         if edge.target not in node_ids:
             warnings.append(
-                f"L'edge '{edge.id}' référence un nœud cible inexistant: '{edge.target}'"
+                f"Edge '{edge.id}' references a non-existent target node: '{edge.target}'"
             )
 
-    # Vérifie les source_handles
+    # Check source_handles
     for edge in structure.edges:
         if edge.source_handle and edge.source in node_map:
             source_node = node_map[edge.source]
             if source_node.type == NodeType.OUTPUT:
                 warnings.append(
-                    f"L'edge '{edge.id}' sort d'un nœud output '{edge.source}'"
+                    f"Edge '{edge.id}' exits an output node '{edge.source}'"
                 )
                 continue
 
@@ -59,53 +59,53 @@ def validate_tree_structure(structure: TreeStructure) -> list[str]:
                         if input_idx >= input_count:
                             warnings.append(
                                 f"L'edge '{edge.id}' utilise input_index={input_idx} "
-                                f"mais le nœud '{edge.source}' a input_count={input_count}"
+                                f"but node '{edge.source}' has input_count={input_count}"
                             )
                         if cond_idx >= len(source_node.conditions):
                             warnings.append(
                                 f"L'edge '{edge.id}' utilise condition_index={cond_idx} "
-                                f"mais le nœud '{edge.source}' a {len(source_node.conditions)} conditions"
+                                f"but node '{edge.source}' has {len(source_node.conditions)} conditions"
                             )
                     elif len(parts) == 1:
                         cond_idx = int(parts[0])
                         if cond_idx >= len(source_node.conditions):
                             warnings.append(
                                 f"L'edge '{edge.id}' utilise condition_index={cond_idx} "
-                                f"mais le nœud '{edge.source}' a {len(source_node.conditions)} conditions"
+                                f"but node '{edge.source}' has {len(source_node.conditions)} conditions"
                             )
                 except ValueError:
                     warnings.append(
-                        f"L'edge '{edge.id}' a un source_handle invalide: '{handle}'"
+                        f"Edge '{edge.id}' has an invalid source_handle: '{handle}'"
                     )
 
-    # Vérifie nœud racine
+    # Check root node
     target_nodes = {e.target for e in structure.edges}
     root_nodes = [nid for nid in node_ids if nid not in target_nodes]
     if not root_nodes:
-        warnings.append("Aucun nœud racine détecté (tous les nœuds sont ciblés par des edges)")
+        warnings.append("No root node detected (all nodes are targeted by edges)")
 
-    # Valide les noeuds equation
+    # Validate equation nodes
     for node in structure.nodes:
         if node.type == NodeType.EQUATION:
             formula = node.config.get("formula", "")
             if not formula or not formula.strip():
                 warnings.append(
-                    f"Le nœud equation '{node.id}' n'a pas de formule configurée"
+                    f"Equation node '{node.id}' has no formula configured"
                 )
             else:
                 try:
                     validate_formula(formula)
                 except FormulaError as e:
                     warnings.append(
-                        f"Le nœud equation '{node.id}' a une formule invalide : {e}"
+                        f"Equation node '{node.id}' has an invalid formula: {e}"
                     )
 
-    # Vérifie au moins un nœud output
+    # Check for at least one output node
     output_nodes = [n for n in structure.nodes if n.type == NodeType.OUTPUT]
     if not output_nodes:
-        warnings.append("L'arbre ne contient aucun nœud de sortie (output)")
+        warnings.append("The tree contains no output nodes")
 
-    # Détection de cycles (DFS)
+    # Cycle detection (DFS)
     adj: dict[str, list[str]] = {nid: [] for nid in node_ids}
     for edge in structure.edges:
         if edge.source in node_ids and edge.target in node_ids:
@@ -127,7 +127,7 @@ def validate_tree_structure(structure: TreeStructure) -> list[str]:
     for nid in node_ids:
         if color[nid] == WHITE:
             if has_cycle(nid):
-                warnings.append("Cycle détecté dans l'arbre — risque de boucle infinie lors de l'évaluation")
+                warnings.append("Cycle detected in tree — risk of infinite loop during evaluation")
                 break
 
     return warnings

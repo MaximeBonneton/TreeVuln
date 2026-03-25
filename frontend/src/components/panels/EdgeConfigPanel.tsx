@@ -20,14 +20,14 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
   const targetNode = nodes.find((n) => n.id === edge.target);
 
   const handleDelete = async () => {
-    const ok = await confirm('Supprimer la connexion', 'Supprimer cette connexion entre les nœuds ?');
+    const ok = await confirm('Delete connection', 'Delete this connection between nodes?');
     if (ok) {
       setEdges(edges.filter((e) => e.id !== edge.id));
       onClose();
     }
   };
 
-  // Trouve la condition associée à ce handle
+  // Find the condition associated with this handle
   const getConditionForHandle = () => {
     if (!sourceNode || !edge.sourceHandle) return null;
     const handleIndex = parseInt(edge.sourceHandle.replace('handle-', ''), 10);
@@ -36,12 +36,12 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
 
   const condition = getConditionForHandle();
 
-  // Synchronise le label local quand l'edge change
+  // Sync local label when edge changes
   useEffect(() => {
     setLabel(typeof edge.label === 'string' ? edge.label : '');
   }, [edge.id, edge.label]);
 
-  // Met à jour le label de l'edge
+  // Update edge label
   const handleLabelChange = (newLabel: string) => {
     setLabel(newLabel);
     setEdges(
@@ -55,7 +55,7 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
     <div className="bg-white rounded-lg shadow-lg w-72">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-bold text-gray-700">Connexion</h3>
+        <h3 className="font-bold text-gray-700">Connection</h3>
         <button
           onClick={onClose}
           className="p-1 hover:bg-gray-100 rounded"
@@ -85,12 +85,12 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
             type="text"
             value={label}
             onChange={(e) => handleLabelChange(e.target.value)}
-            placeholder="Ex: Critique, Oui, Non..."
+            placeholder="E.g.: Critical, Yes, No..."
             className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {condition && (
             <p className="text-xs text-gray-500 mt-1">
-              Suggestion basee sur la condition : "{condition.label}"
+              Suggestion based on condition: "{condition.label}"
             </p>
           )}
         </div>
@@ -99,7 +99,7 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
         {condition && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Condition associee
+              Associated condition
             </label>
             <div className="p-2 bg-blue-50 rounded-md text-sm">
               <span className="font-mono">
@@ -111,8 +111,8 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
 
         {/* Info */}
         <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-          Le label s'affiche sur la connexion dans le canvas.
-          Laissez vide pour ne pas afficher de label.
+          The label is displayed on the connection in the canvas.
+          Leave empty to hide the label.
         </div>
 
         {/* Actions */}
@@ -122,7 +122,7 @@ export function EdgeConfigPanel({ edge, onClose }: EdgeConfigPanelProps) {
             className="flex-1 flex items-center justify-center gap-2 p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-md font-medium"
           >
             <Trash2 size={18} />
-            Supprimer
+            Delete
           </button>
         </div>
       </div>

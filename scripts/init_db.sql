@@ -1,7 +1,7 @@
--- Script d'initialisation de la base de données TreeVuln
--- Ce script crée les tables et insère des données de test pour le développement
+-- Database initialization script for TreeVuln
+-- This script creates tables and inserts test data for development
 
--- Utilisateurs
+-- Users
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(150) UNIQUE NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Sessions serveur
+-- Server sessions
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -26,20 +26,20 @@ CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 
--- Clé de chiffrement (singleton)
+-- Encryption key (singleton)
 CREATE TABLE IF NOT EXISTS encryption_keys (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     key_value VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Création de la table trees
+-- Create trees table
 CREATE TABLE IF NOT EXISTS trees (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL DEFAULT 'Main Tree',
     description VARCHAR(1000),
     structure JSONB NOT NULL DEFAULT '{}',
-    -- Multi-arbres: gestion du défaut et API
+    -- Multi-tree: default and API management
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     api_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     api_slug VARCHAR(100) UNIQUE,
@@ -47,12 +47,12 @@ CREATE TABLE IF NOT EXISTS trees (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index pour l'arbre par défaut (un seul autorisé)
+-- Index for default tree (only one allowed)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_trees_default ON trees(is_default) WHERE is_default = TRUE;
--- Index pour la recherche par slug API
+-- Index for API slug lookup
 CREATE INDEX IF NOT EXISTS idx_trees_api_slug ON trees(api_slug) WHERE api_slug IS NOT NULL;
 
--- Création de la table tree_versions
+-- Create tree_versions table
 CREATE TABLE IF NOT EXISTS tree_versions (
     id SERIAL PRIMARY KEY,
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
@@ -64,10 +64,10 @@ CREATE TABLE IF NOT EXISTS tree_versions (
 
 CREATE INDEX IF NOT EXISTS idx_tree_versions_tree_id ON tree_versions(tree_id);
 
--- Création de la table assets
+-- Create assets table
 CREATE TABLE IF NOT EXISTS assets (
     id SERIAL PRIMARY KEY,
-    -- Multi-arbres: FK vers l'arbre propriétaire
+    -- Multi-tree: FK to the owning tree
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
     asset_id VARCHAR(255) NOT NULL,
     name VARCHAR(255),
@@ -76,14 +76,14 @@ CREATE TABLE IF NOT EXISTS assets (
     extra_data JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- Contrainte unique sur (tree_id, asset_id) au lieu de asset_id seul
+    -- Unique constraint on (tree_id, asset_id) instead of asset_id alone
     CONSTRAINT assets_tree_asset_unique UNIQUE (tree_id, asset_id)
 );
 
--- Index pour la recherche d'assets par arbre et asset_id
+-- Index for asset lookup by tree and asset_id
 CREATE INDEX IF NOT EXISTS idx_assets_tree_asset_id ON assets(tree_id, asset_id);
 
--- Création de la table webhooks
+-- Create webhooks table
 CREATE TABLE IF NOT EXISTS webhooks (
     id SERIAL PRIMARY KEY,
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE INDEX IF NOT EXISTS idx_webhooks_tree_id ON webhooks(tree_id);
 CREATE INDEX IF NOT EXISTS idx_webhooks_tree_active ON webhooks(tree_id, is_active);
 
--- Création de la table webhook_logs
+-- Create webhook_logs table
 CREATE TABLE IF NOT EXISTS webhook_logs (
     id SERIAL PRIMARY KEY,
     webhook_id INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_webhook_id ON webhook_logs(webhook_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_created ON webhook_logs(webhook_id, created_at);
 
--- Création de la table ingest_endpoints
+-- Create ingest_endpoints table
 CREATE TABLE IF NOT EXISTS ingest_endpoints (
     id SERIAL PRIMARY KEY,
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS ingest_endpoints (
 CREATE INDEX IF NOT EXISTS idx_ingest_endpoints_slug ON ingest_endpoints(slug);
 CREATE INDEX IF NOT EXISTS idx_ingest_endpoints_tree_id ON ingest_endpoints(tree_id);
 
--- Création de la table ingest_logs
+-- Create ingest_logs table
 CREATE TABLE IF NOT EXISTS ingest_logs (
     id SERIAL PRIMARY KEY,
     endpoint_id INTEGER NOT NULL REFERENCES ingest_endpoints(id) ON DELETE CASCADE,
@@ -149,12 +149,12 @@ CREATE TABLE IF NOT EXISTS ingest_logs (
 
 CREATE INDEX IF NOT EXISTS idx_ingest_logs_endpoint_id ON ingest_logs(endpoint_id);
 
--- Insertion d'un arbre de décision SSVC OPTIMISE avec multi-input (arbre par défaut)
--- Critères : Exploitation (KEV), Automatable (EPSS >= 0.2), Technical Impact (CVSS >= 9), Mission & Well-being (asset_criticality)
--- Structure optimisée : 8 nœuds au lieu de 26 grâce aux entrées multiples
+-- Insert optimized SSVC decision tree with multi-input (default tree)
+-- Criteria: Exploitation (KEV), Automatable (EPSS >= 0.2), Technical Impact (CVSS >= 9), Mission & Well-being (asset_criticality)
+-- Optimized structure: 8 nodes instead of 26 thanks to multi-input
 INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
     'Default Tree',
-    'Arbre SSVC optimise - Priorisation des vulnerabilites avec multi-input',
+    'Optimized SSVC tree - Vulnerability prioritization with multi-input',
     TRUE,
     FALSE,
     NULL,
@@ -305,12 +305,12 @@ INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structu
             "viewport": {"x": 0, "y": 0, "zoom": 0.8},
             "field_mapping": {
                 "fields": [
-                    {"name": "cve_id", "label": "CVE ID", "type": "string", "description": "Identifiant CVE de la vulnerabilite", "examples": ["CVE-2024-1234", "CVE-2023-5678"], "required": false},
-                    {"name": "kev", "label": "KEV Status", "type": "boolean", "description": "Presence dans la liste KEV de CISA (true = exploit actif, false = PoC, null = aucune info)", "examples": [true, false, null], "required": false},
-                    {"name": "epss_score", "label": "Score EPSS", "type": "number", "description": "Score EPSS (0-1). >= 0.2 = automatisable", "examples": [0.95, 0.12, 0.003], "required": true},
-                    {"name": "cvss_score", "label": "Score CVSS", "type": "number", "description": "Score CVSS (0-10). >= 9 = impact total", "examples": [9.8, 7.5, 4.2], "required": true},
-                    {"name": "cvss_vector", "label": "Vecteur CVSS", "type": "string", "description": "Vecteur CVSS complet (3.1 ou 4.0). Permet d extraire les metriques individuelles", "examples": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"], "required": false},
-                    {"name": "asset_criticality", "label": "Asset Criticality", "type": "string", "description": "Criticite de l asset (Low, Medium, High, Critical)", "examples": ["Low", "Medium", "High", "Critical"], "required": true}
+                    {"name": "cve_id", "label": "CVE ID", "type": "string", "description": "CVE identifier of the vulnerability", "examples": ["CVE-2024-1234", "CVE-2023-5678"], "required": false},
+                    {"name": "kev", "label": "KEV Status", "type": "boolean", "description": "Presence in the CISA KEV list (true = active exploit, false = PoC, null = no info)", "examples": [true, false, null], "required": false},
+                    {"name": "epss_score", "label": "EPSS Score", "type": "number", "description": "EPSS score (0-1). >= 0.2 = automatable", "examples": [0.95, 0.12, 0.003], "required": true},
+                    {"name": "cvss_score", "label": "CVSS Score", "type": "number", "description": "CVSS score (0-10). >= 9 = total impact", "examples": [9.8, 7.5, 4.2], "required": true},
+                    {"name": "cvss_vector", "label": "CVSS Vector", "type": "string", "description": "Full CVSS vector (3.1 or 4.0). Allows extracting individual metrics", "examples": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"], "required": false},
+                    {"name": "asset_criticality", "label": "Asset Criticality", "type": "string", "description": "Asset criticality level (Low, Medium, High, Critical)", "examples": ["Low", "Medium", "High", "Critical"], "required": true}
                 ],
                 "source": "default",
                 "version": 3
@@ -319,8 +319,8 @@ INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structu
     }'::jsonb
 ) ON CONFLICT DO NOTHING;
 
--- Insertion d'assets de test (liés à l'arbre par défaut)
--- On utilise une sous-requête pour récupérer l'ID de l'arbre par défaut
+-- Insert test assets (linked to the default tree)
+-- Uses a subquery to retrieve the default tree ID
 INSERT INTO assets (tree_id, asset_id, name, criticality, tags, extra_data)
 SELECT
     (SELECT id FROM trees WHERE is_default = TRUE),

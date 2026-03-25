@@ -30,7 +30,7 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
   const [error, setError] = useState<string | null>(null);
   const [editingEndpoint, setEditingEndpoint] = useState<IngestEndpoint | null>(null);
   const [logsEndpointId, setLogsEndpointId] = useState<number | null>(null);
-  // Clés en clair retournées lors de la création/régénération (visibles une seule fois)
+  // Plain-text keys returned during creation/regeneration (visible only once)
   const [revealedKeys, setRevealedKeys] = useState<Record<number, string>>({});
 
   const loadEndpoints = async () => {
@@ -39,7 +39,7 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
       const data = await ingestApi.list(treeId);
       setEndpoints(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
@@ -65,23 +65,23 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
   };
 
   const handleDelete = async (endpointId: number) => {
-    if (!window.confirm('Supprimer cet endpoint ?')) return;
+    if (!window.confirm('Delete this endpoint?')) return;
     try {
       await ingestApi.delete(endpointId);
       await loadEndpoints();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de suppression');
+      setError(err instanceof Error ? err.message : 'Delete error');
     }
   };
 
   const handleRegenerateKey = async (endpointId: number) => {
-    if (!window.confirm('Regenerer la cle API ? L\'ancienne sera invalidee.')) return;
+    if (!window.confirm('Regenerate API key? The old one will be invalidated.')) return;
     try {
       const result = await ingestApi.regenerateKey(endpointId);
       setRevealedKeys((prev) => ({ ...prev, [result.id]: result.api_key }));
       await loadEndpoints();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur');
+      setError(err instanceof Error ? err.message : 'Error');
     }
   };
 
@@ -100,7 +100,7 @@ export function IngestConfigDialog({ treeId, treeName, onClose }: IngestConfigDi
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Download size={20} className="text-green-600" />
-            <h2 className="text-lg font-semibold">Webhooks entrants</h2>
+            <h2 className="text-lg font-semibold">Incoming webhooks</h2>
             <span className="text-sm text-gray-500">- {treeName}</span>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md">
@@ -185,7 +185,7 @@ function EndpointList({
   };
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-8">Chargement...</div>;
+    return <div className="text-center text-gray-500 py-8">Loading...</div>;
   }
 
   return (
@@ -196,14 +196,14 @@ function EndpointList({
           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600"
         >
           <Plus size={16} />
-          Nouveau endpoint
+          New endpoint
         </button>
       </div>
 
       {endpoints.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           <Download size={32} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Aucun endpoint d'ingestion configure</p>
+          <p className="text-sm">No ingestion endpoint configured</p>
         </div>
       ) : (
         endpoints.map((ep) => (
@@ -220,7 +220,7 @@ function EndpointList({
                 <button
                   onClick={() => onShowLogs(ep.id)}
                   className="p-1 hover:bg-gray-100 rounded"
-                  title="Historique"
+                  title="History"
                 >
                   <Clock size={14} className="text-gray-500" />
                 </button>
@@ -228,7 +228,7 @@ function EndpointList({
                   onClick={() => onEdit(ep)}
                   className="p-1 hover:bg-gray-100 rounded text-sm text-gray-500"
                 >
-                  Modifier
+                  Edit
                 </button>
                 <button
                   onClick={() => onDelete(ep.id)}
@@ -246,7 +246,7 @@ function EndpointList({
 
             {/* API Key */}
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-gray-500">Cle API:</span>
+              <span className="text-xs text-gray-500">API Key:</span>
               {revealedKeys[ep.id] ? (
                 <>
                   <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono flex-1 truncate">
@@ -255,27 +255,27 @@ function EndpointList({
                   <button
                     onClick={() => setShowKey(showKey === ep.id ? null : ep.id)}
                     className="p-1 hover:bg-gray-100 rounded"
-                    title={showKey === ep.id ? 'Masquer' : 'Afficher'}
+                    title={showKey === ep.id ? 'Hide' : 'Show'}
                   >
                     {showKey === ep.id ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
                   <button
                     onClick={() => handleCopyKey(ep.id)}
                     className="p-1 hover:bg-gray-100 rounded"
-                    title="Copier"
+                    title="Copy"
                   >
                     {copied === ep.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
                   </button>
                 </>
               ) : (
                 <span className="text-xs text-gray-400 italic flex-1">
-                  {ep.has_api_key ? 'Chiffree (copiez-la lors de la creation)' : 'Non configuree'}
+                  {ep.has_api_key ? 'Encrypted (copy it during creation)' : 'Not configured'}
                 </span>
               )}
               <button
                 onClick={() => onRegenerateKey(ep.id)}
                 className="p-1 hover:bg-gray-100 rounded"
-                title="Regenerer"
+                title="Regenerate"
               >
                 <RefreshCw size={12} />
               </button>
@@ -330,7 +330,7 @@ function EndpointForm({
 
   const handleSave = async () => {
     if (!name.trim() || !slug.trim()) {
-      setError('Nom et slug sont requis');
+      setError('Name and slug are required');
       return;
     }
 
@@ -361,7 +361,7 @@ function EndpointForm({
         onSaved(created);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
+      setError(err instanceof Error ? err.message : 'Save error');
     } finally {
       setSaving(false);
     }
@@ -370,7 +370,7 @@ function EndpointForm({
   return (
     <div className="space-y-4">
       <h3 className="font-medium">
-        {endpoint ? "Modifier l'endpoint" : 'Nouvel endpoint d\'ingestion'}
+        {endpoint ? 'Edit endpoint' : 'New ingestion endpoint'}
       </h3>
 
       {error && (
@@ -378,13 +378,13 @@ function EndpointForm({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border rounded-md text-sm"
-          placeholder="Ex: Scanner Nessus"
+          placeholder="E.g.: Nessus Scanner"
         />
       </div>
 
@@ -405,20 +405,20 @@ function EndpointForm({
       {/* Field mapping */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-gray-700">Mapping de champs</label>
+          <label className="text-sm font-medium text-gray-700">Field mapping</label>
           <button
             onClick={addMapping}
             className="text-xs text-blue-600 hover:underline flex items-center gap-1"
           >
             <Plus size={12} />
-            Ajouter
+            Add
           </button>
         </div>
         <p className="text-xs text-gray-500 mb-2">
-          Transforme les noms de champs de la source vers TreeVuln
+          Transforms field names from source to TreeVuln
         </p>
         {mappings.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">Aucun mapping (champs passes tels quels)</p>
+          <p className="text-xs text-gray-400 italic">No mapping (fields passed as-is)</p>
         ) : (
           <div className="space-y-2">
             {mappings.map(([src, dst], idx) => (
@@ -428,7 +428,7 @@ function EndpointForm({
                   value={src}
                   onChange={(e) => updateMapping(idx, 0, e.target.value)}
                   className="flex-1 px-2 py-1 border rounded text-xs font-mono"
-                  placeholder="champ_source"
+                  placeholder="source_field"
                 />
                 <span className="text-gray-400 text-xs">→</span>
                 <input
@@ -436,7 +436,7 @@ function EndpointForm({
                   value={dst}
                   onChange={(e) => updateMapping(idx, 1, e.target.value)}
                   className="flex-1 px-2 py-1 border rounded text-xs font-mono"
-                  placeholder="champ_treevuln"
+                  placeholder="treevuln_field"
                 />
                 <button onClick={() => removeMapping(idx)} className="p-1 hover:bg-red-50 rounded">
                   <X size={12} className="text-red-500" />
@@ -458,7 +458,7 @@ function EndpointForm({
           >
             <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${autoEval ? 'left-5' : 'left-0.5'}`} />
           </button>
-          <span className="text-sm text-gray-700">Evaluer automatiquement</span>
+          <span className="text-sm text-gray-700">Evaluate automatically</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -469,17 +469,17 @@ function EndpointForm({
           >
             <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isActive ? 'left-5' : 'left-0.5'}`} />
           </button>
-          <span className="text-sm text-gray-700">Actif</span>
+          <span className="text-sm text-gray-700">Active</span>
         </div>
       </div>
 
       {/* Example */}
       <div className="bg-gray-50 rounded-lg p-3">
-        <h4 className="text-xs font-medium text-gray-600 mb-2">Exemple d'utilisation</h4>
+        <h4 className="text-xs font-medium text-gray-600 mb-2">Usage example</h4>
         <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
 {`curl -X POST '${window.location.origin}/api/v1/ingest/${slug || '{slug}'}' \\
   -H 'Content-Type: application/json' \\
-  -H 'X-API-Key: <votre-cle-api>' \\
+  -H 'X-API-Key: <your-api-key>' \\
   -d '[{
     "cve_id": "CVE-2024-1234",
     "cvss_score": 9.8,
@@ -495,14 +495,14 @@ function EndpointForm({
           onClick={onCancel}
           className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md text-sm"
         >
-          Annuler
+          Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
           className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm disabled:opacity-50"
         >
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </div>
@@ -528,20 +528,20 @@ function EndpointLogs({ endpointId, onBack }: { endpointId: number; onBack: () =
   }, [endpointId]);
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-8">Chargement...</div>;
+    return <div className="text-center text-gray-500 py-8">Loading...</div>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="text-sm text-blue-600 hover:underline">
-          Retour
+          Back
         </button>
-        <span className="text-sm text-gray-500">Historique des receptions</span>
+        <span className="text-sm text-gray-500">Reception history</span>
       </div>
 
       {logs.length === 0 ? (
-        <div className="text-center text-gray-500 py-8 text-sm">Aucune reception</div>
+        <div className="text-center text-gray-500 py-8 text-sm">No receptions</div>
       ) : (
         logs.map((log) => (
           <div key={log.id} className="border rounded-lg p-3 text-sm">
@@ -551,7 +551,7 @@ function EndpointLogs({ endpointId, onBack }: { endpointId: number; onBack: () =
                 <span className="font-medium">{log.vuln_count} vulns</span>
                 <span className="text-green-600 text-xs">{log.success_count} OK</span>
                 {log.error_count > 0 && (
-                  <span className="text-red-600 text-xs">{log.error_count} erreurs</span>
+                  <span className="text-red-600 text-xs">{log.error_count} errors</span>
                 )}
                 {log.duration_ms && (
                   <span className="text-gray-400 text-xs">{log.duration_ms}ms</span>

@@ -1,5 +1,5 @@
 """
-Service pour la gestion des webhooks entrants (endpoints d'ingestion).
+Service for managing incoming webhooks (ingestion endpoints).
 """
 
 import logging
@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class IngestService:
-    """Service de gestion des endpoints d'ingestion."""
+    """Ingestion endpoint management service."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def list_endpoints(self, tree_id: int) -> list[IngestEndpoint]:
-        """Liste les endpoints d'un arbre."""
+        """List endpoints for a tree."""
         result = await self.db.execute(
             select(IngestEndpoint)
             .where(IngestEndpoint.tree_id == tree_id)
@@ -36,14 +36,14 @@ class IngestService:
         return list(result.scalars().all())
 
     async def get_endpoint(self, endpoint_id: int) -> IngestEndpoint | None:
-        """Récupère un endpoint par son ID."""
+        """Retrieve an endpoint by its ID."""
         result = await self.db.execute(
             select(IngestEndpoint).where(IngestEndpoint.id == endpoint_id)
         )
         return result.scalar_one_or_none()
 
     async def get_endpoint_by_slug(self, slug: str) -> IngestEndpoint | None:
-        """Récupère un endpoint par son slug."""
+        """Retrieve an endpoint by its slug."""
         result = await self.db.execute(
             select(IngestEndpoint).where(
                 IngestEndpoint.slug == slug,
@@ -55,10 +55,10 @@ class IngestService:
     async def create_endpoint(
         self, tree_id: int, data: IngestEndpointCreate
     ) -> tuple[IngestEndpoint, str]:
-        """Crée un nouveau endpoint d'ingestion avec une clé API générée.
+        """Create a new ingestion endpoint with a generated API key.
 
         Returns:
-            Tuple (endpoint, plain_key) — la clé en clair n'est retournée qu'une seule fois.
+            Tuple (endpoint, plain_key) — the plaintext key is only returned once.
         """
         plain_key = generate_api_key()
         stored_key = _encrypt_key(plain_key)
@@ -79,7 +79,7 @@ class IngestService:
     async def update_endpoint(
         self, endpoint_id: int, data: IngestEndpointUpdate
     ) -> IngestEndpoint | None:
-        """Met à jour un endpoint."""
+        """Update an endpoint."""
         endpoint = await self.get_endpoint(endpoint_id)
         if not endpoint:
             return None
@@ -100,7 +100,7 @@ class IngestService:
         return endpoint
 
     async def delete_endpoint(self, endpoint_id: int) -> bool:
-        """Supprime un endpoint."""
+        """Delete an endpoint."""
         endpoint = await self.get_endpoint(endpoint_id)
         if not endpoint:
             return False
@@ -109,10 +109,10 @@ class IngestService:
         return True
 
     async def regenerate_key(self, endpoint_id: int) -> tuple[IngestEndpoint, str] | None:
-        """Régénère la clé API d'un endpoint.
+        """Regenerate the API key for an endpoint.
 
         Returns:
-            Tuple (endpoint, plain_key) ou None si non trouvé.
+            Tuple (endpoint, plain_key) or None if not found.
         """
         endpoint = await self.get_endpoint(endpoint_id)
         if not endpoint:
@@ -124,7 +124,7 @@ class IngestService:
         return endpoint, plain_key
 
     async def get_logs(self, endpoint_id: int, limit: int = 50) -> list[IngestLog]:
-        """Récupère les logs de réception."""
+        """Retrieve reception logs."""
         result = await self.db.execute(
             select(IngestLog)
             .where(IngestLog.endpoint_id == endpoint_id)
@@ -134,10 +134,10 @@ class IngestService:
         return list(result.scalars().all())
 
     async def purge_old_logs(self, days: int = 30) -> int:
-        """Supprime les logs d'ingestion plus anciens que `days` jours.
+        """Delete ingestion logs older than `days` days.
 
         Returns:
-            Nombre de logs supprimés.
+            Number of deleted logs.
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         result = await self.db.execute(
@@ -155,17 +155,17 @@ class IngestService:
         source_ip: str | None = None,
     ) -> IngestResult:
         """
-        Ingère un batch de vulnérabilités, applique le mapping, évalue si configuré.
+        Ingest a batch of vulnerabilities, apply mapping, evaluate if configured.
 
         Args:
-            endpoint: Endpoint d'ingestion
-            payload: Liste de vulnérabilités brutes
-            engine: Moteur d'inférence pré-chargé
-            lookups: Tables de lookup pré-chargées
-            source_ip: IP source de la requête
+            endpoint: Ingestion endpoint
+            payload: List of raw vulnerabilities
+            engine: Pre-loaded inference engine
+            lookups: Pre-loaded lookup tables
+            source_ip: Source IP of the request
 
         Returns:
-            Résultat de l'ingestion
+            Ingestion result
         """
         start = time.monotonic()
         results: list[dict[str, Any]] = []
@@ -174,7 +174,7 @@ class IngestService:
 
         for entry in payload:
             try:
-                # Applique le mapping de champs
+                # Apply field mapping
                 mapped = transform_payload(entry, endpoint.field_mapping)
 
                 if endpoint.auto_evaluate:
@@ -194,7 +194,7 @@ class IngestService:
 
         duration_ms = int((time.monotonic() - start) * 1000)
 
-        # Log la réception
+        # Log the reception
         log = IngestLog(
             endpoint_id=endpoint.id,
             source_ip=source_ip,
@@ -216,21 +216,21 @@ class IngestService:
 
 
 def generate_api_key() -> str:
-    """Génère une clé API aléatoire."""
+    """Generate a random API key."""
     return secrets.token_urlsafe(32)
 
 
 def _encrypt_key(plain_key: str) -> str:
-    """Chiffre une clé API pour le stockage en BDD."""
+    """Encrypt an API key for database storage."""
     return encrypt_secret(plain_key)
 
 
 def transform_payload(entry: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:
     """
-    Applique le mapping de champs sur une entrée.
+    Apply field mapping on an entry.
 
-    Le mapping est au format {champ_source: champ_treevuln}.
-    Les champs non mappés sont passés tels quels.
+    The mapping is in {source_field: treevuln_field} format.
+    Unmapped fields are passed through as-is.
     """
     if not mapping:
         return entry
@@ -242,7 +242,7 @@ def transform_payload(entry: dict[str, Any], mapping: dict[str, str]) -> dict[st
         if source_key in entry:
             result[target_key] = entry[source_key]
 
-    # Conserve les champs non mappés
+    # Preserve unmapped fields
     for key, value in entry.items():
         if key not in mapped_source_keys and key not in result:
             result[key] = value
@@ -251,7 +251,7 @@ def transform_payload(entry: dict[str, Any], mapping: dict[str, str]) -> dict[st
 
 
 def _build_vulnerability(data: dict[str, Any]) -> VulnerabilityInput:
-    """Construit un VulnerabilityInput depuis un dict mappé."""
+    """Build a VulnerabilityInput from a mapped dict."""
     standard_fields = {
         "id", "cve_id", "cvss_score", "cvss_vector",
         "epss_score", "epss_percentile", "kev",

@@ -45,7 +45,7 @@ class TestEncryptDecrypt:
         set_encryption_key("key-1")
         encrypted = encrypt_secret("secret")
         set_encryption_key("key-2")
-        with pytest.raises(ValueError, match="clé invalide"):
+        with pytest.raises(ValueError, match="invalid key"):
             decrypt_secret(encrypted)
 
     def test_plaintext_retrocompatibility(self):

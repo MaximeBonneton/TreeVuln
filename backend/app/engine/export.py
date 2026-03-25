@@ -1,5 +1,5 @@
 """
-Module d'export des résultats d'évaluation en CSV et JSON.
+Export module for evaluation results in CSV and JSON.
 """
 
 import csv
@@ -14,23 +14,23 @@ from app.schemas.evaluation import EvaluationResponse, EvaluationResult
 
 def export_csv(results: list[EvaluationResult], include_path: bool = True) -> Generator[str, None, None]:
     """
-    Génère un fichier CSV ligne par ligne à partir des résultats d'évaluation.
+    Generate a CSV file line by line from evaluation results.
 
     Args:
-        results: Liste des résultats d'évaluation
-        include_path: Inclure le chemin de décision détaillé
+        results: List of evaluation results
+        include_path: Include the detailed decision path
 
     Yields:
-        Lignes CSV
+        CSV lines
     """
     if not results:
         yield ""
         return
 
-    # Détermine le nombre max d'étapes dans les chemins
+    # Determine the max number of steps in paths
     max_steps = max((len(r.path) for r in results), default=0) if include_path else 0
 
-    # Construit les headers
+    # Build the headers
     headers = ["vuln_id", "decision", "decision_color", "error"]
     if include_path:
         headers.append("path_summary")
@@ -94,14 +94,14 @@ def export_json(
     tree_name: str | None = None,
 ) -> str:
     """
-    Génère un export JSON complet avec métadonnées.
+    Generate a complete JSON export with metadata.
 
     Args:
-        response: Réponse d'évaluation complète
-        tree_name: Nom de l'arbre utilisé
+        response: Complete evaluation response
+        tree_name: Name of the tree used
 
     Returns:
-        Chaîne JSON formatée
+        Formatted JSON string
     """
     export_data = {
         "metadata": {

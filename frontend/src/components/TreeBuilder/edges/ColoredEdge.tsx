@@ -5,7 +5,7 @@ import {
   Position,
 } from '@xyflow/react';
 
-// Palette de 24 couleurs légèrement saturées et équilibrées
+// Palette of 24 slightly saturated and balanced colors
 const EDGE_COLORS = [
   '#5b8fb9', // steel blue
   '#6a9e87', // sage green
@@ -33,7 +33,7 @@ const EDGE_COLORS = [
   '#b8908a', // salmon
 ];
 
-// Génère un hash simple à partir d'une chaîne
+// Generate a simple hash from a string
 const hashString = (str: string): number => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -44,27 +44,27 @@ const hashString = (str: string): number => {
   return Math.abs(hash);
 };
 
-// Retourne une couleur unique basée sur l'ID de l'edge
+// Return a unique color based on the edge ID
 export const getEdgeColor = (edgeId: string): string => {
   const hash = hashString(edgeId);
   return EDGE_COLORS[hash % EDGE_COLORS.length];
 };
 
-// Retourne une couleur basée sur le nœud source et l'index du handle
+// Return a color based on the source node and handle index
 export const getHandleColor = (nodeId: string, handleIndex: number): string => {
   const hash = hashString(`${nodeId}-handle-${handleIndex}`);
   return EDGE_COLORS[hash % EDGE_COLORS.length];
 };
 
-// Retourne une couleur pour un edge basée sur sa source (pour correspondre aux handles)
+// Return a color for an edge based on its source (to match handles)
 export const getEdgeColorFromSource = (sourceNodeId: string, sourceHandle: string | null | undefined): string => {
   if (!sourceHandle) return getHandleColor(sourceNodeId, 0);
 
-  // Format multi-input: handle-{inputIdx}-{condIdx} → hash basé sur l'ID complet
-  // Format single-input: handle-{index}
+  // Multi-input format: handle-{inputIdx}-{condIdx} -> hash based on full ID
+  // Single-input format: handle-{index}
   const parts = sourceHandle.replace('handle-', '').split('-');
   if (parts.length === 2) {
-    // Multi-input: utiliser inputIdx * 100 + condIdx pour un index unique
+    // Multi-input: use inputIdx * 100 + condIdx for a unique index
     const inputIdx = parseInt(parts[0], 10) || 0;
     const condIdx = parseInt(parts[1], 10) || 0;
     return getHandleColor(sourceNodeId, inputIdx * 100 + condIdx);
@@ -74,15 +74,15 @@ export const getEdgeColorFromSource = (sourceNodeId: string, sourceHandle: strin
   return getHandleColor(sourceNodeId, handleIndex);
 };
 
-// Calcule un offset pour les points de contrôle (pas les extrémités)
+// Calculate an offset for control points (not endpoints)
 const getControlPointOffset = (edgeId: string): number => {
-  // Utilise uniquement le hash de l'edge pour un offset léger et unique
+  // Use only the edge hash for a light and unique offset
   const hash = hashString(edgeId);
-  // Offset entre -25 et +25 pixels pour éviter la superposition des courbes
+  // Offset between -25 and +25 pixels to avoid overlapping curves
   return ((hash % 50) - 25);
 };
 
-// Génère un path Bézier personnalisé avec offset sur les points de contrôle uniquement
+// Generate a custom Bezier path with offset on control points only
 const getCustomBezierPath = (
   sourceX: number,
   sourceY: number,
@@ -92,27 +92,27 @@ const getCustomBezierPath = (
   targetPosition: Position,
   controlOffset: number
 ): string => {
-  // Distance horizontale pour les points de contrôle
+  // Horizontal distance for control points
   const deltaX = Math.abs(targetX - sourceX);
   const controlDistance = Math.max(deltaX * 0.4, 50);
 
-  // Points de contrôle avec offset vertical
+  // Control points with vertical offset
   let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
 
   if (sourcePosition === Position.Right && targetPosition === Position.Left) {
-    // Connexion gauche-droite (cas standard)
+    // Left-to-right connection (standard case)
     cp1x = sourceX + controlDistance;
     cp1y = sourceY + controlOffset;
     cp2x = targetX - controlDistance;
     cp2y = targetY + controlOffset * 0.5;
   } else if (sourcePosition === Position.Bottom && targetPosition === Position.Top) {
-    // Connexion haut-bas
+    // Top-to-bottom connection
     cp1x = sourceX + controlOffset;
     cp1y = sourceY + controlDistance;
     cp2x = targetX + controlOffset * 0.5;
     cp2y = targetY - controlDistance;
   } else {
-    // Fallback pour autres cas
+    // Fallback for other cases
     cp1x = sourceX + controlDistance;
     cp1y = sourceY + controlOffset;
     cp2x = targetX - controlDistance;
@@ -122,13 +122,13 @@ const getCustomBezierPath = (
   return `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
 };
 
-// Type pour les données custom de l'edge
+// Type for custom edge data
 export interface ColoredEdgeData extends Record<string, unknown> {
   highlighted?: boolean;
   dimmed?: boolean;
 }
 
-// Type de l'edge custom
+// Custom edge type
 export type ColoredEdge = Edge<ColoredEdgeData, 'colored'>;
 
 function ColoredEdgeComponent({
@@ -144,10 +144,10 @@ function ColoredEdgeComponent({
   selected,
   data,
 }: EdgeProps<ColoredEdge>) {
-  // Calcule l'offset pour les points de contrôle (pas les extrémités)
+  // Calculate offset for control points (not endpoints)
   const controlOffset = getControlPointOffset(id);
 
-  // Génère le path avec les extrémités alignées aux handles
+  // Generate the path with endpoints aligned to handles
   const edgePath = getCustomBezierPath(
     sourceX,
     sourceY,
@@ -158,12 +158,12 @@ function ColoredEdgeComponent({
     controlOffset
   );
 
-  // Couleur basée sur le nœud source + handle pour correspondre aux handles
+  // Color based on source node + handle to match handles
   const color = getEdgeColorFromSource(source, sourceHandleId);
   const highlighted = data?.highlighted ?? false;
   const dimmed = data?.dimmed ?? false;
 
-  // Calcule l'opacité et l'épaisseur selon l'état
+  // Calculate opacity and width based on state
   let strokeOpacity = 0.7;
   let strokeWidth = 1.5;
 

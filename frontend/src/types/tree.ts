@@ -1,10 +1,10 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { FieldMapping } from './fieldMapping';
 
-// Types de nœuds disponibles
+// Available node types
 export type NodeType = 'input' | 'lookup' | 'output' | 'equation';
 
-// Opérateurs de condition
+// Condition operators
 export type ConditionOperator =
   | 'eq'
   | 'neq'
@@ -27,39 +27,39 @@ export const OPERATOR_LABELS: Record<ConditionOperator, string> = {
   gte: '≥',
   lt: '<',
   lte: '≤',
-  contains: 'contient',
-  not_contains: 'ne contient pas',
+  contains: 'contains',
+  not_contains: 'does not contain',
   regex: 'regex',
-  in: 'dans',
-  not_in: 'pas dans',
-  is_null: 'est vide',
-  is_not_null: 'n\'est pas vide',
+  in: 'in',
+  not_in: 'not in',
+  is_null: 'is null',
+  is_not_null: 'is not null',
 };
 
-// Critère simple pour condition composée
+// Simple criterion for compound condition
 export interface SimpleConditionCriteria {
-  /** Champ à évaluer. Si undefined, utilise le champ principal du nœud */
+  /** Field to evaluate. If undefined, uses the node's main field */
   field?: string;
   operator: ConditionOperator;
   value: unknown;
 }
 
-// Condition d'une branche (supporte mode simple et composé)
+// Branch condition (supports simple and compound mode)
 export interface NodeCondition {
   label: string;
-  // Mode simple (rétrocompatible) - utilisé si logic est undefined
+  // Simple mode (backward-compatible) - used if logic is undefined
   operator?: ConditionOperator;
   value?: unknown;
-  // Mode composé - utilisé si logic est défini
+  // Compound mode - used if logic is defined
   logic?: 'AND' | 'OR';
   criteria?: SimpleConditionCriteria[];
 }
 
-// Configuration des nœuds selon le type
+// Node configuration based on type
 export interface InputNodeConfig {
   field: string;
   default_branch?: number;
-  /** Nombre d'entrées (> 1 pour mode multi-input) */
+  /** Number of inputs (> 1 for multi-input mode) */
   input_count?: number;
 }
 
@@ -68,7 +68,7 @@ export interface LookupNodeConfig {
   lookup_key: string;
   lookup_field: string;
   default_branch?: number;
-  /** Nombre d'entrées (> 1 pour mode multi-input) */
+  /** Number of inputs (> 1 for multi-input mode) */
   input_count?: number;
 }
 
@@ -97,7 +97,7 @@ export interface EquationNodeConfig {
 
 export type TreeNodeConfig = InputNodeConfig | LookupNodeConfig | OutputNodeConfig | EquationNodeConfig;
 
-// Données d'un nœud custom
+// Custom node data
 export interface TreeNodeData extends Record<string, unknown> {
   label: string;
   nodeType: NodeType;
@@ -105,18 +105,18 @@ export interface TreeNodeData extends Record<string, unknown> {
   conditions: NodeCondition[];
 }
 
-// Types React Flow étendus
+// Extended React Flow types
 export type TreeNode = Node<TreeNodeData>;
 export type TreeEdge = Edge;
 
-// Structure complète de l'arbre (format API)
+// Complete tree structure (API format)
 export interface TreeStructure {
   nodes: ApiNode[];
   edges: ApiEdge[];
   metadata: Record<string, unknown>;
 }
 
-// Format API des nœuds
+// API format for nodes
 export interface ApiNode {
   id: string;
   type: NodeType;
@@ -126,18 +126,18 @@ export interface ApiNode {
   conditions: NodeCondition[];
 }
 
-// Format API des edges
+// API format for edges
 export interface ApiEdge {
   id: string;
   source: string;
   target: string;
   source_handle?: string | null;
-  /** Handle d'entrée pour les nœuds multi-input. Format: 'input-{index}' */
+  /** Input handle for multi-input nodes. Format: 'input-{index}' */
   target_handle?: string | null;
   label?: string | null;
 }
 
-// Réponse API pour un arbre
+// API response for a tree
 export interface TreeResponse {
   id: number;
   name: string;
@@ -150,7 +150,7 @@ export interface TreeResponse {
   updated_at: string;
 }
 
-// Résumé d'un arbre pour la liste (sidebar)
+// Tree summary for the list (sidebar)
 export interface TreeListItem {
   id: number;
   name: string;
@@ -163,19 +163,19 @@ export interface TreeListItem {
   updated_at: string;
 }
 
-// Configuration API d'un arbre
+// API configuration for a tree
 export interface TreeApiConfig {
   api_enabled: boolean;
   api_slug: string | null;
 }
 
-// Requête de duplication d'arbre
+// Tree duplication request
 export interface TreeDuplicateRequest {
   new_name: string;
   include_assets: boolean;
 }
 
-// Création/mise à jour d'un arbre
+// Tree creation/update
 export interface TreeCreate {
   name: string;
   description?: string;
@@ -189,7 +189,7 @@ export interface TreeUpdate {
   version_comment?: string;
 }
 
-// Version d'arbre
+// Tree version
 export interface TreeVersionResponse {
   id: number;
   tree_id: number;

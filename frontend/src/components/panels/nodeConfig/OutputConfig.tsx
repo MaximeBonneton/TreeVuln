@@ -12,7 +12,7 @@ export function OutputConfig({
     <div className="space-y-3">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Décision SSVC
+          SSVC Decision
         </label>
         <div className="grid grid-cols-2 gap-2">
           {SSVC_DECISIONS.map((decision) => (
@@ -39,7 +39,7 @@ export function OutputConfig({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Ou décision personnalisée
+          Or custom decision
         </label>
         <input
           type="text"
@@ -51,7 +51,7 @@ export function OutputConfig({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Couleur
+          Color
         </label>
         <input
           type="color"

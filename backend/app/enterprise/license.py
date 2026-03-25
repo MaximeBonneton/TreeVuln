@@ -1,7 +1,7 @@
 """
-Vérification de la licence Enterprise.
-Double condition : clé UUID valide ET modules/ présents.
-Note : init_license() devra devenir async lors de la migration vers JWT.
+Enterprise license verification.
+Double condition: valid UUID key AND modules/ present.
+Note: init_license() will need to become async during JWT migration.
 """
 
 import logging
@@ -18,7 +18,7 @@ _features: dict[str, bool] = {}
 
 
 def _is_valid_uuid(key: str) -> bool:
-    """Valide que la clé est un UUID v4 bien formé."""
+    """Validate that the key is a well-formed UUID v4."""
     try:
         uuid.UUID(key, version=4)
         return True
@@ -27,7 +27,7 @@ def _is_valid_uuid(key: str) -> bool:
 
 
 def init_license() -> None:
-    """Appelée au démarrage (lifespan). Vérifie clé + présence modules/."""
+    """Called at startup (lifespan). Verifies key + presence of modules/."""
     global _enterprise_active, _enterprise_version, _features
     key = settings.treevuln_license_key
 
@@ -37,14 +37,14 @@ def init_license() -> None:
         _features = _default_features(False)
         return
 
-    # Valider le format UUID v4
+    # Validate UUID v4 format
     if not _is_valid_uuid(key):
         logger.warning("Invalid license key format — running in Community mode")
         _enterprise_active = False
         _features = _default_features(False)
         return
 
-    # Vérifier la présence du dossier modules/
+    # Check for the presence of the modules/ folder
     modules_path = Path(__file__).parent / "modules"
     modules_present = (modules_path / "__init__.py").exists()
 
@@ -59,7 +59,7 @@ def init_license() -> None:
     _enterprise_active = True
     _features = _default_features(True)
 
-    # Lire la version des modules enterprise si disponible
+    # Read the enterprise modules version if available
     try:
         from app.enterprise.modules import __version__ as mod_version
 

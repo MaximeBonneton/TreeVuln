@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     def validate_database_url(cls, v: str) -> str:
         if not v:
             raise ValueError(
-                "DATABASE_URL doit être configuré. "
+                "DATABASE_URL must be configured. "
                 "Exemple : postgresql+asyncpg://user:pass@host:5432/db"
             )
         return v
@@ -51,14 +51,14 @@ class Settings(BaseSettings):
     max_batch_size: int = 50000
     batch_chunk_size: int = 5000
 
-    # Upload limits (bytes) — 50 MB par défaut
+    # Upload limits (bytes) — 50 MB default
     max_upload_size: int = 50 * 1024 * 1024
 
     # Session
     session_cookie_name: str = "treevuln_session"
     session_max_age: int = 86400  # 24 heures
 
-    # Enterprise license (laisser vide pour mode Community)
+    # Enterprise license (leave empty for Community mode)
     treevuln_license_key: str | None = None
 
 

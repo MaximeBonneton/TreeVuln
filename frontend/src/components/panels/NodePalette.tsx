@@ -10,25 +10,25 @@ const nodeItems: { type: NodeType; label: string; icon: React.ElementType; descr
     type: 'input',
     label: 'Input',
     icon: Database,
-    description: 'Lit un champ de la vulnérabilité',
+    description: 'Reads a vulnerability field',
   },
   {
     type: 'lookup',
     label: 'Lookup',
     icon: GitBranch,
-    description: 'Recherche dans une table externe',
+    description: 'Lookup in external table',
   },
   {
     type: 'equation',
     label: 'Equation',
     icon: Calculator,
-    description: 'Calcul multi-champs avec formule',
+    description: 'Multi-field calculation with formula',
   },
   {
     type: 'output',
     label: 'Output',
     icon: Flag,
-    description: 'Décision finale (Act, Attend...)',
+    description: 'Final decision (Act, Attend...)',
   },
 ];
 
@@ -36,10 +36,10 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 w-64">
       <h3 className="font-bold text-gray-700 mb-3 text-sm uppercase tracking-wide">
-        Nœuds
+        Nodes
       </h3>
       <p className="text-xs text-gray-500 mb-4">
-        Glissez-déposez un nœud sur le canvas
+        Drag and drop a node onto the canvas
       </p>
 
       <div className="space-y-2">
@@ -49,7 +49,7 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
             <div
               key={item.type}
               role="button"
-              aria-label={`Ajouter un nœud ${item.label}: ${item.description}`}
+              aria-label={`Add ${item.label} node: ${item.description}`}
               tabIndex={0}
               className={`
                 p-3 rounded-lg border-2 border-dashed cursor-grab
@@ -64,7 +64,7 @@ export function NodePalette({ onDragStart }: NodePaletteProps) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  // Simule un drag start via un événement synthétique
+                  // Simulate drag start via synthetic event
                   const syntheticEvent = new DragEvent('dragstart');
                   onDragStart(syntheticEvent as unknown as React.DragEvent, item.type);
                 }

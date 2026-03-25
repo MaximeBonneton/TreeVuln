@@ -1,4 +1,4 @@
-"""Service pour le mapping des champs et le scan de fichiers."""
+"""Service for field mapping and file scanning."""
 
 import csv
 import io
@@ -9,24 +9,24 @@ from typing import Any
 
 from app.schemas.field_mapping import FieldDefinition, FieldMapping, FieldType, ScanResult
 
-# Nombre max de lignes à scanner pour l'inférence de types
+# Max number of rows to scan for type inference
 MAX_SCAN_ROWS = 100
 MAX_EXAMPLES = 5
 
 
 def infer_field_type(values: list[Any]) -> FieldType:
-    """Infère le type d'un champ à partir de ses valeurs."""
+    """Infer the type of a field from its values."""
     non_null_values = [v for v in values if v is not None and v != ""]
 
     if not non_null_values:
         return FieldType.UNKNOWN
 
-    # Vérifie si ce sont des booléens
+    # Check if they are booleans
     bool_values = {"true", "false", "1", "0", "yes", "no", "oui", "non"}
     if all(str(v).lower() in bool_values for v in non_null_values):
         return FieldType.BOOLEAN
 
-    # Vérifie si ce sont des nombres
+    # Check if they are numbers
     try:
         for v in non_null_values:
             float(v)
@@ -34,7 +34,7 @@ def infer_field_type(values: list[Any]) -> FieldType:
     except (ValueError, TypeError):
         pass
 
-    # Vérifie si ce sont des dates (patterns courants)
+    # Check if they are dates (common patterns)
     date_patterns = [
         r"^\d{4}-\d{2}-\d{2}",  # ISO format
         r"^\d{2}/\d{2}/\d{4}",  # DD/MM/YYYY ou MM/DD/YYYY
@@ -43,7 +43,7 @@ def infer_field_type(values: list[Any]) -> FieldType:
     if all(any(re.match(p, str(v)) for p in date_patterns) for v in non_null_values):
         return FieldType.DATE
 
-    # Vérifie si ce sont des arrays (format JSON)
+    # Check if they are arrays (JSON format)
     if all(isinstance(v, list) or (isinstance(v, str) and v.startswith("[")) for v in non_null_values):
         return FieldType.ARRAY
 
@@ -51,7 +51,7 @@ def infer_field_type(values: list[Any]) -> FieldType:
 
 
 def get_unique_examples(values: list[Any], max_count: int = MAX_EXAMPLES) -> list[Any]:
-    """Retourne des exemples uniques de valeurs."""
+    """Return unique example values."""
     seen = set()
     examples = []
     for v in values:
@@ -59,7 +59,7 @@ def get_unique_examples(values: list[Any], max_count: int = MAX_EXAMPLES) -> lis
             break
         if v is not None and v != "" and str(v) not in seen:
             seen.add(str(v))
-            # Convertit en type approprié si possible
+            # Convert to appropriate type if possible
             if isinstance(v, str):
                 try:
                     examples.append(float(v) if "." in v else int(v))
@@ -77,7 +77,7 @@ def get_unique_examples(values: list[Any], max_count: int = MAX_EXAMPLES) -> lis
 
 
 def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
-    """Scanne un contenu CSV et retourne les champs détectés."""
+    """Scan CSV content and return detected fields."""
     warnings: list[str] = []
     fields: list[FieldDefinition] = []
 
@@ -90,7 +90,7 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
             fields=[],
             rows_scanned=0,
             source_type="csv",
-            warnings=["Aucun en-tête détecté dans le fichier CSV"],
+            warnings=["No headers detected in CSV file"],
         )
 
     # Collecte les valeurs pour chaque colonne
@@ -99,19 +99,19 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
 
     for row in reader:
         if rows_scanned >= MAX_SCAN_ROWS:
-            warnings.append(f"Scan limité aux {MAX_SCAN_ROWS} premières lignes")
+            warnings.append(f"Scan limited to the first {MAX_SCAN_ROWS} rows")
             break
         for header in headers:
             column_values[header].append(row.get(header))
         rows_scanned += 1
 
-    # Crée les définitions de champs
+    # Create field definitions
     for header in headers:
         values = column_values[header]
         field_type = infer_field_type(values)
         examples = get_unique_examples(values)
 
-        # Génère un label lisible à partir du nom technique
+        # Generate a readable label from the technical name
         label = header.replace("_", " ").replace("-", " ").title()
 
         fields.append(
@@ -134,7 +134,7 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
 
 
 def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult:
-    """Scanne un contenu JSON (array d'objets) et retourne les champs détectés."""
+    """Scan JSON content (array of objects) and return detected fields."""
     warnings: list[str] = []
     fields: list[FieldDefinition] = []
 
@@ -145,24 +145,24 @@ def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult
             fields=[],
             rows_scanned=0,
             source_type="json",
-            warnings=[f"Erreur de parsing JSON: {e}"],
+            warnings=[f"JSON parsing error: {e}"],
         )
 
-    # Vérifie que c'est un array d'objets
+    # Verify it is an array of objects
     if not isinstance(data, list):
-        # Si c'est un objet avec une clé contenant un array, utilise-la
+        # If it is an object with a key containing an array, use it
         if isinstance(data, dict):
             for key, value in data.items():
                 if isinstance(value, list) and value and isinstance(value[0], dict):
                     data = value
-                    warnings.append(f"Utilisation de la clé '{key}' comme source de données")
+                    warnings.append(f"Using key '{key}' as data source")
                     break
             else:
                 return ScanResult(
                     fields=[],
                     rows_scanned=0,
                     source_type="json",
-                    warnings=["Le fichier JSON doit contenir un array d'objets"],
+                    warnings=["JSON file must contain an array of objects"],
                 )
 
     if not data or not isinstance(data[0], dict):
@@ -170,16 +170,16 @@ def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult
             fields=[],
             rows_scanned=0,
             source_type="json",
-            warnings=["Le fichier JSON doit contenir un array d'objets non vide"],
+            warnings=["JSON file must contain a non-empty array of objects"],
         )
 
-    # Collecte toutes les clés présentes
+    # Collect all present keys
     all_keys: set[str] = set()
     for item in data[:MAX_SCAN_ROWS]:
         if isinstance(item, dict):
             all_keys.update(item.keys())
 
-    # Collecte les valeurs pour chaque clé
+    # Collect values for each key
     column_values: dict[str, list[Any]] = {k: [] for k in all_keys}
     rows_scanned = 0
 
@@ -191,9 +191,9 @@ def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult
         rows_scanned += 1
 
     if rows_scanned >= MAX_SCAN_ROWS:
-        warnings.append(f"Scan limité aux {MAX_SCAN_ROWS} premières lignes")
+        warnings.append(f"Scan limited to the first {MAX_SCAN_ROWS} rows")
 
-    # Crée les définitions de champs
+    # Create field definitions
     for key in sorted(all_keys):
         values = column_values[key]
         field_type = infer_field_type(values)
@@ -221,7 +221,7 @@ def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult
 
 
 def scan_file_content(content: str, filename: str) -> ScanResult:
-    """Scanne un fichier (CSV ou JSON) et retourne les champs détectés."""
+    """Scan a file (CSV or JSON) and return detected fields."""
     lower_filename = filename.lower()
 
     if lower_filename.endswith(".csv"):
@@ -238,7 +238,7 @@ def scan_file_content(content: str, filename: str) -> ScanResult:
 
 
 def get_mapping_from_tree_metadata(metadata: dict[str, Any] | None) -> FieldMapping | None:
-    """Extrait le mapping des champs depuis les métadonnées d'un arbre."""
+    """Extract the field mapping from a tree's metadata."""
     if not metadata or "field_mapping" not in metadata:
         return None
 
@@ -252,7 +252,7 @@ def get_mapping_from_tree_metadata(metadata: dict[str, Any] | None) -> FieldMapp
 def set_mapping_in_tree_metadata(
     metadata: dict[str, Any] | None, mapping: FieldMapping
 ) -> dict[str, Any]:
-    """Met à jour le mapping dans les métadonnées d'un arbre."""
+    """Update the mapping in a tree's metadata."""
     if metadata is None:
         metadata = {}
 
@@ -261,7 +261,7 @@ def set_mapping_in_tree_metadata(
 
 
 def remove_mapping_from_tree_metadata(metadata: dict[str, Any] | None) -> dict[str, Any]:
-    """Supprime le mapping des métadonnées d'un arbre."""
+    """Remove the mapping from a tree's metadata."""
     if metadata is None:
         return {}
 

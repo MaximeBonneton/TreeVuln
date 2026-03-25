@@ -9,10 +9,10 @@ router = APIRouter()
 
 @router.get("")
 async def get_license_info():
-    """Retourne le mode actif, les features disponibles et la version enterprise.
+    """Return the active mode, available features, and enterprise version.
 
-    Pas d'auth requise : le frontend doit pouvoir l'appeler avant login.
-    Ne retourne jamais la clé de licence elle-même.
+    No auth required: the frontend must be able to call it before login.
+    Never returns the license key itself.
     """
     return {
         "edition": "enterprise" if is_enterprise() else "community",

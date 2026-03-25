@@ -122,7 +122,7 @@ def test_import_invalid_format():
             "structure": {"nodes": [], "edges": [], "metadata": {}},
         },
     }
-    with pytest.raises(ValidationError, match="Format inconnu"):
+    with pytest.raises(ValidationError, match="Unknown format"):
         TreeImportRequest.model_validate(data)
 
 
@@ -136,7 +136,7 @@ def test_import_invalid_version():
             "structure": {"nodes": [], "edges": [], "metadata": {}},
         },
     }
-    with pytest.raises(ValidationError, match="Version non supportée"):
+    with pytest.raises(ValidationError, match="Unsupported version"):
         TreeImportRequest.model_validate(data)
 
 

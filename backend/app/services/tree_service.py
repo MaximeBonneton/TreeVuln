@@ -1,6 +1,6 @@
 """
-Service pour la gestion des arbres de décision.
-Support multi-arbres avec contextes isolés.
+Service for managing decision trees.
+Multi-tree support with isolated contexts.
 """
 
 from copy import deepcopy
@@ -25,36 +25,36 @@ from app.services.tree_validation import validate_tree_structure
 
 
 class TreeService:
-    """Service de gestion des arbres de décision."""
+    """Decision tree management service."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def get_tree(self, tree_id: int | None = None) -> Tree | None:
         """
-        Récupère un arbre par ID ou l'arbre par défaut.
+        Retrieve a tree by ID or the default tree.
         """
         if tree_id:
             result = await self.db.execute(select(Tree).where(Tree.id == tree_id))
         else:
-            # Récupère l'arbre par défaut
+            # Retrieve the default tree
             result = await self.db.execute(select(Tree).where(Tree.is_default == True))
         return result.scalar_one_or_none()
 
     async def get_default_tree(self) -> Tree | None:
-        """Récupère l'arbre par défaut."""
+        """Retrieve the default tree."""
         result = await self.db.execute(select(Tree).where(Tree.is_default == True))
         return result.scalar_one_or_none()
 
     async def get_tree_by_slug(self, slug: str) -> Tree | None:
-        """Récupère un arbre par son slug API."""
+        """Retrieve a tree by its API slug."""
         result = await self.db.execute(
             select(Tree).where(Tree.api_slug == slug, Tree.api_enabled == True)
         )
         return result.scalar_one_or_none()
 
     async def list_trees(self) -> list[TreeListItem]:
-        """Liste tous les arbres avec un résumé."""
+        """List all trees with a summary."""
         result = await self.db.execute(
             select(Tree).order_by(Tree.is_default.desc(), Tree.name)
         )
@@ -62,7 +62,7 @@ class TreeService:
 
         items = []
         for tree in trees:
-            # Compte les nœuds dans la structure
+            # Count nodes in the structure
             node_count = len(tree.structure.get("nodes", []))
             items.append(
                 TreeListItem(
@@ -81,18 +81,18 @@ class TreeService:
 
     async def create_tree(self, data: TreeCreate, set_as_default: bool = False) -> Tree:
         """
-        Crée un nouvel arbre.
+        Create a new tree.
 
         Args:
-            data: Données de création
-            set_as_default: Si True, définit ce nouvel arbre comme défaut
+            data: Creation data
+            set_as_default: If True, sets this new tree as default
         """
-        # Si on définit comme défaut, on retire le flag des autres arbres
+        # If setting as default, remove the flag from other trees
         if set_as_default:
             await self.db.execute(
                 select(Tree).where(Tree.is_default == True).with_for_update()
             )
-            # Met à jour tous les arbres existants
+            # Update all existing trees
             result = await self.db.execute(select(Tree).where(Tree.is_default == True))
             for existing in result.scalars().all():
                 existing.is_default = False
@@ -115,22 +115,22 @@ class TreeService:
         create_version: bool = True,
     ) -> Tree | None:
         """
-        Met à jour un arbre et optionnellement crée une version.
+        Update a tree and optionally create a version.
 
         Args:
-            tree_id: ID de l'arbre
-            data: Données de mise à jour
-            create_version: Si True, sauvegarde une version avant la mise à jour
+            tree_id: Tree ID
+            data: Update data
+            create_version: If True, saves a version before the update
         """
         tree = await self.get_tree(tree_id)
         if not tree:
             return None
 
-        # Crée une version si demandé et si la structure change
+        # Create a version if requested and if the structure changes
         if create_version and data.structure is not None:
             await self._create_version(tree, data.version_comment)
 
-        # Met à jour les champs
+        # Update fields
         if data.name is not None:
             tree.name = data.name
         if data.description is not None:
@@ -144,21 +144,21 @@ class TreeService:
 
     async def delete_tree(self, tree_id: int) -> bool:
         """
-        Supprime un arbre et ses versions/assets associés.
-        Refuse de supprimer l'arbre par défaut.
+        Delete a tree and its associated versions/assets.
+        Refuses to delete the default tree.
         """
         tree = await self.get_tree(tree_id)
         if not tree:
             return False
         if tree.is_default:
-            raise ValueError("Impossible de supprimer l'arbre par défaut")
+            raise ValueError("Cannot delete the default tree")
         await self.db.delete(tree)
         await self.db.commit()
         return True
 
     async def _create_version(self, tree: Tree, comment: str | None = None) -> TreeVersion:
-        """Crée une nouvelle version de l'arbre."""
-        # Trouve le prochain numéro de version
+        """Create a new version of the tree."""
+        # Find the next version number
         result = await self.db.execute(
             select(func.coalesce(func.max(TreeVersion.version_number), 0))
             .where(TreeVersion.tree_id == tree.id)
@@ -176,7 +176,7 @@ class TreeService:
         return version
 
     async def get_versions(self, tree_id: int) -> list[TreeVersion]:
-        """Récupère toutes les versions d'un arbre."""
+        """Retrieve all versions of a tree."""
         result = await self.db.execute(
             select(TreeVersion)
             .where(TreeVersion.tree_id == tree_id)
@@ -185,7 +185,7 @@ class TreeService:
         return list(result.scalars().all())
 
     async def get_version(self, version_id: int) -> TreeVersion | None:
-        """Récupère une version spécifique."""
+        """Retrieve a specific version."""
         result = await self.db.execute(
             select(TreeVersion).where(TreeVersion.id == version_id)
         )
@@ -193,8 +193,8 @@ class TreeService:
 
     async def restore_version(self, tree_id: int, version_id: int) -> Tree | None:
         """
-        Restaure une version précédente de l'arbre.
-        Crée une nouvelle version de l'état actuel avant restauration.
+        Restore a previous version of the tree.
+        Creates a new version of the current state before restoration.
         """
         tree = await self.get_tree(tree_id)
         version = await self.get_version(version_id)
@@ -202,29 +202,29 @@ class TreeService:
         if not tree or not version or version.tree_id != tree_id:
             return None
 
-        # Sauvegarde l'état actuel
-        await self._create_version(tree, f"Avant restauration vers v{version.version_number}")
+        # Save current state
+        await self._create_version(tree, f"Before restoration to v{version.version_number}")
 
-        # Restaure
+        # Restore
         tree.structure = version.structure_snapshot
         await self.db.commit()
         await self.db.refresh(tree)
         return tree
 
     def get_tree_structure(self, tree: Tree) -> TreeStructure:
-        """Convertit la structure JSON en objet TreeStructure."""
+        """Convert JSON structure to TreeStructure object."""
         return TreeStructure.model_validate(tree.structure)
 
     async def set_default_tree(self, tree_id: int) -> Tree | None:
         """
-        Définit un arbre comme arbre par défaut.
-        Retire le flag des autres arbres.
+        Set a tree as the default tree.
+        Removes the flag from other trees.
         """
         tree = await self.get_tree(tree_id)
         if not tree:
             return None
 
-        # Retire le flag des autres arbres
+        # Remove the flag from other trees
         result = await self.db.execute(
             select(Tree).where(Tree.is_default == True, Tree.id != tree_id)
         )
@@ -238,17 +238,17 @@ class TreeService:
 
     async def update_api_config(self, tree_id: int, config: TreeApiConfig) -> Tree | None:
         """
-        Met à jour la configuration API d'un arbre.
+        Update the API configuration for a tree.
 
         Args:
-            tree_id: ID de l'arbre
-            config: Configuration API (enable, slug)
+            tree_id: Tree ID
+            config: API configuration (enable, slug)
         """
         tree = await self.get_tree(tree_id)
         if not tree:
             return None
 
-        # Vérifie l'unicité du slug si fourni
+        # Verify slug uniqueness if provided
         if config.api_slug:
             existing = await self.db.execute(
                 select(Tree).where(
@@ -257,7 +257,7 @@ class TreeService:
                 )
             )
             if existing.scalar_one_or_none():
-                raise ValueError(f"Le slug '{config.api_slug}' est déjà utilisé")
+                raise ValueError(f"Slug '{config.api_slug}' is already in use")
 
         tree.api_enabled = config.api_enabled
         tree.api_slug = config.api_slug if config.api_enabled else None
@@ -269,16 +269,16 @@ class TreeService:
     # --- Decision-as-Code (export/import) ---
 
     async def export_tree(self, tree_id: int) -> TreeExportFile | None:
-        """Exporte un arbre complet au format Decision-as-Code."""
+        """Export a complete tree in Decision-as-Code format."""
         tree = await self.get_tree(tree_id)
         if not tree:
             return None
 
-        # Copier la structure pour ne pas muter l'original
+        # Copy the structure to avoid mutating the original
         structure = deepcopy(tree.structure) if tree.structure else {"nodes": [], "edges": [], "metadata": {}}
 
-        # Extraire le field_mapping de metadata et le retirer de la structure
-        # pour éviter la duplication (une seule source de vérité dans le fichier)
+        # Extract field_mapping from metadata and remove it from the structure
+        # to avoid duplication (single source of truth in the file)
         field_mapping = None
         if structure.get("metadata", {}).get("field_mapping"):
             field_mapping = structure["metadata"].pop("field_mapping")
@@ -296,18 +296,18 @@ class TreeService:
         })
 
     async def import_tree(self, data: TreeImportRequest) -> Tree:
-        """Importe un arbre depuis un fichier Decision-as-Code."""
-        # Générer un nom unique si nécessaire
+        """Import a tree from a Decision-as-Code file."""
+        # Generate a unique name if necessary
         name = await self._unique_import_name(data.tree.name)
 
-        # Injecter le field_mapping dans metadata si présent
+        # Inject field_mapping into metadata if present
         structure_data = data.tree.structure.model_dump()
         if data.tree.field_mapping:
             if "metadata" not in structure_data or structure_data["metadata"] is None:
                 structure_data["metadata"] = {}
             structure_data["metadata"]["field_mapping"] = data.tree.field_mapping.model_dump()
 
-        # Créer l'arbre via le flux existant
+        # Create the tree via the existing flow
         create_data = TreeCreate(
             name=name,
             description=data.tree.description,
@@ -316,7 +316,7 @@ class TreeService:
         return await self.create_tree(create_data)
 
     async def _unique_import_name(self, base_name: str) -> str:
-        """Génère un nom unique en suffixant si nécessaire."""
+        """Generate a unique name by adding a suffix if necessary."""
         stmt = select(Tree.name).where(Tree.name.like(f"{base_name}%"))
         result = await self.db.execute(stmt)
         existing_names = {row[0] for row in result.fetchall()}
@@ -339,16 +339,16 @@ class TreeService:
         request: TreeDuplicateRequest,
     ) -> Tree | None:
         """
-        Duplique un arbre existant.
+        Duplicate an existing tree.
 
         Args:
-            tree_id: ID de l'arbre à dupliquer
-            request: Options de duplication (nom, inclure assets)
+            tree_id: ID of the tree to duplicate
+            request: Duplication options (name, include assets)
 
         Returns:
-            Le nouvel arbre dupliqué ou None si l'arbre source n'existe pas
+            The new duplicated tree or None if the source tree does not exist
         """
-        # Charge l'arbre avec ses assets
+        # Load the tree with its assets
         result = await self.db.execute(
             select(Tree).options(selectinload(Tree.assets)).where(Tree.id == tree_id)
         )
@@ -356,7 +356,7 @@ class TreeService:
         if not source_tree:
             return None
 
-        # Crée le nouvel arbre
+        # Create the new tree
         new_tree = Tree(
             name=request.new_name,
             description=source_tree.description,
@@ -366,9 +366,9 @@ class TreeService:
             api_slug=None,
         )
         self.db.add(new_tree)
-        await self.db.flush()  # Pour obtenir l'ID
+        await self.db.flush()  # To get the ID
 
-        # Duplique les assets si demandé
+        # Duplicate assets if requested
         if request.include_assets:
             for asset in source_tree.assets:
                 new_asset = Asset(

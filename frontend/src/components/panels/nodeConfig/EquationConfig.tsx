@@ -16,7 +16,7 @@ function extractVariables(formula: string): string[] {
   });
 }
 
-/** Champs connus comme textuels */
+/** Known string fields */
 const KNOWN_STRING_FIELDS = new Set([
   'asset_criticality',
   'severity',
@@ -30,14 +30,14 @@ function isLikelyStringField(
   fieldMapping: FieldMapping | null,
   cvssFields: FieldDefinition[]
 ): boolean {
-  // Cherche dans le fieldMapping
+  // Look in fieldMapping
   if (fieldMapping) {
     const field = fieldMapping.fields.find((f) => f.name === varName);
     if (field) return field.type === 'string';
   }
-  // Cherche dans les champs CVSS (tous sont numériques/enum)
+  // Look in CVSS fields (all are numeric/enum)
   if (cvssFields.some((f) => f.name === varName)) return false;
-  // Fallback sur les champs connus
+  // Fallback to known fields
   return KNOWN_STRING_FIELDS.has(varName);
 }
 
@@ -131,7 +131,7 @@ function ValueMapEditor({
         <code className="font-mono text-gray-800">{varName}</code>
         {isStringField && !hasEntries && (
           <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px]">
-            texte
+            text
           </span>
         )}
         {hasEntries && (
@@ -169,7 +169,7 @@ function ValueMapEditor({
                     type="button"
                     onClick={() => removeEntry(idx)}
                     className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Supprimer"
+                    title="Delete"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -181,7 +181,7 @@ function ValueMapEditor({
           {hasEntries && (
             <div className="flex items-center gap-2 mt-1">
               <label className="text-[10px] text-gray-500 whitespace-nowrap">
-                Defaut (si non trouve) :
+                Default (if not found):
               </label>
               <input
                 type="number"
@@ -198,7 +198,7 @@ function ValueMapEditor({
             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-1"
           >
             <Plus size={12} />
-            Ajouter une correspondance
+            Add a mapping
           </button>
         </div>
       )}
@@ -228,7 +228,7 @@ export function EquationConfig({
 
   const handleFormulaChange = useCallback((formula: string) => {
     const variables = extractVariables(formula);
-    // Nettoie les value_maps des variables supprimees de la formule
+    // Clean up value_maps for variables removed from formula
     const varSet = new Set(variables);
     let cleanedMaps = config.value_maps;
     if (cleanedMaps) {
@@ -262,7 +262,7 @@ export function EquationConfig({
     const before = config.formula.slice(0, pos);
     const after = config.formula.slice(pos);
 
-    // Ajouter un espace avant/apres si necessaire
+    // Add space before/after if needed
     const needSpaceBefore = before.length > 0 && !/\s$/.test(before) && !/[(\[,+\-*/%=<>!&|?:]$/.test(before);
     const needSpaceAfter = after.length > 0 && !/^\s/.test(after) && !/^[)\],+\-*/%=<>!&|?:]/.test(after);
 
@@ -272,7 +272,7 @@ export function EquationConfig({
 
     handleFormulaChange(newFormula);
 
-    // Restaurer le focus et la position du curseur apres le re-render
+    // Restore focus and cursor position after re-render
     requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -319,10 +319,10 @@ export function EquationConfig({
 
   return (
     <div className="space-y-4">
-      {/* Formule */}
+      {/* Formula */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Formule
+          Formula
         </label>
         <textarea
           ref={textareaRef}
@@ -338,11 +338,11 @@ export function EquationConfig({
         />
       </div>
 
-      {/* Champs disponibles cliquables */}
+      {/* Clickable available fields */}
       {showFieldChips && (
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Champs disponibles
+            Available fields
           </label>
           <div className="space-y-2">
             {numericStandardFields.length > 0 && (
@@ -377,7 +377,7 @@ export function EquationConfig({
             )}
             {stringStandardFields.length > 0 && (
               <div>
-                <span className="text-xs text-orange-600 font-medium">Texte (via mapping)</span>
+                <span className="text-xs text-orange-600 font-medium">Text (via mapping)</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {stringStandardFields.map((f) => (
                     <button
@@ -387,7 +387,7 @@ export function EquationConfig({
                       className="px-2 py-0.5 rounded text-xs font-mono cursor-pointer transition-colors bg-orange-100 text-orange-800 hover:bg-orange-200"
                       title={[
                         f.label && f.label !== f.name ? f.label : null,
-                        'Type: texte (mapping requis)',
+                        'Type: text (mapping required)',
                         f.description || null,
                         f.examples.length > 0 ? `Ex: ${f.examples.slice(0, 3).map(String).join(', ')}` : null,
                       ].filter(Boolean).join('\n')}
@@ -402,11 +402,11 @@ export function EquationConfig({
         </div>
       )}
 
-      {/* Variables detectees */}
+      {/* Detected variables */}
       {config.variables.length > 0 && (
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Variables détectées
+            Detected variables
           </label>
           <div className="flex flex-wrap gap-1">
             {config.variables.map((v) => (
@@ -421,14 +421,14 @@ export function EquationConfig({
         </div>
       )}
 
-      {/* Mapping de valeurs */}
+      {/* Value mapping */}
       {config.variables.length > 0 && (
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Mapping de valeurs
+            Value mapping
           </label>
           <p className="text-[10px] text-gray-400 mb-2">
-            Convertir les valeurs textuelles en nombres pour le calcul.
+            Convert text values to numbers for calculation.
           </p>
           <div className="space-y-1">
             {config.variables.map((v) => (
@@ -444,10 +444,10 @@ export function EquationConfig({
         </div>
       )}
 
-      {/* Label de sortie */}
+      {/* Output label */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Label de sortie
+          Output label
         </label>
         <input
           type="text"
@@ -457,11 +457,11 @@ export function EquationConfig({
           className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Nom affiché pour le score calculé dans l'audit trail.
+          Display name for the calculated score in the audit trail.
         </p>
       </div>
 
-      {/* Aide syntaxe */}
+      {/* Syntax help */}
       <div className="border rounded-md">
         <button
           type="button"
@@ -469,28 +469,28 @@ export function EquationConfig({
           className="w-full flex items-center gap-1 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
         >
           {showHelp ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          Aide syntaxe
+          Syntax help
         </button>
         {showHelp && (
           <div className="px-3 pb-3 text-xs text-gray-600 space-y-2">
             <div>
-              <span className="font-medium">Opérateurs :</span>{' '}
+              <span className="font-medium">Operators:</span>{' '}
               <code className="bg-gray-100 px-1 rounded">+ - * / ** %</code>
             </div>
             <div>
-              <span className="font-medium">Fonctions :</span>{' '}
+              <span className="font-medium">Functions:</span>{' '}
               <code className="bg-gray-100 px-1 rounded">min() max() abs() round()</code>
             </div>
             <div>
-              <span className="font-medium">Ternaire :</span>{' '}
+              <span className="font-medium">Ternary:</span>{' '}
               <code className="bg-gray-100 px-1 rounded">{'condition ? val_true : val_false'}</code>
             </div>
             <div>
-              <span className="font-medium">Comparaisons :</span>{' '}
+              <span className="font-medium">Comparisons:</span>{' '}
               <code className="bg-gray-100 px-1 rounded">{'< > <= >= == !='}</code>
             </div>
             <div className="border-t pt-2 mt-2">
-              <span className="font-medium">Exemples :</span>
+              <span className="font-medium">Examples:</span>
               <div className="mt-1 space-y-1 font-mono bg-gray-50 p-2 rounded">
                 <div>cvss_score * 0.4 + epss_score * 100 * 0.3</div>
                 <div>max(cvss_score, epss_score * 10)</div>

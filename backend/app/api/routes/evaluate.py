@@ -1,7 +1,7 @@
 """
-Routes API pour l'évaluation des vulnérabilités.
-Support multi-arbres avec endpoints dédiés par slug.
-Support export CSV/JSON des résultats.
+API routes for vulnerability evaluation.
+Multi-tree support with dedicated endpoints per slug.
+CSV/JSON export support for results.
 """
 
 from typing import Any, Literal
@@ -36,13 +36,13 @@ async def _get_engine_and_lookups(
     asset_ids: list[str] | None = None,
 ) -> tuple[InferenceEngine, dict[str, dict[str, dict[str, Any]]], int]:
     """
-    Helper pour obtenir le moteur et les lookups.
+    Helper to get the engine and lookups.
 
     Args:
-        tree_service: Service des arbres
-        asset_service: Service des assets
-        tree_id: ID de l'arbre spécifique (défaut si non fourni)
-        asset_ids: Liste des asset_ids à charger
+        tree_service: Tree service
+        asset_service: Asset service
+        tree_id: Specific tree ID (default if not provided)
+        asset_ids: List of asset_ids to load
 
     Returns:
         Tuple (engine, lookups, tree_id)
@@ -51,13 +51,13 @@ async def _get_engine_and_lookups(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun arbre de décision configuré",
+            detail="No decision tree configured",
         )
 
     structure = tree_service.get_tree_structure(tree)
     engine = InferenceEngine(structure)
 
-    # Prépare le cache de lookup pour les assets (filtré par arbre)
+    # Prepare lookup cache for assets (filtered by tree)
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     if "assets" in engine.get_lookup_tables():
         lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids)
@@ -71,7 +71,7 @@ async def _get_engine_for_tree(
     asset_service: AssetServiceDep,
     asset_ids: list[str] | None = None,
 ) -> tuple[InferenceEngine, dict[str, dict[str, dict[str, Any]]]]:
-    """Helper pour obtenir le moteur pour un arbre spécifique."""
+    """Helper to get the engine for a specific tree."""
     structure = tree_service.get_tree_structure(tree)
     engine = InferenceEngine(structure)
 
@@ -89,11 +89,11 @@ async def evaluate_single(
     asset_service: AssetServiceDep,
 ):
     """
-    Évalue une vulnérabilité unique (temps réel).
+    Evaluate a single vulnerability (real-time).
 
-    Utilise l'arbre par défaut. Pour un arbre spécifique, utilisez /tree/{slug}/evaluate.
+    Uses the default tree. For a specific tree, use /tree/{slug}/evaluate.
     """
-    # Extrait les asset_ids pour le lookup
+    # Extract asset_ids for lookup
     asset_ids = []
     if request.vulnerability.asset_id:
         asset_ids.append(request.vulnerability.asset_id)
@@ -108,7 +108,7 @@ async def evaluate_single(
         request.include_path,
     )
 
-    # Fire webhooks en background (session DB indépendante)
+    # Fire webhooks in background (independent DB session)
     event = f"on_{result.decision.lower().replace('*', '_star')}"
     payload = {
         "event": event,
@@ -128,9 +128,9 @@ async def evaluate_batch(
     asset_service: AssetServiceDep,
 ):
     """
-    Évalue un batch de vulnérabilités.
+    Evaluate a batch of vulnerabilities.
 
-    Utilise l'arbre par défaut. Optimisé pour traiter jusqu'à 50 000 vulnérabilités.
+    Uses the default tree. Optimized to process up to 50,000 vulnerabilities.
     """
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
@@ -142,18 +142,18 @@ async def evaluate_batch(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun arbre de décision configuré",
+            detail="No decision tree configured",
         )
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Extrait tous les asset_ids pour le lookup
+    # Extract all asset_ids for lookup
     asset_ids = [
         v.asset_id for v in request.vulnerabilities
         if v.asset_id is not None
     ]
 
-    # Prépare les lookups (filtrés par arbre)
+    # Prepare lookups (filtered by tree)
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
     if "assets" in processor.engine.get_lookup_tables():
@@ -165,7 +165,7 @@ async def evaluate_batch(
         request.include_path,
     )
 
-    # Fire webhooks en background (session DB indépendante)
+    # Fire webhooks in background (independent DB session)
     payload = {
         "event": "on_batch_complete",
         "total": response.total,
@@ -186,15 +186,15 @@ async def evaluate_csv(
     include_path: bool = False,
 ):
     """
-    Évalue des vulnérabilités depuis un fichier CSV.
+    Evaluate vulnerabilities from a CSV file.
 
-    Le CSV doit avoir des colonnes correspondant aux champs attendus par l'arbre.
+    The CSV must have columns corresponding to the fields expected by the tree.
     """
     safe_name = sanitize_filename(file.filename)
     if not safe_name or not safe_name.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le fichier doit être au format CSV",
+            detail="File must be in CSV format",
         )
 
     content = await read_upload_with_limit(file)
@@ -203,27 +203,27 @@ async def evaluate_csv(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun arbre de décision configuré",
+            detail="No decision tree configured",
         )
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Parse le CSV avec Polars
+    # Parse CSV with Polars
     df = BatchProcessor.from_csv(content)
 
     if len(df) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Fichier trop grand ({len(df)} lignes). Maximum: {settings.max_batch_size}",
+            detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
-    # Convertit en liste de VulnerabilityInput
+    # Convert to list of VulnerabilityInput
     vulnerabilities = []
     for row in df.iter_rows(named=True):
         vuln = _row_to_vuln(row)
         vulnerabilities.append(vuln)
 
-    # Prépare les lookups (filtrés par arbre)
+    # Prepare lookups (filtered by tree)
     asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
@@ -236,7 +236,7 @@ async def evaluate_csv(
         include_path,
     )
 
-    # Fire webhooks en background (session DB indépendante)
+    # Fire webhooks in background (independent DB session)
     payload = {
         "event": "on_batch_complete",
         "total": response.total,
@@ -249,7 +249,7 @@ async def evaluate_csv(
     return response
 
 
-# --- Endpoints d'export ---
+# --- Export endpoints ---
 
 
 def _build_export_response(
@@ -257,7 +257,7 @@ def _build_export_response(
     fmt: str,
     tree_name: str | None = None,
 ) -> StreamingResponse:
-    """Construit la StreamingResponse pour l'export CSV ou JSON."""
+    """Build the StreamingResponse for CSV or JSON export."""
     timestamp = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if fmt == "csv":
@@ -286,7 +286,7 @@ async def export_batch(
     asset_service: AssetServiceDep,
 ):
     """
-    Évalue un batch de vulnérabilités et retourne un fichier CSV ou JSON téléchargeable.
+    Evaluate a batch of vulnerabilities and return a downloadable CSV or JSON file.
     """
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
@@ -298,7 +298,7 @@ async def export_batch(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun arbre de décision configuré",
+            detail="No decision tree configured",
         )
 
     structure = tree_service.get_tree_structure(tree)
@@ -326,13 +326,13 @@ async def export_csv_file(
     format: Literal["csv", "json"] = Query(default="csv"),
 ):
     """
-    Évalue un fichier CSV et retourne un fichier CSV ou JSON téléchargeable.
+    Evaluate a CSV file and return a downloadable CSV or JSON file.
     """
     safe_name = sanitize_filename(file.filename)
     if not safe_name or not safe_name.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le fichier doit être au format CSV",
+            detail="File must be in CSV format",
         )
 
     content = await read_upload_with_limit(file)
@@ -341,7 +341,7 @@ async def export_csv_file(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun arbre de décision configuré",
+            detail="No decision tree configured",
         )
 
     structure = tree_service.get_tree_structure(tree)
@@ -350,7 +350,7 @@ async def export_csv_file(
     if len(df) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Fichier trop grand ({len(df)} lignes). Maximum: {settings.max_batch_size}",
+            detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
     vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
@@ -366,7 +366,7 @@ async def export_csv_file(
     return _build_export_response(response, format, tree.name)
 
 
-# --- Endpoint dédié par slug d'arbre ---
+# --- Dedicated endpoint per tree slug ---
 
 
 @router.post("/tree/{slug}", response_model=EvaluationResult)
@@ -377,18 +377,18 @@ async def evaluate_by_slug(
     asset_service: AssetServiceDep,
 ):
     """
-    Évalue une vulnérabilité avec un arbre spécifique identifié par son slug.
+    Evaluate a vulnerability with a specific tree identified by its slug.
 
-    L'arbre doit avoir api_enabled=true et un api_slug configuré.
+    The tree must have api_enabled=true and an api_slug configured.
     """
     tree = await tree_service.get_tree_by_slug(slug)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre '{slug}' non trouvé ou API désactivée",
+            detail=f"Tree '{slug}' not found or API disabled",
         )
 
-    # Extrait les asset_ids pour le lookup
+    # Extract asset_ids for lookup
     asset_ids = []
     if request.vulnerability.asset_id:
         asset_ids.append(request.vulnerability.asset_id)
@@ -403,7 +403,7 @@ async def evaluate_by_slug(
         request.include_path,
     )
 
-    # Fire webhooks en background (session DB indépendante)
+    # Fire webhooks in background (independent DB session)
     event = f"on_{result.decision.lower().replace('*', '_star')}"
     payload = {
         "event": event,
@@ -424,9 +424,9 @@ async def evaluate_batch_by_slug(
     asset_service: AssetServiceDep,
 ):
     """
-    Évalue un batch de vulnérabilités avec un arbre spécifique identifié par son slug.
+    Evaluate a batch of vulnerabilities with a specific tree identified by its slug.
 
-    L'arbre doit avoir api_enabled=true et un api_slug configuré.
+    The tree must have api_enabled=true and an api_slug configured.
     """
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
@@ -438,18 +438,18 @@ async def evaluate_batch_by_slug(
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre '{slug}' non trouvé ou API désactivée",
+            detail=f"Tree '{slug}' not found or API disabled",
         )
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Extrait tous les asset_ids pour le lookup
+    # Extract all asset_ids for lookup
     asset_ids = [
         v.asset_id for v in request.vulnerabilities
         if v.asset_id is not None
     ]
 
-    # Prépare les lookups (filtrés par arbre)
+    # Prepare lookups (filtered by tree)
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
     if "assets" in processor.engine.get_lookup_tables():
@@ -461,7 +461,7 @@ async def evaluate_batch_by_slug(
         request.include_path,
     )
 
-    # Fire webhooks en background (session DB indépendante)
+    # Fire webhooks in background (independent DB session)
     payload = {
         "event": "on_batch_complete",
         "total": response.total,
@@ -475,7 +475,7 @@ async def evaluate_batch_by_slug(
 
 
 def _row_to_vuln(row: dict[str, Any]) -> VulnerabilityInput:
-    """Convertit une ligne de DataFrame en VulnerabilityInput."""
+    """Convert a DataFrame row to VulnerabilityInput."""
     standard_fields = {
         "id", "cve_id", "cvss_score", "cvss_vector",
         "epss_score", "epss_percentile", "kev",

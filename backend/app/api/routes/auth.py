@@ -1,4 +1,4 @@
-"""Routes d'authentification : setup, login, logout, check, change-password."""
+"""Authentication routes: setup, login, logout, check, change-password."""
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 

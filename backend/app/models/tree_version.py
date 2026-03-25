@@ -10,8 +10,8 @@ from app.database import Base
 
 class TreeVersion(Base):
     """
-    Historique des versions d'un arbre.
-    Chaque sauvegarde crée une nouvelle version avec un snapshot complet.
+    Tree version history.
+    Each save creates a new version with a complete snapshot.
     """
 
     __tablename__ = "tree_versions"
@@ -25,13 +25,13 @@ class TreeVersion(Base):
     )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Snapshot complet de la structure au moment de la sauvegarde
+    # Complete structure snapshot at the time of save
     structure_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
-    # Commentaire optionnel pour documenter les changements
+    # Optional comment to document changes
     comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Timestamp de création de la version
+    # Version creation timestamp
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

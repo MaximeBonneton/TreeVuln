@@ -1,6 +1,6 @@
 """
 Service pour la gestion des assets.
-Support multi-arbres: chaque asset appartient à un arbre spécifique.
+Multi-tree support: each asset belongs to a specific tree.
 """
 
 from typing import Any
@@ -14,32 +14,32 @@ from app.schemas.asset import AssetCreate, AssetImportError, AssetImportResponse
 
 
 class AssetService:
-    """Service de gestion du référentiel des assets."""
+    """Asset reference management service."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def _get_default_tree_id(self) -> int:
-        """Récupère l'ID de l'arbre par défaut."""
+        """Retrieve the default tree ID."""
         result = await self.db.execute(select(Tree).where(Tree.is_default == True))
         tree = result.scalar_one_or_none()
         if not tree:
-            raise ValueError("Aucun arbre par défaut configuré")
+            raise ValueError("No default tree configured")
         return tree.id
 
     async def _resolve_tree_id(self, tree_id: int | None) -> int:
-        """Résout l'ID de l'arbre (utilise le défaut si non fourni)."""
+        """Resolve the tree ID (uses default if not provided)."""
         if tree_id is not None:
             return tree_id
         return await self._get_default_tree_id()
 
     async def get_asset(self, asset_id: str, tree_id: int | None = None) -> Asset | None:
         """
-        Récupère un asset par son identifiant dans le contexte d'un arbre.
+        Retrieve an asset by its identifier in the context of a tree.
 
         Args:
-            asset_id: Identifiant de l'asset
-            tree_id: ID de l'arbre (défaut si non fourni)
+            asset_id: Asset identifier
+            tree_id: Tree ID (default if not provided)
         """
         resolved_tree_id = await self._resolve_tree_id(tree_id)
         result = await self.db.execute(
@@ -51,7 +51,7 @@ class AssetService:
         return result.scalar_one_or_none()
 
     async def get_asset_by_pk(self, pk: int) -> Asset | None:
-        """Récupère un asset par sa clé primaire."""
+        """Retrieve an asset by its primary key."""
         result = await self.db.execute(select(Asset).where(Asset.id == pk))
         return result.scalar_one_or_none()
 
@@ -63,13 +63,13 @@ class AssetService:
         criticality: str | None = None,
     ) -> list[Asset]:
         """
-        Liste les assets d'un arbre avec pagination et filtrage optionnel.
+        List assets for a tree with pagination and optional filtering.
 
         Args:
-            tree_id: ID de l'arbre (défaut si non fourni)
-            limit: Nombre maximum d'assets
+            tree_id: Tree ID (default if not provided)
+            limit: Maximum number of assets
             offset: Offset pour la pagination
-            criticality: Filtrer par criticité
+            criticality: Filter by criticality
         """
         resolved_tree_id = await self._resolve_tree_id(tree_id)
         query = select(Asset).where(Asset.tree_id == resolved_tree_id)
@@ -83,13 +83,13 @@ class AssetService:
 
     async def create_asset(self, data: AssetCreate, tree_id: int | None = None) -> Asset:
         """
-        Crée un nouvel asset.
+        Create a new asset.
 
         Args:
-            data: Données de l'asset
-            tree_id: ID de l'arbre (défaut si non fourni, priorité sur data.tree_id)
+            data: Asset data
+            tree_id: Tree ID (default if not provided, priority over data.tree_id)
         """
-        # Résout l'ID de l'arbre: paramètre > data > défaut
+        # Resolve tree ID: parameter > data > default
         final_tree_id = tree_id or data.tree_id
         resolved_tree_id = await self._resolve_tree_id(final_tree_id)
 
@@ -113,12 +113,12 @@ class AssetService:
         tree_id: int | None = None,
     ) -> Asset | None:
         """
-        Met à jour un asset existant.
+        Update an existing asset.
 
         Args:
-            asset_id: Identifiant de l'asset
-            data: Données de mise à jour
-            tree_id: ID de l'arbre (défaut si non fourni)
+            asset_id: Asset identifier
+            data: Update data
+            tree_id: Tree ID (default if not provided)
         """
         asset = await self.get_asset(asset_id, tree_id)
         if not asset:
@@ -139,11 +139,11 @@ class AssetService:
 
     async def delete_asset(self, asset_id: str, tree_id: int | None = None) -> bool:
         """
-        Supprime un asset.
+        Delete an asset.
 
         Args:
-            asset_id: Identifiant de l'asset
-            tree_id: ID de l'arbre (défaut si non fourni)
+            asset_id: Asset identifier
+            tree_id: Tree ID (default if not provided)
         """
         asset = await self.get_asset(asset_id, tree_id)
         if not asset:
@@ -161,8 +161,8 @@ class AssetService:
         Import bulk avec upsert (insert ou update si existe).
 
         Args:
-            assets: Liste des assets à importer
-            tree_id: ID de l'arbre (défaut si non fourni)
+            assets: List of assets to import
+            tree_id: Tree ID (default if not provided)
 
         Returns:
             Tuple (created_count, updated_count)
@@ -172,7 +172,7 @@ class AssetService:
 
         resolved_tree_id = await self._resolve_tree_id(tree_id)
 
-        # Compte les assets existants avant l'upsert
+        # Count existing assets before upsert
         asset_ids = [a.asset_id for a in assets]
         existing_count_result = await self.db.execute(
             select(func.count()).where(
@@ -182,7 +182,7 @@ class AssetService:
         )
         existing_before = existing_count_result.scalar() or 0
 
-        # Utilise INSERT ... ON CONFLICT pour l'upsert
+        # Use INSERT ... ON CONFLICT for upsert
         stmt = insert(Asset).values([
             {
                 "tree_id": resolved_tree_id,
@@ -219,15 +219,15 @@ class AssetService:
         tree_id: int | None = None,
     ) -> AssetImportResponse:
         """
-        Importe des assets depuis des lignes parsées avec mapping de colonnes.
+        Import assets from parsed rows with column mapping.
 
         Args:
-            rows: Lignes de données brutes
+            rows: Raw data rows
             column_mapping: Mapping {champ_asset: colonne_source}
-            tree_id: ID de l'arbre cible
+            tree_id: Target tree ID
 
         Returns:
-            Résultat détaillé de l'import
+            Detailed import result
         """
         valid_assets: list[AssetCreate] = []
         error_details: list[AssetImportError] = []
@@ -238,23 +238,23 @@ class AssetService:
         criticality_col = column_mapping.get("criticality")
 
         for i, row in enumerate(rows, start=1):
-            # Récupère asset_id
+            # Retrieve asset_id
             raw_asset_id = row.get(asset_id_col) if asset_id_col else None
             if not raw_asset_id or str(raw_asset_id).strip() == "":
                 error_details.append(AssetImportError(
                     row=i,
-                    error=f"Colonne '{asset_id_col}' vide ou manquante",
+                    error=f"Column '{asset_id_col}' empty or missing",
                 ))
                 continue
 
             asset_id_val = str(raw_asset_id).strip()
 
-            # Récupère name
+            # Retrieve name
             name_val = None
             if name_col and name_col in row:
                 name_val = str(row[name_col]).strip() if row[name_col] else None
 
-            # Récupère et valide criticality
+            # Retrieve and validate criticality
             criticality_val = "Medium"
             if criticality_col and criticality_col in row:
                 raw_crit = str(row[criticality_col]).strip()
@@ -266,7 +266,7 @@ class AssetService:
                     error_details.append(AssetImportError(
                         row=i,
                         asset_id=asset_id_val,
-                        error=f"Criticité invalide: '{raw_crit}'. Valeurs acceptées: {', '.join(sorted(valid_criticalities))}",
+                        error=f"Invalid criticality: '{raw_crit}'. Accepted values: {', '.join(sorted(valid_criticalities))}",
                     ))
                     continue
 
@@ -296,11 +296,11 @@ class AssetService:
         asset_ids: list[str] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """
-        Construit un cache de lookup pour le moteur d'inférence.
+        Build a lookup cache for the inference engine.
 
         Args:
-            tree_id: ID de l'arbre (défaut si non fourni)
-            asset_ids: Liste des asset_ids à charger (tous si None)
+            tree_id: Tree ID (default if not provided)
+            asset_ids: List of asset_ids to load (all if None)
 
         Returns:
             Dict {asset_id: {field: value, ...}}

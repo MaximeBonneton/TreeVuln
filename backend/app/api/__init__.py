@@ -8,11 +8,11 @@ RequireAuth = [Depends(require_auth)]
 
 api_router = APIRouter()
 
-# --- Routes publiques (pas d'auth) ---
+# --- Public routes (no auth) ---
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(license.router, prefix="/license", tags=["License"])
 
-# --- Routes authentifiées (operator + admin) — vérifications admin per-route ---
+# --- Authenticated routes (operator + admin) — admin checks per-route ---
 api_router.include_router(tree.router, prefix="/tree", tags=["Tree"], dependencies=RequireAuth)
 api_router.include_router(assets.router, prefix="/assets", tags=["Assets"], dependencies=RequireAuth)
 api_router.include_router(field_mapping.router, prefix="/tree", tags=["Field Mapping"], dependencies=RequireAuth)
@@ -21,13 +21,13 @@ api_router.include_router(evaluate.router, prefix="/evaluate", tags=["Evaluate"]
 api_router.include_router(webhooks.router, tags=["Webhooks"], dependencies=RequireAuth)
 api_router.include_router(ingest.admin_router, tags=["Ingest"], dependencies=RequireAuth)
 
-# --- Gestion utilisateurs (admin via per-route checks) ---
+# --- User management (admin via per-route checks) ---
 api_router.include_router(users.router, tags=["Users"], dependencies=RequireAuth)
 
-# --- Ingestion publique (auth par X-API-Key) ---
+# --- Public ingestion (auth via X-API-Key) ---
 api_router.include_router(ingest.public_router, tags=["Ingest"])
 
-# --- Routes Enterprise (enregistrement dynamique) ---
+# --- Enterprise routes (dynamic registration) ---
 if is_enterprise():
     try:
         from app.enterprise.modules import get_enterprise_routers

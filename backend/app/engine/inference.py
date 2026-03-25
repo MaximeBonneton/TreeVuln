@@ -1,5 +1,5 @@
 """
-Moteur d'inférence pour l'évaluation des vulnérabilités.
+Inference engine for vulnerability evaluation.
 """
 
 import logging
@@ -15,7 +15,7 @@ from app.schemas.vulnerability import VulnerabilityInput
 
 class InferenceEngine:
     """
-    Moteur d'inférence qui charge un arbre et évalue des vulnérabilités.
+    Inference engine that loads a tree and evaluates vulnerabilities.
     """
 
     def __init__(self, tree_structure: TreeStructure):
@@ -27,8 +27,8 @@ class InferenceEngine:
         self._build_tree()
 
     def _build_tree(self) -> None:
-        """Construit la structure interne de l'arbre."""
-        # Crée les nœuds
+        """Build the internal tree structure."""
+        # Create nodes
         for node_schema in self.tree_structure.nodes:
             self.nodes[node_schema.id] = create_node(node_schema)
 
@@ -38,7 +38,7 @@ class InferenceEngine:
                 self.edges[edge.source] = []
             self.edges[edge.source].append(edge)
 
-        # Trouve le nœud racine (celui qui n'est la cible d'aucune edge)
+        # Find the root node (the one not targeted by any edge)
         target_nodes = {e.target for e in self.tree_structure.edges}
         for node_id in self.nodes:
             if node_id not in target_nodes:
@@ -46,7 +46,7 @@ class InferenceEngine:
                 break
 
         if self.root_node_id is None and self.nodes:
-            # Si pas de racine claire, prend le premier nœud INPUT ou EQUATION
+            # If no clear root, take the first INPUT or EQUATION node
             for node_id, node in self.nodes.items():
                 if node.type in (NodeType.INPUT, NodeType.EQUATION):
                     self.root_node_id = node_id
@@ -59,27 +59,27 @@ class InferenceEngine:
         include_path: bool = True,
     ) -> EvaluationResult:
         """
-        Évalue une vulnérabilité en traversant l'arbre.
+        Evaluate a vulnerability by traversing the tree.
 
         Args:
-            vulnerability: La vulnérabilité à évaluer
-            lookups: Cache de lookup préchargé {table: {key: {field: value}}}
-            include_path: Si True, inclut le chemin de décision (audit trail)
+            vulnerability: The vulnerability to evaluate
+            lookups: Pre-loaded lookup cache {table: {key: {field: value}}}
+            include_path: If True, includes the decision path (audit trail)
 
         Returns:
-            EvaluationResult avec la décision et le chemin
+            EvaluationResult with the decision and path
         """
-        # Identifiant de la vulnérabilité (id ou cve_id comme fallback)
+        # Vulnerability identifier (id or cve_id as fallback)
         vuln_id = vulnerability.id or vulnerability.cve_id
 
         if not self.root_node_id:
             return EvaluationResult(
                 vuln_id=vuln_id,
                 decision="Error",
-                error="Arbre vide ou invalide",
+                error="Empty or invalid tree",
             )
 
-        # Prépare le contexte
+        # Prepare the context
         context = {
             "vulnerability": vulnerability.model_dump(),
             "lookups": lookups or {},
@@ -89,7 +89,7 @@ class InferenceEngine:
         current_node_id = self.root_node_id
         current_input_index: int | None = None  # Track which input we entered through
 
-        # Limite de sécurité contre les boucles infinies
+        # Safety limit against infinite loops
         max_iterations = 100
         iteration = 0
 
@@ -102,7 +102,7 @@ class InferenceEngine:
                     vuln_id=vuln_id,
                     decision="Error",
                     path=path if include_path else [],
-                    error=f"Nœud {current_node_id} non trouvé",
+                    error=f"Node {current_node_id} not found",
                 )
 
             try:
@@ -135,7 +135,7 @@ class InferenceEngine:
                     )
                 )
 
-            # Si c'est un nœud OUTPUT, on a terminé
+            # If it is an OUTPUT node, we are done
             if isinstance(node, OutputNode):
                 return EvaluationResult(
                     vuln_id=vuln_id,
@@ -144,7 +144,7 @@ class InferenceEngine:
                     path=path if include_path else [],
                 )
 
-            # Trouve l'index de la condition matchée
+            # Find the index of the matched condition
             condition_index = None
             if condition_label and hasattr(node, "conditions"):
                 for idx, cond in enumerate(node.conditions):
@@ -155,7 +155,7 @@ class InferenceEngine:
             # Check if this is a multi-input node
             input_count = node.config.get("input_count", 1) if hasattr(node, "config") else 1
 
-            # Trouve l'edge à suivre basé sur la condition et l'input_index
+            # Find the edge to follow based on the condition and input_index
             next_node_id, next_target_handle = self._find_next_node(
                 current_node_id, condition_label, condition_index, current_input_index, input_count
             )
@@ -164,14 +164,14 @@ class InferenceEngine:
                     vuln_id=vuln_id,
                     decision="Error",
                     path=path if include_path else [],
-                    error=f"Aucune branche pour la condition '{condition_label}' du nœud {node.id}",
+                    error=f"No branch for condition '{condition_label}' of node {node.id}",
                 )
 
             current_node_id = next_node_id
             # Parse the target_handle to get the input index for the next node
             current_input_index = self._parse_input_index(next_target_handle)
 
-            # Valide que l'input_index est dans les bornes du nœud cible
+            # Validate that input_index is within bounds of target node
             if current_input_index is not None:
                 next_node = self.nodes.get(current_node_id)
                 if next_node and hasattr(next_node, "config"):
@@ -183,7 +183,7 @@ class InferenceEngine:
                             path=path if include_path else [],
                             error=(
                                 f"input_index={current_input_index} hors limites pour "
-                                f"le nœud '{current_node_id}' (input_count={target_input_count})"
+                                f"node '{current_node_id}' (input_count={target_input_count})"
                             ),
                         )
 
@@ -191,7 +191,7 @@ class InferenceEngine:
             vuln_id=vuln_id,
             decision="Error",
             path=path if include_path else [],
-            error="Limite d'itérations atteinte (boucle infinie détectée?)",
+            error="Iteration limit reached (infinite loop detected?)",
         )
 
     def _parse_input_index(self, target_handle: str | None) -> int | None:
@@ -201,12 +201,12 @@ class InferenceEngine:
         if target_handle.startswith("input-"):
             parts = target_handle.split("-")
             if len(parts) < 2:
-                logger.warning("target_handle '%s' invalide: format attendu 'input-{index}'", target_handle)
+                logger.warning("target_handle '%s' invalid: expected format 'input-{index}'", target_handle)
                 return None
             try:
                 return int(parts[1])
             except ValueError:
-                logger.warning("target_handle '%s' invalide: '%s' n'est pas un entier", target_handle, parts[1])
+                logger.warning("target_handle '%s' invalid: '%s' is not an integer", target_handle, parts[1])
                 return None
         return None
 
@@ -219,7 +219,7 @@ class InferenceEngine:
         input_count: int = 1,
     ) -> tuple[str | None, str | None]:
         """
-        Trouve le nœud suivant basé sur la condition matchée.
+        Find the next node based on the matched condition.
 
         For multi-input nodes (input_count > 1), the source_handle format is:
         'handle-{input_index}-{condition_index}'
@@ -259,18 +259,18 @@ class InferenceEngine:
                 for edge in edges:
                     if edge.source_handle == fallback_handle:
                         logger.warning(
-                            "Nœud '%s' (input_count=%d) utilise le fallback single-input "
+                            "Node '%s' (input_count=%d) uses the single-input fallback "
                             "handle '%s' au lieu de '%s'",
                             source_id, input_count, fallback_handle, handle_id,
                         )
                         return edge.target, edge.target_handle
 
-        # Fallback: cherche l'edge avec le bon label
+        # Fallback: find the edge with the matching label
         for edge in edges:
             if edge.label == condition_label:
                 return edge.target, edge.target_handle
 
-        # Fallback: prend la première edge sans label (default)
+        # Fallback: take the first edge without label (default)
         for edge in edges:
             if edge.label is None:
                 return edge.target, edge.target_handle
@@ -278,7 +278,7 @@ class InferenceEngine:
         return None, None
 
     def get_required_fields(self) -> set[str]:
-        """Retourne la liste des champs requis par l'arbre."""
+        """Return the list of fields required by the tree."""
         fields = set()
         for node in self.nodes.values():
             if hasattr(node, "config"):
@@ -292,7 +292,7 @@ class InferenceEngine:
         return fields
 
     def get_lookup_tables(self) -> set[str]:
-        """Retourne la liste des tables de lookup utilisées."""
+        """Return the list of lookup tables used."""
         tables = set()
         for node in self.nodes.values():
             if hasattr(node, "config") and "lookup_table" in node.config:

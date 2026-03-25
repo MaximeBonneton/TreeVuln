@@ -1,21 +1,21 @@
 /**
- * Auto-layout des nœuds avec Dagre (algorithme hiérarchique gauche→droite).
+ * Auto-layout of nodes with Dagre (hierarchical left-to-right algorithm).
  */
 
 import Dagre from '@dagrejs/dagre';
 import type { TreeNode, TreeEdge } from '@/types';
 
-/** Dimensions estimées des nœuds (px) */
+/** Estimated node dimensions (px) */
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 120;
 
-/** Espacement entre les nœuds */
-const RANK_SEP = 120; // horizontal (entre colonnes)
-const NODE_SEP = 40;  // vertical (entre nœuds d'une même colonne)
+/** Spacing between nodes */
+const RANK_SEP = 120; // horizontal (between columns)
+const NODE_SEP = 40;  // vertical (between nodes in the same column)
 
 /**
- * Calcule les positions optimales des nœuds via Dagre.
- * Retourne de nouveaux nœuds avec les positions mises à jour.
+ * Compute optimal node positions via Dagre.
+ * Returns new nodes with updated positions.
  */
 export function getLayoutedNodes(
   nodes: TreeNode[],
@@ -24,27 +24,27 @@ export function getLayoutedNodes(
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
   g.setGraph({
-    rankdir: 'LR',   // gauche→droite (layout horizontal)
+    rankdir: 'LR',   // left-to-right (horizontal layout)
     ranksep: RANK_SEP,
     nodesep: NODE_SEP,
     marginx: 50,
     marginy: 50,
   });
 
-  // Ajouter les nœuds
+  // Add nodes
   for (const node of nodes) {
     g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
 
-  // Ajouter les edges
+  // Add edges
   for (const edge of edges) {
     g.setEdge(edge.source, edge.target);
   }
 
-  // Calculer le layout
+  // Compute layout
   Dagre.layout(g);
 
-  // Appliquer les nouvelles positions (centrer sur le coin supérieur gauche)
+  // Apply new positions (center on top-left corner)
   return nodes.map((node) => {
     const pos = g.node(node.id);
     return {

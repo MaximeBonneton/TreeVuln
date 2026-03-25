@@ -1,7 +1,7 @@
 """
-Auto-détection et initialisation des modules Enterprise.
-Si la licence est valide et que le dossier modules/ contient du code,
-les hooks Community sont remplacés par les implémentations Enterprise.
+Auto-detection and initialization of Enterprise modules.
+If the license is valid and the modules/ folder contains code,
+Community hooks are replaced by Enterprise implementations.
 """
 
 import logging
@@ -11,7 +11,7 @@ from app.enterprise.license import init_license, is_enterprise
 
 logger = logging.getLogger(__name__)
 
-# Liste des hooks attendus — sert à vérifier que register_hooks les a tous remplacés
+# List of expected hooks — used to verify that register_hooks replaced them all
 EXPECTED_HOOKS = [
     "check_rbac",
     "get_sso_router",
@@ -24,13 +24,13 @@ EXPECTED_HOOKS = [
 
 
 def init_enterprise() -> None:
-    """Appelée une seule fois au démarrage (lifespan de FastAPI)."""
+    """Called once at startup (FastAPI lifespan)."""
     init_license()
 
     if not is_enterprise():
         return
 
-    # Importer et enregistrer les implémentations Enterprise
+    # Import and register Enterprise implementations
     try:
         from app.enterprise.modules import register_hooks
 
@@ -41,7 +41,7 @@ def init_enterprise() -> None:
         )
         return
 
-    # Vérifier quels hooks ont été remplacés
+    # Check which hooks have been replaced
     replaced = []
     for hook_name in EXPECTED_HOOKS:
         fn = getattr(hooks, hook_name, None)
