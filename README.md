@@ -31,7 +31,7 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 |---------|-----|
 | Application | http://localhost:3000 |
 | API | http://localhost:8000 |
-| API Documentation (Swagger) | http://localhost:8000/docs |
+| API Documentation (DEBUG=true) | http://localhost:8000/docs |
 
 <details>
 <summary>More screenshots</summary>
@@ -136,7 +136,7 @@ curl -b cookies.txt -X POST 'http://localhost:8000/api/v1/evaluate/single' \
 }
 ```
 
-The full API is documented at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
+The API documentation (Swagger UI) is available at [http://localhost:8000/docs](http://localhost:8000/docs) when `DEBUG=true`.
 
 ## Tech Stack
 
@@ -146,33 +146,6 @@ The full API is documented at [http://localhost:8000/docs](http://localhost:8000
 | Backend | FastAPI, Pydantic v2, Polars, SQLAlchemy 2.0 async |
 | Database | PostgreSQL 15 (JSONB) |
 | Deployment | Docker Compose |
-
-## Editions
-
-### Community (free, AGPL-3.0)
-
-Everything you need to build and run your decision trees:
-
-- Full visual editor with drag & drop
-- Inference engine (single, batch, CSV)
-- Multi-user with admin/operator roles
-- Multi-tree, webhooks, ingestion
-- Decision-as-Code (JSON export/import)
-- Auto-layout and image export (PNG/SVG)
-- CVSS v3.1 and v4.0 parsing, audit trail
-
-### Enterprise (commercial license)
-
-For teams that need governance, integrations, and reporting:
-
-- SSO (SAML / OIDC) and RBAC (granular roles)
-- Visual Diff between tree versions
-- Native connectors (Tenable, Qualys, Jira, ServiceNow)
-- Specialized nodes (Threat Intel, external CMDB)
-- Advanced audit trail (PDF/JSON decision certificates)
-- Multi-tree reporting and What-if simulation
-
-For an Enterprise license, contact us via the repository issues.
 
 ## Development
 
@@ -203,9 +176,7 @@ docker compose logs -f backend    # Backend logs
 
 ## License
 
-TreeVuln Community source code is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
-
-Enterprise modules are under a separate commercial license.
+TreeVuln is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
 ## Contributing
 
