@@ -258,7 +258,8 @@ def _build_export_response(
     tree_name: str | None = None,
 ) -> StreamingResponse:
     """Build the StreamingResponse for CSV or JSON export."""
-    timestamp = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if fmt == "csv":
         return StreamingResponse(

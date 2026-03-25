@@ -3,7 +3,6 @@ Main entry point for the TreeVuln API.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -14,7 +13,7 @@ from sqlalchemy import select
 
 from app.api import api_router
 from app.config import settings
-from app.crypto import derive_key_from_admin_key, set_encryption_key
+from app.crypto import set_encryption_key
 from app.database import async_session_maker, engine
 from app.models import Asset, IngestEndpoint, IngestLog, Tree, TreeVersion, Webhook, WebhookLog  # noqa: F401
 from app.models.user import EncryptionKey
@@ -31,27 +30,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Initialize encryption key from DB (singleton id=1)
-    async with async_session_maker() as session:
-        result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))
-        enc_key = result.scalar_one_or_none()
+    # Initialize encryption key
+    # Priority: SECRET_KEY env var > existing DB key > auto-generate (with warning)
+    if settings.secret_key:
+        set_encryption_key(settings.secret_key)
+        logger.info("Encryption key loaded from SECRET_KEY environment variable.")
+    else:
+        async with async_session_maker() as session:
+            result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))
+            enc_key = result.scalar_one_or_none()
 
-        if enc_key:
-            set_encryption_key(enc_key.key_value)
-        else:
-            legacy_key = os.environ.get("ADMIN_API_KEY", "")
-            if legacy_key:
-                key_value = derive_key_from_admin_key(legacy_key)
-                logger.info("Migration: ADMIN_API_KEY detected, deriving encryption key. "
-                            "You can remove ADMIN_API_KEY from .env.")
+            if enc_key:
+                set_encryption_key(enc_key.key_value)
+                logger.warning(
+                    "Encryption key loaded from database (insecure). "
+                    "Set SECRET_KEY in your .env file to secure your secrets."
+                )
             else:
                 key_value = Fernet.generate_key().decode()
-                logger.info("New encryption key generated.")
-
-            enc_key_row = EncryptionKey(id=1, key_value=key_value)
-            session.add(enc_key_row)
-            await session.commit()
-            set_encryption_key(key_value)
+                enc_key_row = EncryptionKey(id=1, key_value=key_value)
+                session.add(enc_key_row)
+                await session.commit()
+                set_encryption_key(key_value)
+                logger.warning(
+                    "Auto-generated encryption key stored in database (insecure). "
+                    "Set SECRET_KEY in your .env file to secure your secrets."
+                )
 
     # Enterprise initialization (license detection + modules)
     from app.enterprise import init_enterprise
@@ -75,6 +79,10 @@ app = FastAPI(
     """,
     version="0.1.0",
     lifespan=lifespan,
+    # Disable Swagger/OpenAPI in production
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
 # CORS for the frontend
@@ -93,14 +101,10 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 @app.get("/health")
 async def health_check():
     """Health endpoint for Docker/K8s healthchecks."""
-    return {"status": "healthy", "version": "0.1.0"}
+    return {"status": "healthy"}
 
 
 @app.get("/")
 async def root():
     """API root."""
-    return {
-        "name": settings.app_name,
-        "docs": "/docs",
-        "openapi": "/openapi.json",
-    }
+    return {"name": settings.app_name}

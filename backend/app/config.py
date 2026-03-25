@@ -54,9 +54,13 @@ class Settings(BaseSettings):
     # Upload limits (bytes) — 50 MB default
     max_upload_size: int = 50 * 1024 * 1024
 
+    # Encryption — secret key for encrypting API keys, webhook secrets, etc.
+    # MUST be set in production. If empty, falls back to auto-generated key in DB (insecure).
+    secret_key: str = ""
+
     # Session
     session_cookie_name: str = "treevuln_session"
-    session_max_age: int = 86400  # 24 heures
+    session_max_age: int = 86400  # 24h
 
     # Enterprise license (leave empty for Community mode)
     treevuln_license_key: str | None = None

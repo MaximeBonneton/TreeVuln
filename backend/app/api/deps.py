@@ -21,15 +21,14 @@ logger = logging.getLogger(__name__)
 
 # --- Authentication ---
 
-SESSION_COOKIE_NAME = "treevuln_session"
-
 
 async def require_auth(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Verify that a valid session exists and inject the user."""
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+    from app.config import settings as _settings
+    token = request.cookies.get(_settings.session_cookie_name)
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required")
 
