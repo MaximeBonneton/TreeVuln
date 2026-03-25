@@ -166,19 +166,7 @@ async def _send_webhook(
     event: str,
     payload: dict[str, Any],
 ) -> WebhookTestResult:
-    """Send an HTTP request to a webhook with SSRF protection via IP pinning."""
-    from urllib.parse import urlparse, urlunparse
-
-    from app.url_validation import resolve_and_validate_url
-
-    try:
-        url, resolved_ips = resolve_and_validate_url(webhook.url)
-    except ValueError as e:
-        return WebhookTestResult(
-            success=False,
-            error_message=f"URL blocked (SSRF): {e}",
-        )
-
+    """Send an HTTP request to a webhook."""
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
     # User headers first, then security headers (cannot be overridden)
@@ -200,19 +188,11 @@ async def _send_webhook(
         ).hexdigest()
         headers["X-TreeVuln-Signature"] = f"sha256={signature}"
 
-    # IP pinning for HTTP (prevents DNS rebinding TOCTOU)
-    parsed = urlparse(url)
-    request_url = url
-    if parsed.scheme == "http" and resolved_ips:
-        port = parsed.port or 80
-        request_url = urlunparse(parsed._replace(netloc=f"{resolved_ips[0]}:{port}"))
-        headers["Host"] = parsed.hostname or ""
-
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             response = await client.post(
-                request_url,
+                webhook.url,
                 content=body,
                 headers=headers,
             )
