@@ -6,7 +6,7 @@ CSV/JSON export support for results.
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import AssetServiceDep, TreeServiceDep, read_upload_with_limit
@@ -281,9 +281,9 @@ async def evaluate_csv(
 async def evaluate_preview_csv(
     file: UploadFile,
     asset_service: AssetServiceDep,
-    structure: str = Query(...),
-    tree_id: int | None = Query(None),
-    include_path: bool = Query(True),
+    structure: str = Form(...),
+    tree_id: int | None = Form(None),
+    include_path: bool = Form(True),
 ):
     """
     Evaluate a CSV file against an unsaved tree (preview).
@@ -331,9 +331,9 @@ async def evaluate_preview_csv(
 async def export_preview_csv(
     file: UploadFile,
     asset_service: AssetServiceDep,
-    structure: str = Query(...),
-    format: str = Query("csv"),
-    tree_id: int | None = Query(None),
+    structure: str = Form(...),
+    format: str = Form("csv"),
+    tree_id: int | None = Form(None),
 ):
     """
     Export preview evaluation results as CSV or JSON.

@@ -93,13 +93,11 @@ export const evaluateApi = {
   ): Promise<EvaluationResponse> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('structure', JSON.stringify(structure));
+    if (treeId) formData.append('tree_id', String(treeId));
+    if (!includePath) formData.append('include_path', 'false');
 
-    const params = new URLSearchParams();
-    params.set('structure', JSON.stringify(structure));
-    if (treeId) params.set('tree_id', String(treeId));
-    if (!includePath) params.set('include_path', 'false');
-
-    const response = await fetch(`/api/v1/evaluate/preview/csv?${params}`, {
+    const response = await fetch('/api/v1/evaluate/preview/csv', {
       method: 'POST',
       credentials: 'same-origin',
       body: formData,
@@ -121,13 +119,11 @@ export const evaluateApi = {
   ): Promise<Blob> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('structure', JSON.stringify(structure));
+    formData.append('format', format);
+    if (treeId) formData.append('tree_id', String(treeId));
 
-    const params = new URLSearchParams();
-    params.set('structure', JSON.stringify(structure));
-    params.set('format', format);
-    if (treeId) params.set('tree_id', String(treeId));
-
-    const response = await fetch(`/api/v1/evaluate/preview/export/csv?${params}`, {
+    const response = await fetch('/api/v1/evaluate/preview/export/csv', {
       method: 'POST',
       credentials: 'same-origin',
       body: formData,
