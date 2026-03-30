@@ -28,7 +28,7 @@ export function TreeBuilder() {
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const [showIngestConfig, setShowIngestConfig] = useState(false);
 
-  const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName } = useTreeStore();
+  const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName, error: storeError } = useTreeStore();
 
   const saveTree = useTreeStore((state) => state.saveTree);
   const deleteNode = useTreeStore((state) => state.deleteNode);
@@ -164,6 +164,19 @@ export function TreeBuilder() {
           onTest={() => setShowTestPanel(true)}
           onOpenMapping={() => setShowMappingPanel(true)}
         />
+
+        {/* Error banner */}
+        {storeError && (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-sm text-red-700 flex items-center justify-between">
+            <span>{storeError}</span>
+            <button
+              onClick={() => useTreeStore.setState({ error: null })}
+              className="text-red-500 hover:text-red-700 font-medium ml-4"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 flex overflow-hidden">
           {/* Tree sidebar */}

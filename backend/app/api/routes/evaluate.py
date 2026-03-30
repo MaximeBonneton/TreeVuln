@@ -541,7 +541,7 @@ async def evaluate_by_slug(
         "decision": result.decision,
         "decision_color": result.decision_color,
     }
-    asyncio.create_task(dispatch_webhooks(tree.id, event, payload))
+    schedule_webhook_dispatch(tree.id, event, payload)
 
     return result
 

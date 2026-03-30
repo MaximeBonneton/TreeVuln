@@ -358,6 +358,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   // Update node data
   updateNodeData: (nodeId, data) => {
+    get().pushUndoState();
     set((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === nodeId

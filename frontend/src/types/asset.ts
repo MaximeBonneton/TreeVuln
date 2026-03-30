@@ -5,7 +5,7 @@ export interface Asset {
   name: string | null;
   criticality: string;
   tags: Record<string, unknown>;
-  metadata: Record<string, unknown>;
+  extra_data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -15,14 +15,14 @@ export interface AssetCreate {
   name?: string;
   criticality?: string;
   tags?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  extra_data?: Record<string, unknown>;
 }
 
 export interface AssetUpdate {
   name?: string;
   criticality?: string;
   tags?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  extra_data?: Record<string, unknown>;
 }
 
 export interface AssetImportError {
