@@ -14,11 +14,17 @@ export function InputConfig({
 }) {
   const [cvssFields, setCvssFields] = useState<FieldDefinition[]>([]);
 
+  // Only load CVSS virtual fields if the mapping contains cvss_vector
+  const hasCvssVector = fieldMapping?.fields.some(f => f.name === 'cvss_vector') ?? false;
   useEffect(() => {
-    fieldMappingApi.getCvssFields()
-      .then(setCvssFields)
-      .catch(console.error);
-  }, []);
+    if (hasCvssVector) {
+      fieldMappingApi.getCvssFields()
+        .then(setCvssFields)
+        .catch(console.error);
+    } else {
+      setCvssFields([]);
+    }
+  }, [hasCvssVector]);
 
   const hasMapping = fieldMapping && fieldMapping.fields.length > 0;
   const inputCount = config.input_count ?? 1;

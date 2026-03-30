@@ -220,11 +220,17 @@ export function EquationConfig({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cursorPosRef = useRef<number>(0);
 
+  // Only load CVSS virtual fields if the mapping contains cvss_vector
+  const hasCvssVector = fieldMapping?.fields.some(f => f.name === 'cvss_vector') ?? false;
   useEffect(() => {
-    fieldMappingApi.getCvssFields()
-      .then(setCvssFields)
-      .catch(console.error);
-  }, []);
+    if (hasCvssVector) {
+      fieldMappingApi.getCvssFields()
+        .then(setCvssFields)
+        .catch(console.error);
+    } else {
+      setCvssFields([]);
+    }
+  }, [hasCvssVector]);
 
   const handleFormulaChange = useCallback((formula: string) => {
     const variables = extractVariables(formula);

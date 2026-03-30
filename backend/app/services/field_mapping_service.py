@@ -8,6 +8,12 @@ from datetime import datetime
 from typing import Any
 
 from app.schemas.field_mapping import FieldDefinition, FieldMapping, FieldType, ScanResult
+from app.engine.cvss import (
+    detect_cvss_version,
+    parse_cvss_vector,
+    CVSS_31_METRICS,
+    CVSS_40_METRICS,
+)
 
 # Max number of rows to scan for type inference
 MAX_SCAN_ROWS = 100
@@ -76,6 +82,64 @@ def get_unique_examples(values: list[Any], max_count: int = MAX_EXAMPLES) -> lis
     return examples
 
 
+def _extract_cvss_virtual_fields(
+    vectors: list[Any],
+) -> tuple[list[FieldDefinition], str | None]:
+    """Extract CVSS virtual field definitions from sample cvss_vector values.
+
+    Returns:
+        Tuple of (field_definitions, info_message or None).
+    """
+    # Collect parsed metrics from sample vectors
+    parsed_values: dict[str, list[str]] = {}
+    version_detected: str | None = None
+
+    for v in vectors:
+        if not v or not isinstance(v, str):
+            continue
+        ver = detect_cvss_version(v)
+        if not ver:
+            continue
+        if version_detected is None:
+            version_detected = ver
+        parsed = parse_cvss_vector(v)
+        for field_name, value in parsed.items():
+            parsed_values.setdefault(field_name, [])
+            if value not in parsed_values[field_name]:
+                parsed_values[field_name].append(value)
+
+    if not parsed_values:
+        return [], None
+
+    # Build field definitions with real examples
+    metrics = CVSS_40_METRICS if version_detected == "4.0" else CVSS_31_METRICS
+    # Also include 4.0-only fields if detected
+    all_metrics = {**CVSS_31_METRICS, **CVSS_40_METRICS} if version_detected == "4.0" else CVSS_31_METRICS
+
+    fields: list[FieldDefinition] = []
+    seen: set[str] = set()
+    for abbrev, (field_name, label, value_mapping) in all_metrics.items():
+        if field_name in seen:
+            continue
+        seen.add(field_name)
+        examples = parsed_values.get(field_name, list(value_mapping.values())[:3])
+        version_label = "4.0 " if (field_name not in {fn for _, (fn, _, _) in CVSS_31_METRICS.items()} and version_detected == "4.0") else ""
+        fields.append(
+            FieldDefinition(
+                name=field_name,
+                label=f"CVSS {version_label}{label}",
+                type=FieldType.STRING,
+                description=f"Derived from cvss_vector. Values: {', '.join(value_mapping.values())}",
+                examples=examples[:MAX_EXAMPLES],
+                required=False,
+            )
+        )
+
+    version_str = f"CVSS {version_detected}" if version_detected else "CVSS"
+    info = f"{len(fields)} virtual {version_str} metrics derived from cvss_vector"
+    return fields, info
+
+
 def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
     """Scan CSV content and return detected fields."""
     warnings: list[str] = []
@@ -124,6 +188,14 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
                 required=all(v is not None and v != "" for v in values),
             )
         )
+
+    # Auto-detect CVSS virtual fields from cvss_vector column
+    if "cvss_vector" in column_values:
+        cvss_fields, cvss_info = _extract_cvss_virtual_fields(column_values["cvss_vector"])
+        if cvss_fields:
+            fields.extend(cvss_fields)
+            if cvss_info:
+                warnings.append(cvss_info)
 
     return ScanResult(
         fields=fields,
@@ -211,6 +283,14 @@ def scan_json_content(content: str, filename: str = "upload.json") -> ScanResult
                 required=all(v is not None and v != "" for v in values),
             )
         )
+
+    # Auto-detect CVSS virtual fields from cvss_vector key
+    if "cvss_vector" in column_values:
+        cvss_fields, cvss_info = _extract_cvss_virtual_fields(column_values["cvss_vector"])
+        if cvss_fields:
+            fields.extend(cvss_fields)
+            if cvss_info:
+                warnings.append(cvss_info)
 
     return ScanResult(
         fields=fields,
