@@ -44,13 +44,13 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md text-sm"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={onConfirm}
             className={`px-4 py-2 rounded-md text-sm font-medium ${styles.button}`}
           >
-            Confirmer
+            Confirm
           </button>
         </div>
       </div>

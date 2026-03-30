@@ -28,7 +28,7 @@ export function TestPanel({ onClose }: TestPanelProps) {
     <div className="bg-white border-l shadow-lg w-[500px] flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-bold text-gray-700">Tester l'arbre</h3>
+        <h3 className="font-bold text-gray-700">Test tree</h3>
         <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
           <X size={20} />
         </button>
@@ -44,7 +44,7 @@ export function TestPanel({ onClose }: TestPanelProps) {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Test unitaire
+          Single test
         </button>
         <button
           onClick={() => setActiveTab('batch')}
@@ -81,7 +81,7 @@ export function TestPanel({ onClose }: TestPanelProps) {
 }
 
 // ============================================
-// ONGLET TEST UNITAIRE
+// SINGLE TEST TAB
 // ============================================
 
 function SingleTestTab() {
@@ -108,7 +108,7 @@ function SingleTestTab() {
       });
       setResult(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +119,7 @@ function SingleTestTab() {
       {/* Input */}
       <div className="p-4 border-b">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Vulnérabilité (JSON)
+          Vulnerability (JSON)
         </label>
         <textarea
           value={vulnJson}
@@ -133,11 +133,11 @@ function SingleTestTab() {
           className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:opacity-50"
         >
           <Play size={18} />
-          {isLoading ? 'Évaluation...' : 'Évaluer'}
+          {isLoading ? 'Evaluating...' : 'Evaluate'}
         </button>
       </div>
 
-      {/* Résultat */}
+      {/* Result */}
       <div className="flex-1 overflow-y-auto p-4">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
@@ -149,7 +149,7 @@ function SingleTestTab() {
 
         {!result && !error && (
           <div className="text-center text-gray-500 py-8">
-            <p>Entrez une vulnérabilité et cliquez sur "Évaluer"</p>
+            <p>Enter a vulnerability and click "Evaluate"</p>
           </div>
         )}
       </div>
@@ -160,24 +160,24 @@ function SingleTestTab() {
 function SingleResult({ result }: { result: EvaluationResult }) {
   return (
     <div className="space-y-4">
-      {/* Décision */}
+      {/* Decision */}
       <div
         className="p-4 rounded-lg text-white text-center"
         style={{ backgroundColor: result.decision_color || '#6b7280' }}
       >
-        <div className="text-sm opacity-80">Décision</div>
+        <div className="text-sm opacity-80">Decision</div>
         <div className="text-2xl font-bold">{result.decision}</div>
       </div>
 
       {result.error && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm">
-          <strong>Erreur:</strong> {result.error}
+          <strong>Error:</strong> {result.error}
         </div>
       )}
 
       {result.path.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-700 mb-2">Chemin de décision</h4>
+          <h4 className="font-medium text-gray-700 mb-2">Decision path</h4>
           <div className="space-y-2">
             {result.path.map((step, index) => (
               <PathStep key={index} step={step} isLast={index === result.path.length - 1} />
@@ -190,7 +190,7 @@ function SingleResult({ result }: { result: EvaluationResult }) {
 }
 
 // ============================================
-// ONGLET TEST BATCH
+// BATCH TEST TAB
 // ============================================
 
 function BatchTestTab() {
@@ -209,7 +209,7 @@ function BatchTestTab() {
       setError(null);
       setResponse(null);
     } else {
-      setError('Veuillez sélectionner un fichier CSV');
+      setError('Please select a CSV file');
     }
   };
 
@@ -238,7 +238,7 @@ function BatchTestTab() {
       const result = await evaluateApi.evaluatePreviewCsv(file, structure, treeId, true);
       setResponse(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'évaluation');
+      setError(err instanceof Error ? err.message : 'Evaluation error');
     } finally {
       setIsLoading(false);
     }
@@ -275,7 +275,7 @@ function BatchTestTab() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'export");
+      setError(err instanceof Error ? err.message : 'Export error');
     } finally {
       setExporting(false);
     }
@@ -283,7 +283,7 @@ function BatchTestTab() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Zone d'upload */}
+      {/* Upload zone */}
       <div className="p-4 border-b">
         <div
           onDrop={handleDrop}
@@ -316,10 +316,10 @@ function BatchTestTab() {
             <>
               <Upload size={32} className="mx-auto text-gray-400 mb-2" />
               <p className="text-sm text-gray-600">
-                Glissez-déposez un fichier CSV ou cliquez pour sélectionner
+                Drag and drop a CSV file or click to select
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Colonnes attendues: cve_id, cvss_score, kev, asset_id, ...
+                Expected columns: cve_id, cvss_score, kev, asset_id, ...
               </p>
             </>
           )}
@@ -332,25 +332,25 @@ function BatchTestTab() {
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:opacity-50"
           >
             <Play size={18} />
-            {isLoading ? 'Évaluation en cours...' : `Évaluer ${file.name}`}
+            {isLoading ? 'Evaluating...' : `Evaluate ${file.name}`}
           </button>
         )}
       </div>
 
-      {/* Erreur */}
+      {/* Error */}
       {error && (
         <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
           {error}
         </div>
       )}
 
-      {/* Résultats */}
+      {/* Results */}
       {response && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Résumé */}
+          {/* Summary */}
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-gray-700">Résumé</h4>
+              <h4 className="font-medium text-gray-700">Summary</h4>
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
@@ -358,7 +358,7 @@ function BatchTestTab() {
                   className="flex items-center gap-1 px-3 py-1 text-sm bg-white border rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   <Download size={14} />
-                  {exporting ? 'Export...' : 'Exporter'}
+                  {exporting ? 'Exporting...' : 'Export'}
                 </button>
                 {showExportMenu && (
                   <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[140px]">
@@ -388,21 +388,21 @@ function BatchTestTab() {
               </div>
               <div className="bg-white p-2 rounded border">
                 <div className="text-lg font-bold text-green-600">{response.success_count}</div>
-                <div className="text-xs text-gray-500">Succès</div>
+                <div className="text-xs text-gray-500">Success</div>
               </div>
               <div className="bg-white p-2 rounded border">
                 <div className="text-lg font-bold text-red-600">{response.error_count}</div>
-                <div className="text-xs text-gray-500">Erreurs</div>
+                <div className="text-xs text-gray-500">Errors</div>
               </div>
               <div className="bg-white p-2 rounded border">
                 <div className="text-lg font-bold text-purple-600">
                   {response.total > 0 ? ((response.success_count / response.total) * 100).toFixed(0) : 0}%
                 </div>
-                <div className="text-xs text-gray-500">Taux</div>
+                <div className="text-xs text-gray-500">Rate</div>
               </div>
             </div>
 
-            {/* Distribution des décisions */}
+            {/* Decision distribution */}
             <div className="mt-3 flex gap-2">
               {Object.entries(response.decision_summary).map(([decision, count]) => (
                 <div
@@ -417,7 +417,7 @@ function BatchTestTab() {
             </div>
           </div>
 
-          {/* Tableau des résultats */}
+          {/* Results table */}
           <div className="flex-1 overflow-y-auto">
             <ResultsTable results={response.results} />
           </div>
@@ -426,7 +426,7 @@ function BatchTestTab() {
 
       {!response && !error && !file && (
         <div className="flex-1 flex items-center justify-center text-gray-500">
-          <p>Importez un fichier CSV pour commencer</p>
+          <p>Import a CSV file to get started</p>
         </div>
       )}
     </div>
@@ -452,8 +452,8 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
       <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-100 font-medium text-gray-600 sticky top-0">
         <div className="col-span-1"></div>
         <div className="col-span-4">CVE / ID</div>
-        <div className="col-span-3">Décision</div>
-        <div className="col-span-4">Statut</div>
+        <div className="col-span-3">Decision</div>
+        <div className="col-span-4">Status</div>
       </div>
 
       {/* Rows */}
@@ -493,7 +493,7 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
           {/* Expanded path */}
           {expandedRows.has(index) && result.path.length > 0 && (
             <div className="px-4 py-3 bg-gray-50 border-t">
-              <div className="text-xs text-gray-500 mb-2">Chemin de décision:</div>
+              <div className="text-xs text-gray-500 mb-2">Decision path:</div>
               <div className="flex flex-wrap items-center gap-1 text-xs">
                 {result.path.map((step, stepIndex) => (
                   <span key={stepIndex} className="flex items-center gap-1">
@@ -520,7 +520,7 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
 }
 
 // ============================================
-// COMPOSANTS PARTAGÉS
+// SHARED COMPONENTS
 // ============================================
 
 // ============================================

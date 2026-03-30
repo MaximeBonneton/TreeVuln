@@ -1,6 +1,6 @@
 """
-Routes API pour la gestion des arbres de décision.
-Support multi-arbres avec contextes isolés.
+API routes for managing decision trees.
+Multi-tree support with isolated contexts.
 """
 
 from fastapi import APIRouter, HTTPException, status
@@ -28,7 +28,7 @@ router = APIRouter()
 
 
 def _tree_response_with_warnings(tree: Tree) -> TreeResponse:
-    """Construit une TreeResponse avec validation de la structure."""
+    """Build a TreeResponse with structure validation."""
     structure = TreeStructure.model_validate(tree.structure)
     warnings = validate_tree_structure(structure)
     response = TreeResponse.model_validate(tree)
@@ -36,15 +36,15 @@ def _tree_response_with_warnings(tree: Tree) -> TreeResponse:
     return response
 
 
-# --- Multi-arbres ---
+# --- Multi-trees ---
 
 
 @router.get("s", response_model=list[TreeListItem])
 async def list_trees(tree_service: TreeServiceDep):
     """
-    Liste tous les arbres de décision.
+    List all decision trees.
 
-    Retourne un résumé de chaque arbre (sans la structure complète).
+    Returns a summary of each tree (without the full structure).
     """
     return await tree_service.list_trees()
 
@@ -55,9 +55,9 @@ async def get_tree(
     tree_id: int | None = None,
 ):
     """
-    Récupère un arbre de décision.
+    Retrieve a decision tree.
 
-    Si tree_id n'est pas fourni, retourne l'arbre par défaut.
+    If tree_id is not provided, returns the default tree.
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
@@ -71,14 +71,14 @@ async def create_tree(
     tree_service: TreeServiceDep,
     _=require_role("admin"),
 ):
-    """Crée un nouvel arbre de décision."""
+    """Create a new decision tree."""
     tree = await tree_service.create_tree(data)
     return _tree_response_with_warnings(tree)
 
 
 # --- Decision-as-Code (export/import) ---
-# IMPORTANT : /import doit être avant /{tree_id} pour éviter que
-# FastAPI parse "import" comme un int (tree_id)
+# IMPORTANT: /import must come before /{tree_id} to prevent
+# FastAPI from parsing "import" as an int (tree_id)
 
 
 @router.post("/import", response_model=TreeResponse, status_code=status.HTTP_201_CREATED)
@@ -87,7 +87,7 @@ async def import_tree(
     tree_service: TreeServiceDep,
     _=require_role("admin"),
 ):
-    """Importer un arbre depuis un fichier Decision-as-Code (JSON)."""
+    """Import a tree from a Decision-as-Code file (JSON)."""
     tree = await tree_service.import_tree(data)
     return _tree_response_with_warnings(tree)
 
@@ -97,15 +97,15 @@ async def export_tree(
     tree_id: int,
     tree_service: TreeServiceDep,
 ):
-    """Exporter un arbre au format Decision-as-Code (JSON)."""
+    """Export a tree in Decision-as-Code format (JSON)."""
     result = await tree_service.export_tree(tree_id)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
 
-    # Nom de fichier sanitisé via le module existant
+    # Sanitized filename via existing module
     raw_name = f"{result.tree.name}_tree.json"
     filename = sanitize_filename(raw_name) or "tree_export.json"
 
@@ -125,18 +125,18 @@ async def update_tree(
     create_version: bool = True,
 ):
     """
-    Met à jour un arbre de décision.
+    Update a decision tree.
 
     Args:
-        tree_id: ID de l'arbre
-        data: Données de mise à jour
-        create_version: Si True (défaut), crée une version de sauvegarde
+        tree_id: Tree ID
+        data: Update data
+        create_version: If True (default), creates a backup version
     """
     tree = await tree_service.update_tree(tree_id, data, create_version)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
     return _tree_response_with_warnings(tree)
 
@@ -148,16 +148,16 @@ async def delete_tree(
     _=require_role("admin"),
 ):
     """
-    Supprime un arbre de décision.
+    Delete a decision tree.
 
-    L'arbre par défaut ne peut pas être supprimé.
+    The default tree cannot be deleted.
     """
     try:
         deleted = await tree_service.delete_tree(tree_id)
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Arbre {tree_id} non trouvé",
+                detail=f"Tree {tree_id} not found",
             )
     except ValueError as e:
         raise HTTPException(
@@ -174,15 +174,15 @@ async def duplicate_tree(
     _=require_role("admin"),
 ):
     """
-    Duplique un arbre de décision.
+    Duplicate a decision tree.
 
-    Crée une copie de l'arbre avec optionnellement ses assets associés.
+    Creates a copy of the tree with optionally its associated assets.
     """
     tree = await tree_service.duplicate_tree(tree_id, request)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
     return tree
 
@@ -195,16 +195,16 @@ async def update_api_config(
     _=require_role("admin"),
 ):
     """
-    Configure l'accès API dédié pour un arbre.
+    Configure dedicated API access for a tree.
 
-    Permet d'activer/désactiver l'endpoint /tree/{slug}/evaluate.
+    Allows enabling/disabling the /tree/{slug}/evaluate endpoint.
     """
     try:
         tree = await tree_service.update_api_config(tree_id, config)
         if not tree:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Arbre {tree_id} non trouvé",
+                detail=f"Tree {tree_id} not found",
             )
         return tree
     except ValueError as e:
@@ -221,15 +221,15 @@ async def set_default_tree(
     _=require_role("admin"),
 ):
     """
-    Définit un arbre comme arbre par défaut.
+    Set a tree as the default tree.
 
-    L'arbre par défaut est utilisé par /api/v1/evaluate quand aucun arbre n'est spécifié.
+    The default tree is used by /api/v1/evaluate when no tree is specified.
     """
     tree = await tree_service.set_default_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
     return tree
 
@@ -239,12 +239,12 @@ async def get_tree_structure(
     tree_id: int,
     tree_service: TreeServiceDep,
 ):
-    """Récupère uniquement la structure de l'arbre (pour le frontend)."""
+    """Retrieve only the tree structure (for the frontend)."""
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
     return tree_service.get_tree_structure(tree)
 
@@ -257,7 +257,7 @@ async def list_versions(
     tree_id: int,
     tree_service: TreeServiceDep,
 ):
-    """Liste toutes les versions d'un arbre."""
+    """List all versions of a tree."""
     versions = await tree_service.get_versions(tree_id)
     return versions
 
@@ -267,12 +267,12 @@ async def get_version(
     version_id: int,
     tree_service: TreeServiceDep,
 ):
-    """Récupère une version spécifique."""
+    """Retrieve a specific version."""
     version = await tree_service.get_version(version_id)
     if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Version {version_id} non trouvée",
+            detail=f"Version {version_id} not found",
         )
     return version
 
@@ -285,15 +285,15 @@ async def restore_version(
     _=require_role("admin"),
 ):
     """
-    Restaure une version précédente de l'arbre.
+    Restore a previous version of the tree.
 
-    L'état actuel est sauvegardé en tant que nouvelle version avant restauration.
+    The current state is saved as a new version before restoration.
     """
     tree = await tree_service.restore_version(tree_id, version_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Arbre ou version non trouvé",
+            detail="Tree or version not found",
         )
     return tree
 

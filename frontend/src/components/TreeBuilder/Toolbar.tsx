@@ -52,7 +52,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     try {
       await treeApi.exportTree(treeId);
     } catch {
-      alert('Erreur lors de l\'export');
+      alert('Export error');
     }
   };
 
@@ -68,11 +68,11 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
         const text = await file.text();
         const data = JSON.parse(text) as TreeExportFile;
         const newTree = await treeApi.importTree(data);
-        // Naviguer vers le nouvel arbre importé
+        // Navigate to the imported tree
         await useTreeStore.getState().loadTrees();
         await useTreeStore.getState().selectTree(newTree.id);
       } catch {
-        alert('Erreur lors de l\'import du fichier');
+        alert('File import error');
       }
     };
     input.click();
@@ -88,7 +88,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     try {
       const options = {
         backgroundColor: '#f9fafb',
-        style: { transform: '' }, // Réinitialiser le transform pour capturer tout
+        style: { transform: '' }, // Reset transform to capture everything
       };
 
       let dataUrl: string;
@@ -106,7 +106,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
       a.download = `${treeName.replace(/\s+/g, '_')}_tree.${extension}`;
       a.click();
     } catch {
-      alert('Erreur lors de l\'export image');
+      alert('Image export error');
     }
   };
 
@@ -118,7 +118,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title={sidebarOpen ? 'Fermer le panneau' : 'Ouvrir le panneau des arbres'}
+            title={sidebarOpen ? 'Close panel' : 'Open tree panel'}
           >
             {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
           </button>
@@ -126,7 +126,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-gray-800">{treeName}</h1>
             {isDefault && (
-              <span title="Arbre par défaut">
+              <span title="Default tree">
                 <Star size={16} className="text-yellow-500 fill-yellow-500" />
               </span>
             )}
@@ -139,7 +139,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           </div>
           {hasUnsavedChanges && (
             <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded">
-              Non sauvegardé
+              Unsaved
             </span>
           )}
         </div>
@@ -148,7 +148,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <button
             onClick={() => loadTree()}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title="Recharger"
+            title="Reload"
           >
             <RotateCcw size={20} />
           </button>
@@ -157,7 +157,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             <button
               onClick={handleImport}
               className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-              title="Importer JSON"
+              title="Import JSON"
             >
               <Upload size={20} />
             </button>
@@ -166,7 +166,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <button
             onClick={handleExport}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title="Exporter JSON"
+            title="Export JSON"
           >
             <Download size={20} />
           </button>
@@ -174,7 +174,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <button
             onClick={() => useTreeStore.getState().autoLayout()}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title="Réorganiser automatiquement les nœuds"
+            title="Auto-layout nodes"
           >
             <LayoutGrid size={20} />
           </button>
@@ -183,7 +183,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             <button
               onClick={() => setShowImageMenu(!showImageMenu)}
               className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-              title="Exporter en image"
+              title="Export as image"
             >
               <Image size={20} />
             </button>
@@ -193,13 +193,13 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
                   onClick={() => handleExportImage('png')}
                   className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
                 >
-                  Exporter en PNG
+                  Export as PNG
                 </button>
                 <button
                   onClick={() => handleExportImage('svg')}
                   className="w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
                 >
-                  Exporter en SVG
+                  Export as SVG
                 </button>
               </div>
             )}
@@ -217,7 +217,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
                   : 'text-gray-600 hover:bg-gray-100'
               }
             `}
-            title={fieldMapping ? `Mapping: ${fieldMapping.fields.length} champs` : 'Configurer le mapping des champs'}
+            title={fieldMapping ? `Mapping: ${fieldMapping.fields.length} fields` : 'Configure field mapping'}
           >
             <Settings2 size={18} />
             <span className="text-sm font-medium">Mapping</span>
@@ -231,10 +231,10 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           <button
             onClick={onTest}
             className="flex items-center gap-2 px-3 py-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md"
-            title="Tester l'arbre"
+            title="Test tree"
           >
             <Play size={18} />
-            <span className="text-sm font-medium">Tester</span>
+            <span className="text-sm font-medium">Test</span>
           </button>
 
           {isAdminUser() && (
@@ -249,29 +249,29 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }
               `}
-              title="Sauvegarder (Ctrl+S)"
+              title="Save (Ctrl+S)"
             >
               <Save size={18} />
-              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Dialog de sauvegarde */}
+      {/* Save dialog */}
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-96">
-            <h3 className="text-lg font-bold mb-4">Sauvegarder l'arbre</h3>
+            <h3 className="text-lg font-bold mb-4">Save tree</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Commentaire de version (optionnel)
+                Version comment (optional)
               </label>
               <input
                 type="text"
                 value={saveComment}
                 onChange={(e) => setSaveComment(e.target.value)}
-                placeholder="Ex: Ajout condition KEV"
+                placeholder="E.g.: Add KEV condition"
                 className="w-full px-3 py-2 border rounded-md"
               />
             </div>
@@ -280,14 +280,14 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
                 onClick={() => setShowSaveDialog(false)}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={confirmSave}
                 disabled={isSaving}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
-                {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>

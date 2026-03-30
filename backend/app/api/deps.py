@@ -1,5 +1,5 @@
 """
-Dépendances communes pour les routes API.
+Common dependencies for API routes.
 """
 
 import logging
@@ -21,15 +21,14 @@ logger = logging.getLogger(__name__)
 
 # --- Authentication ---
 
-SESSION_COOKIE_NAME = "treevuln_session"
-
 
 async def require_auth(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Vérifie qu'une session valide existe et injecte l'utilisateur."""
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+    """Verify that a valid session exists and inject the user."""
+    from app.config import settings as _settings
+    token = request.cookies.get(_settings.session_cookie_name)
     if not token:
         raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -38,7 +37,7 @@ async def require_auth(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-    # Session restreinte (must_change_pwd) : seuls certains endpoints sont autorisés
+    # Restricted session (must_change_pwd): only certain endpoints are allowed
     allowed_paths = ("/api/v1/auth/change-password", "/api/v1/auth/logout")
     if user.must_change_pwd and request.url.path not in allowed_paths:
         raise HTTPException(status_code=403, detail="Password change required")
@@ -52,7 +51,7 @@ RequireAuth = Annotated[User, Depends(require_auth)]
 
 
 def require_role(role: str):
-    """Fabrique de dépendance qui vérifie le rôle de l'utilisateur."""
+    """Dependency factory that verifies the user's role."""
     async def _check(user: RequireAuth):
         if user.role != role:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -60,27 +59,27 @@ def require_role(role: str):
     return Depends(_check)
 
 
-# Type alias pour les dépendances
+# Type aliases for dependencies
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 
 async def get_tree_service(db: DBSession) -> AsyncGenerator[TreeService, None]:
-    """Fournit une instance du service Tree."""
+    """Provide a Tree service instance."""
     yield TreeService(db)
 
 
 async def get_asset_service(db: DBSession) -> AsyncGenerator[AssetService, None]:
-    """Fournit une instance du service Asset."""
+    """Provide an Asset service instance."""
     yield AssetService(db)
 
 
 async def get_webhook_service(db: DBSession) -> AsyncGenerator[WebhookService, None]:
-    """Fournit une instance du service Webhook."""
+    """Provide a Webhook service instance."""
     yield WebhookService(db)
 
 
 async def get_ingest_service(db: DBSession) -> AsyncGenerator[IngestService, None]:
-    """Fournit une instance du service Ingest."""
+    """Provide an Ingest service instance."""
     yield IngestService(db)
 
 
@@ -97,22 +96,22 @@ from app.config import settings  # noqa: E402
 
 
 async def read_upload_with_limit(file: "UploadFile") -> bytes:
-    """Lit un fichier uploadé avec vérification de la taille.
+    """Read an uploaded file with size verification.
 
     Raises:
-        HTTPException 413 si le fichier dépasse max_upload_size.
+        HTTPException 413 if the file exceeds max_upload_size.
     """
     from fastapi import UploadFile as _UploadFile  # noqa: F811
 
-    # Vérifie la taille déclarée dans le header Content-Length si disponible
+    # Check the declared size in the Content-Length header if available
     if hasattr(file, "size") and file.size and file.size > settings.max_upload_size:
         max_mb = settings.max_upload_size // (1024 * 1024)
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Fichier trop volumineux. Taille maximum : {max_mb} Mo",
+            detail=f"File too large. Maximum size: {max_mb} MB",
         )
 
-    # Lecture par chunks pour éviter de charger un fichier géant d'un coup
+    # Read in chunks to avoid loading a large file all at once
     chunks: list[bytes] = []
     total = 0
     while True:
@@ -124,7 +123,7 @@ async def read_upload_with_limit(file: "UploadFile") -> bytes:
             max_mb = settings.max_upload_size // (1024 * 1024)
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Fichier trop volumineux. Taille maximum : {max_mb} Mo",
+                detail=f"File too large. Maximum size: {max_mb} MB",
             )
         chunks.append(chunk)
 

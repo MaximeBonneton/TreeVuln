@@ -13,7 +13,7 @@ export function LookupConfig({
     <div className="space-y-3">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Table de lookup
+          Lookup table
         </label>
         <input
           type="text"
@@ -27,7 +27,7 @@ export function LookupConfig({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Clé de recherche
+          Lookup key
         </label>
         <input
           type="text"
@@ -41,7 +41,7 @@ export function LookupConfig({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Champ à retourner
+          Return field
         </label>
         <input
           type="text"
@@ -57,7 +57,7 @@ export function LookupConfig({
       {/* Input count configuration */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nombre d'entrées
+          Number of inputs
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -70,12 +70,12 @@ export function LookupConfig({
           />
           {inputCount > 1 && (
             <span className="text-xs text-purple-600">
-              Mode multi-entrées actif
+              Multi-input mode active
             </span>
           )}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Plusieurs entrées permettent de réutiliser ce nœud depuis différents chemins.
+          Multiple inputs allow reusing this node from different paths.
         </p>
       </div>
     </div>

@@ -153,7 +153,7 @@ class TestInferenceEngineEdgeCases:
 
         assert result.decision == "Error"
         assert result.error is not None
-        assert "aucune condition" in result.error.lower()
+        assert "no condition" in result.error.lower()
 
     def test_empty_tree(self):
         """Test: Arbre vide retourne une erreur."""
@@ -163,7 +163,7 @@ class TestInferenceEngineEdgeCases:
         result = engine.evaluate(vuln)
 
         assert result.decision == "Error"
-        assert "vide" in result.error.lower() or "invalide" in result.error.lower()
+        assert "empty" in result.error.lower() or "invalid" in result.error.lower()
 
     def test_extra_fields_in_vulnerability(self, simple_tree_structure: TreeStructure):
         """Test: Les champs extra sont accessibles."""

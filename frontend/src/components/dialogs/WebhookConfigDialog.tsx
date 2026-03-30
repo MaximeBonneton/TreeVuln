@@ -46,7 +46,7 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
       const data = await webhooksApi.list(treeId);
       setWebhooks(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
@@ -72,13 +72,13 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
   };
 
   const handleDelete = async (webhookId: number) => {
-    const ok = await confirm('Supprimer le webhook', 'Supprimer ce webhook et tout son historique ?');
+    const ok = await confirm('Delete webhook', 'Delete this webhook and all its history?');
     if (!ok) return;
     try {
       await webhooksApi.delete(treeId, webhookId);
       await loadWebhooks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de suppression');
+      setError(err instanceof Error ? err.message : 'Delete error');
     }
   };
 
@@ -87,7 +87,7 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
       await webhooksApi.update(treeId, webhook.id, { is_active: !webhook.is_active });
       await loadWebhooks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de mise à jour');
+      setError(err instanceof Error ? err.message : 'Update error');
     }
   };
 
@@ -103,7 +103,7 @@ export function WebhookConfigDialog({ treeId, treeName, onClose }: WebhookConfig
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Bell size={20} className="text-orange-600" />
-            <h2 className="text-lg font-semibold">Webhooks sortants</h2>
+            <h2 className="text-lg font-semibold">Outgoing webhooks</h2>
             <span className="text-sm text-gray-500">- {treeName}</span>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md">
@@ -190,7 +190,7 @@ function WebhookList({
     } catch {
       setTestResult({
         id: webhookId,
-        result: { success: false, status_code: null, response_body: null, error_message: 'Erreur de test', duration_ms: null },
+        result: { success: false, status_code: null, response_body: null, error_message: 'Test error', duration_ms: null },
       });
     } finally {
       setTesting(null);
@@ -198,7 +198,7 @@ function WebhookList({
   };
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-8">Chargement...</div>;
+    return <div className="text-center text-gray-500 py-8">Loading...</div>;
   }
 
   return (
@@ -209,14 +209,14 @@ function WebhookList({
           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
         >
           <Plus size={16} />
-          Nouveau webhook
+          New webhook
         </button>
       </div>
 
       {webhooks.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           <Bell size={32} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Aucun webhook configuré</p>
+          <p className="text-sm">No webhook configured</p>
         </div>
       ) : (
         webhooks.map((webhook) => (
@@ -226,11 +226,11 @@ function WebhookList({
                 <button
                   onClick={() => onToggleActive(webhook)}
                   className={`w-2 h-2 rounded-full cursor-pointer ${webhook.is_active ? 'bg-green-500' : 'bg-gray-300'}`}
-                  title={webhook.is_active ? 'Actif — cliquer pour désactiver' : 'Inactif — cliquer pour activer'}
+                  title={webhook.is_active ? 'Active — click to disable' : 'Inactive — click to enable'}
                 />
                 <span className="font-medium text-sm">{webhook.name}</span>
                 {webhook.has_secret && (
-                  <span className="text-xs text-gray-400" title="Secret HMAC configuré">🔑</span>
+                  <span className="text-xs text-gray-400" title="HMAC secret configured">🔑</span>
                 )}
               </div>
               <div className="flex items-center gap-1">
@@ -238,14 +238,14 @@ function WebhookList({
                   onClick={() => handleTest(webhook.id)}
                   disabled={testing === webhook.id}
                   className="p-1 hover:bg-gray-100 rounded text-sm"
-                  title="Tester"
+                  title="Test"
                 >
                   <Play size={14} className="text-blue-500" />
                 </button>
                 <button
                   onClick={() => onShowLogs(webhook.id)}
                   className="p-1 hover:bg-gray-100 rounded text-sm"
-                  title="Historique"
+                  title="History"
                 >
                   <Clock size={14} className="text-gray-500" />
                 </button>
@@ -253,7 +253,7 @@ function WebhookList({
                   onClick={() => onEdit(webhook)}
                   className="p-1 hover:bg-gray-100 rounded text-sm text-gray-500"
                 >
-                  Modifier
+                  Edit
                 </button>
                 <button
                   onClick={() => onDelete(webhook.id)}
@@ -342,7 +342,7 @@ function WebhookForm({
 
   const handleSave = async () => {
     if (!name.trim() || !url.trim() || events.length === 0) {
-      setError('Nom, URL et au moins un événement sont requis');
+      setError('Name, URL, and at least one event are required');
       return;
     }
 
@@ -350,7 +350,7 @@ function WebhookForm({
     setError(null);
 
     try {
-      // Convertit les headers en Record
+      // Convert headers to Record
       const headersRecord: Record<string, string> = {};
       for (const h of headers) {
         if (h.key.trim()) {
@@ -359,7 +359,7 @@ function WebhookForm({
       }
 
       if (webhook) {
-        // Mode édition
+        // Edit mode
         const data: WebhookUpdate = {
           name: name.trim(),
           url: url.trim(),
@@ -367,13 +367,13 @@ function WebhookForm({
           is_active: isActive,
           headers: headersRecord,
         };
-        // N'envoyer le secret que s'il a été modifié
+        // Only send secret if it was modified
         if (secret) {
           data.secret = secret;
         }
         await webhooksApi.update(treeId, webhook.id, data);
       } else {
-        // Mode création
+        // Create mode
         const data: WebhookCreate = {
           name: name.trim(),
           url: url.trim(),
@@ -386,7 +386,7 @@ function WebhookForm({
       }
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
+      setError(err instanceof Error ? err.message : 'Save error');
     } finally {
       setSaving(false);
     }
@@ -395,7 +395,7 @@ function WebhookForm({
   return (
     <div className="space-y-4">
       <h3 className="font-medium">
-        {webhook ? 'Modifier le webhook' : 'Nouveau webhook'}
+        {webhook ? 'Edit webhook' : 'New webhook'}
       </h3>
 
       {error && (
@@ -403,13 +403,13 @@ function WebhookForm({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border rounded-md text-sm"
-          placeholder="Ex: Notification SIEM"
+          placeholder="E.g.: SIEM Notification"
         />
       </div>
 
@@ -433,28 +433,28 @@ function WebhookForm({
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           className="w-full px-3 py-2 border rounded-md text-sm font-mono"
-          placeholder={webhook?.has_secret ? 'Secret configuré — laisser vide pour conserver' : 'Optionnel — pour signer les requêtes'}
+          placeholder={webhook?.has_secret ? 'Secret configured — leave empty to keep' : 'Optional — to sign requests'}
         />
         {webhook?.has_secret && !secret && (
-          <p className="text-xs text-gray-400 mt-1">Un secret est déjà configuré. Saisissez une nouvelle valeur pour le remplacer.</p>
+          <p className="text-xs text-gray-400 mt-1">A secret is already configured. Enter a new value to replace it.</p>
         )}
       </div>
 
-      {/* Headers custom */}
+      {/* Custom headers */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-gray-700">
-            Headers HTTP
+            HTTP Headers
           </label>
           <button
             onClick={addHeader}
             className="text-xs text-blue-600 hover:underline"
           >
-            + Ajouter
+            + Add
           </button>
         </div>
         {headers.length === 0 ? (
-          <p className="text-xs text-gray-400">Aucun header custom</p>
+          <p className="text-xs text-gray-400">No custom header</p>
         ) : (
           <div className="space-y-2">
             {headers.map((h, i) => (
@@ -471,7 +471,7 @@ function WebhookForm({
                   value={h.value}
                   onChange={(e) => updateHeader(i, 'value', e.target.value)}
                   className="flex-1 px-2 py-1 border rounded text-sm font-mono"
-                  placeholder="Valeur"
+                  placeholder="Value"
                 />
                 <button
                   onClick={() => removeHeader(i)}
@@ -487,7 +487,7 @@ function WebhookForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Événements déclencheurs
+          Trigger events
         </label>
         <div className="flex flex-wrap gap-2">
           {WEBHOOK_EVENTS.map((evt) => (
@@ -524,7 +524,7 @@ function WebhookForm({
             }`}
           />
         </button>
-        <span className="text-sm text-gray-700">Actif</span>
+        <span className="text-sm text-gray-700">Active</span>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
@@ -532,14 +532,14 @@ function WebhookForm({
           onClick={onCancel}
           className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md text-sm"
         >
-          Annuler
+          Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
           className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm disabled:opacity-50"
         >
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </div>
@@ -566,20 +566,20 @@ function WebhookLogs({ treeId, webhookId, onBack }: { treeId: number; webhookId:
   }, [treeId, webhookId]);
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-8">Chargement...</div>;
+    return <div className="text-center text-gray-500 py-8">Loading...</div>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="text-sm text-blue-600 hover:underline">
-          Retour
+          Back
         </button>
-        <span className="text-sm text-gray-500">Historique des envois</span>
+        <span className="text-sm text-gray-500">Delivery history</span>
       </div>
 
       {logs.length === 0 ? (
-        <div className="text-center text-gray-500 py-8 text-sm">Aucun envoi</div>
+        <div className="text-center text-gray-500 py-8 text-sm">No deliveries</div>
       ) : (
         logs.map((log) => (
           <div key={log.id} className="border rounded-lg text-sm">
@@ -616,7 +616,7 @@ function WebhookLogs({ treeId, webhookId, onBack }: { treeId: number; webhookId:
                 </div>
                 {log.response_body && (
                   <div>
-                    <div className="text-xs font-medium text-gray-500 mb-1">Réponse</div>
+                    <div className="text-xs font-medium text-gray-500 mb-1">Response</div>
                     <pre className="text-xs bg-white p-2 rounded border overflow-x-auto max-h-32">
                       {log.response_body}
                     </pre>

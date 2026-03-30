@@ -1,4 +1,4 @@
-"""Routes de gestion des utilisateurs (admin uniquement)."""
+"""User management routes (admin only)."""
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -49,7 +49,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Protections
+    # Protections / Guards
     if user.id == current_user.id:
         if data.role is not None and data.role != current_user.role:
             raise HTTPException(status_code=400, detail="Cannot change your own role")

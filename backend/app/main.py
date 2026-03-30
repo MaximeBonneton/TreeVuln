@@ -1,9 +1,8 @@
 """
-Point d'entrée principal de l'API TreeVuln.
+Main entry point for the TreeVuln API.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -14,7 +13,7 @@ from sqlalchemy import select
 
 from app.api import api_router
 from app.config import settings
-from app.crypto import derive_key_from_admin_key, set_encryption_key
+from app.crypto import set_encryption_key
 from app.database import async_session_maker, engine
 from app.models import Asset, IngestEndpoint, IngestLog, Tree, TreeVersion, Webhook, WebhookLog  # noqa: F401
 from app.models.user import EncryptionKey
@@ -24,36 +23,41 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Gestion du cycle de vie de l'application."""
+    """Application lifecycle management."""
     # Startup
-    # Note: En production, utiliser Alembic pour les migrations
+    # Note: In production, use Alembic for migrations
     from app.database import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Initialisation de la clé de chiffrement depuis la BDD (singleton id=1)
-    async with async_session_maker() as session:
-        result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))
-        enc_key = result.scalar_one_or_none()
+    # Initialize encryption key
+    # Priority: SECRET_KEY env var > existing DB key > auto-generate (with warning)
+    if settings.secret_key:
+        set_encryption_key(settings.secret_key)
+        logger.info("Encryption key loaded from SECRET_KEY environment variable.")
+    else:
+        async with async_session_maker() as session:
+            result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))
+            enc_key = result.scalar_one_or_none()
 
-        if enc_key:
-            set_encryption_key(enc_key.key_value)
-        else:
-            legacy_key = os.environ.get("ADMIN_API_KEY", "")
-            if legacy_key:
-                key_value = derive_key_from_admin_key(legacy_key)
-                logger.info("Migration: ADMIN_API_KEY détectée, dérivation de la clé de chiffrement. "
-                            "Vous pouvez retirer ADMIN_API_KEY du .env.")
+            if enc_key:
+                set_encryption_key(enc_key.key_value)
+                logger.warning(
+                    "Encryption key loaded from database (insecure). "
+                    "Set SECRET_KEY in your .env file to secure your secrets."
+                )
             else:
                 key_value = Fernet.generate_key().decode()
-                logger.info("Nouvelle clé de chiffrement générée.")
+                enc_key_row = EncryptionKey(id=1, key_value=key_value)
+                session.add(enc_key_row)
+                await session.commit()
+                set_encryption_key(key_value)
+                logger.warning(
+                    "Auto-generated encryption key stored in database (insecure). "
+                    "Set SECRET_KEY in your .env file to secure your secrets."
+                )
 
-            enc_key_row = EncryptionKey(id=1, key_value=key_value)
-            session.add(enc_key_row)
-            await session.commit()
-            set_encryption_key(key_value)
-
-    # Initialisation Enterprise (détection licence + modules)
+    # Enterprise initialization (license detection + modules)
     from app.enterprise import init_enterprise
     init_enterprise()
 
@@ -65,19 +69,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="""
-    API pour la priorisation de vulnérabilités basée sur des arbres de décision SSVC.
+    API for vulnerability prioritization based on SSVC decision trees.
 
-    ## Fonctionnalités
+    ## Features
 
-    - **Tree**: Gestion de l'arbre de décision (CRUD + versioning)
-    - **Evaluate**: Évaluation des vulnérabilités (unitaire et batch)
-    - **Assets**: Gestion du référentiel d'assets pour la contextualisation
+    - **Tree**: Decision tree management (CRUD + versioning)
+    - **Evaluate**: Vulnerability evaluation (single and batch)
+    - **Assets**: Asset reference management for contextualization
     """,
     version="0.1.0",
     lifespan=lifespan,
+    # Disable Swagger/OpenAPI in production
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
-# CORS pour le frontend
+# CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -86,21 +94,17 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# Routes API
+# API Routes
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/health")
 async def health_check():
-    """Endpoint de santé pour les healthchecks Docker/K8s."""
-    return {"status": "healthy", "version": "0.1.0"}
+    """Health endpoint for Docker/K8s healthchecks."""
+    return {"status": "healthy"}
 
 
 @app.get("/")
 async def root():
-    """Racine de l'API."""
-    return {
-        "name": settings.app_name,
-        "docs": "/docs",
-        "openapi": "/openapi.json",
-    }
+    """API root."""
+    return {"name": settings.app_name}

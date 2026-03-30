@@ -10,8 +10,8 @@ from app.database import Base
 
 class Webhook(Base):
     """
-    Webhook sortant configuré pour un arbre.
-    Envoie des notifications HTTP POST lors d'événements (évaluations).
+    Outgoing webhook configured for a tree.
+    Sends HTTP POST notifications on events (evaluations).
     """
 
     __tablename__ = "webhooks"
@@ -49,7 +49,7 @@ class Webhook(Base):
 
 class WebhookLog(Base):
     """
-    Log d'envoi d'un webhook.
+    Webhook send log.
     """
 
     __tablename__ = "webhook_logs"

@@ -1,4 +1,4 @@
-"""Schemas pour le mapping des champs."""
+"""Schemas for field mapping."""
 
 from enum import Enum
 from typing import Any
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class FieldType(str, Enum):
-    """Types de champs supportés."""
+    """Supported field types."""
 
     STRING = "string"
     NUMBER = "number"
@@ -18,42 +18,42 @@ class FieldType(str, Enum):
 
 
 class FieldDefinition(BaseModel):
-    """Définition d'un champ disponible pour les nœuds Input."""
+    """Definition of a field available for Input nodes."""
 
-    name: str = Field(description="Nom technique du champ (ex: cvss_score)")
-    label: str | None = Field(default=None, description="Label affiché (ex: Score CVSS)")
-    type: FieldType = Field(default=FieldType.UNKNOWN, description="Type de données")
-    description: str | None = Field(default=None, description="Description du champ")
+    name: str = Field(description="Technical field name (e.g. cvss_score)")
+    label: str | None = Field(default=None, description="Display label (e.g. CVSS Score)")
+    type: FieldType = Field(default=FieldType.UNKNOWN, description="Data type")
+    description: str | None = Field(default=None, description="Field description")
     examples: list[Any] = Field(
         default_factory=list,
         max_length=5,
-        description="Exemples de valeurs (max 5)",
+        description="Example values (max 5)",
     )
-    required: bool = Field(default=False, description="Champ obligatoire dans les vulnérabilités")
+    required: bool = Field(default=False, description="Required field in vulnerabilities")
 
 
 class FieldMapping(BaseModel):
-    """Mapping complet des champs pour un arbre."""
+    """Complete field mapping for a tree."""
 
     fields: list[FieldDefinition] = Field(default_factory=list)
     source: str | None = Field(
         default=None,
-        description="Origine du mapping: 'manual', 'import', 'scan:fichier.csv'",
+        description="Mapping origin: 'manual', 'import', 'scan:file.csv'",
     )
     version: int = Field(default=1, description="Version du mapping")
 
 
 class FieldMappingUpdate(BaseModel):
-    """Schéma pour la mise à jour du mapping."""
+    """Schema for updating the mapping."""
 
     fields: list[FieldDefinition]
     source: str | None = Field(default="manual")
 
 
 class ScanResult(BaseModel):
-    """Résultat du scan d'un fichier CSV/JSON."""
+    """Result of scanning a CSV/JSON file."""
 
     fields: list[FieldDefinition]
-    rows_scanned: int = Field(description="Nombre de lignes analysées")
+    rows_scanned: int = Field(description="Number of rows analyzed")
     source_type: str = Field(description="Type de fichier: 'csv' ou 'json'")
-    warnings: list[str] = Field(default_factory=list, description="Avertissements éventuels")
+    warnings: list[str] = Field(default_factory=list, description="Any warnings")

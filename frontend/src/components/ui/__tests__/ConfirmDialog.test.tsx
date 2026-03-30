@@ -6,62 +6,62 @@ import { ConfirmDialog } from '../ConfirmDialog';
 describe('ConfirmDialog', () => {
   const defaultProps = {
     open: true,
-    title: 'Supprimer ?',
-    message: 'Cette action est irréversible.',
+    title: 'Delete?',
+    message: 'This action is irreversible.',
     onConfirm: vi.fn(),
     onCancel: vi.fn(),
   };
 
-  it('ne rend rien quand open=false', () => {
+  it('renders nothing when open=false', () => {
     const { container } = render(
       <ConfirmDialog {...defaultProps} open={false} />
     );
     expect(container.firstChild).toBeNull();
   });
 
-  it('affiche le titre et le message', () => {
+  it('displays the title and message', () => {
     render(<ConfirmDialog {...defaultProps} />);
-    expect(screen.getByText('Supprimer ?')).toBeInTheDocument();
-    expect(screen.getByText('Cette action est irréversible.')).toBeInTheDocument();
+    expect(screen.getByText('Delete?')).toBeInTheDocument();
+    expect(screen.getByText('This action is irreversible.')).toBeInTheDocument();
   });
 
-  it('affiche les boutons Confirmer et Annuler', () => {
+  it('displays Confirm and Cancel buttons', () => {
     render(<ConfirmDialog {...defaultProps} />);
-    expect(screen.getByText('Confirmer')).toBeInTheDocument();
-    expect(screen.getByText('Annuler')).toBeInTheDocument();
+    expect(screen.getByText('Confirm')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
-  it('appelle onConfirm au clic sur Confirmer', async () => {
+  it('calls onConfirm when clicking Confirm', async () => {
     const onConfirm = vi.fn();
     render(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} />);
 
-    await userEvent.click(screen.getByText('Confirmer'));
+    await userEvent.click(screen.getByText('Confirm'));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  it('appelle onCancel au clic sur Annuler', async () => {
+  it('calls onCancel when clicking Cancel', async () => {
     const onCancel = vi.fn();
     render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
 
-    await userEvent.click(screen.getByText('Annuler'));
+    await userEvent.click(screen.getByText('Cancel'));
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
-  it('utilise le style danger par défaut', () => {
+  it('uses the danger style by default', () => {
     render(<ConfirmDialog {...defaultProps} />);
-    const confirmBtn = screen.getByText('Confirmer');
+    const confirmBtn = screen.getByText('Confirm');
     expect(confirmBtn.className).toContain('bg-red-500');
   });
 
-  it('applique le style warning', () => {
+  it('applies the warning style', () => {
     render(<ConfirmDialog {...defaultProps} variant="warning" />);
-    const confirmBtn = screen.getByText('Confirmer');
+    const confirmBtn = screen.getByText('Confirm');
     expect(confirmBtn.className).toContain('bg-orange-500');
   });
 
-  it('applique le style info', () => {
+  it('applies the info style', () => {
     render(<ConfirmDialog {...defaultProps} variant="info" />);
-    const confirmBtn = screen.getByText('Confirmer');
+    const confirmBtn = screen.getByText('Confirm');
     expect(confirmBtn.className).toContain('bg-blue-500');
   });
 });

@@ -1,4 +1,4 @@
-"""Modèles SQLAlchemy pour l'authentification multi-utilisateurs."""
+"""SQLAlchemy models for multi-user authentication."""
 import uuid
 from datetime import datetime, timezone
 

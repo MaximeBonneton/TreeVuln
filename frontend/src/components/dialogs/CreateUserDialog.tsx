@@ -7,7 +7,7 @@ interface CreateUserDialogProps {
   onCreated: () => void;
 }
 
-// Génère un mot de passe aléatoire de 16 caractères
+// Generate a random 16-character password
 function generatePassword(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*-_=+';
   const array = new Uint8Array(16);
@@ -36,17 +36,17 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback : sélection manuelle
+      // Fallback: manual selection
     }
   };
 
   const handleCreate = async () => {
     if (!username.trim()) {
-      setError('Le nom d\'utilisateur est requis');
+      setError('Username is required');
       return;
     }
     if (password.length < 12) {
-      setError('Le mot de passe doit contenir au moins 12 caractères');
+      setError('Password must be at least 12 characters');
       return;
     }
 
@@ -62,7 +62,7 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
       });
       onCreated();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la création';
+      const message = err instanceof Error ? err.message : 'Creation error';
       setError(message);
       setCreating(false);
     }
@@ -75,7 +75,7 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Shield size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold">Nouvel utilisateur</h2>
+            <h2 className="text-lg font-semibold">New user</h2>
           </div>
           <button
             onClick={onClose}
@@ -85,18 +85,18 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
           </button>
         </div>
 
-        {/* Contenu */}
+        {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Nom d'utilisateur */}
+          {/* Username */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nom d'utilisateur *
+              Username *
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ex: jean.dupont"
+              placeholder="E.g.: john.doe"
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoFocus
             />
@@ -105,61 +105,61 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email (optionnel)
+              Email (optional)
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Ex: jean.dupont@example.com"
+              placeholder="E.g.: john.doe@example.com"
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
-          {/* Rôle */}
+          {/* Role */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rôle
+              Role
             </label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as 'admin' | 'operator')}
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
-              <option value="operator">Opérateur</option>
-              <option value="admin">Administrateur</option>
+              <option value="operator">Operator</option>
+              <option value="admin">Administrator</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
               {role === 'admin'
-                ? 'Peut modifier les arbres, gérer les utilisateurs et configurer le système.'
-                : 'Peut consulter et tester les arbres en lecture seule.'}
+                ? 'Can edit trees, manage users, and configure the system.'
+                : 'Can view and test trees in read-only mode.'}
             </p>
           </div>
 
-          {/* Mot de passe */}
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe *
+              Password *
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
-                placeholder="12 caractères minimum"
+                placeholder="12 characters minimum"
                 className="flex-1 px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
               />
               <button
                 onClick={handleGenerate}
                 className="px-3 py-2 text-gray-600 hover:bg-gray-100 border rounded-md flex items-center gap-1"
-                title="Générer un mot de passe"
+                title="Generate password"
                 type="button"
               >
                 <RefreshCw size={16} />
-                <span className="text-sm">Générer</span>
+                <span className="text-sm">Generate</span>
               </button>
             </div>
-            {/* Bouton copier (visible si mot de passe rempli) */}
+            {/* Copy button (visible when password is filled) */}
             {password && (
               <button
                 onClick={handleCopy}
@@ -169,12 +169,12 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
                 {copied ? (
                   <>
                     <Check size={12} />
-                    Copié !
+                    Copied!
                   </>
                 ) : (
                   <>
                     <Copy size={12} />
-                    Copier le mot de passe
+                    Copy password
                   </>
                 )}
               </button>
@@ -184,11 +184,11 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
           {/* Info */}
           <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
             <p>
-              L'utilisateur devra changer son mot de passe lors de sa première connexion.
+              The user will be required to change their password on first login.
             </p>
           </div>
 
-          {/* Erreur */}
+          {/* Error */}
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
               {error}
@@ -202,14 +202,14 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !username.trim() || password.length < 12}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {creating ? 'Création...' : 'Créer'}
+            {creating ? 'Creating...' : 'Create'}
           </button>
         </div>
       </div>

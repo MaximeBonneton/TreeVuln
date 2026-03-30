@@ -1,5 +1,5 @@
 /**
- * Client API pour le mapping des champs.
+ * API client for field mapping.
  */
 
 import { api } from './client';
@@ -9,25 +9,25 @@ const API_BASE = '/api/v1';
 
 export const fieldMappingApi = {
   /**
-   * Récupère les définitions des champs CVSS virtuels.
+   * Get virtual CVSS field definitions.
    */
   getCvssFields: (): Promise<FieldDefinition[]> =>
     api.get<FieldDefinition[]>('/mapping/cvss-fields'),
 
   /**
-   * Récupère le mapping des champs pour un arbre.
+   * Get field mapping for a tree.
    */
   getMapping: (treeId: number): Promise<FieldMapping | null> =>
     api.get<FieldMapping | null>(`/tree/${treeId}/mapping`),
 
   /**
-   * Met à jour le mapping des champs pour un arbre.
+   * Update field mapping for a tree.
    */
   updateMapping: (treeId: number, data: FieldMappingUpdate): Promise<FieldMapping> =>
     api.put<FieldMapping>(`/tree/${treeId}/mapping`, data),
 
   /**
-   * Importe un mapping depuis un fichier JSON.
+   * Import a mapping from a JSON file.
    */
   importMapping: async (treeId: number, file: File): Promise<FieldMapping> => {
     const formData = new FormData();
@@ -40,21 +40,21 @@ export const fieldMappingApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Erreur inconnue' }));
-      throw new Error(error.detail || 'Échec de l\'import');
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || 'Import failed');
     }
 
     return response.json();
   },
 
   /**
-   * Supprime le mapping des champs pour un arbre.
+   * Delete field mapping for a tree.
    */
   deleteMapping: (treeId: number): Promise<void> =>
     api.delete<void>(`/tree/${treeId}/mapping`),
 
   /**
-   * Scanne un fichier CSV ou JSON pour détecter les champs.
+   * Scan a CSV or JSON file to detect fields.
    */
   scanFile: async (file: File): Promise<ScanResult> => {
     const formData = new FormData();
@@ -67,8 +67,8 @@ export const fieldMappingApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Erreur inconnue' }));
-      throw new Error(error.detail || 'Échec du scan');
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || 'Scan failed');
     }
 
     return response.json();

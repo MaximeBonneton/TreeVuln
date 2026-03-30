@@ -57,17 +57,17 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showUsersPanel, setShowUsersPanel] = useState(false);
 
-  // Déconnexion
+  // Logout
   const handleLogout = async () => {
     try {
       await authApi.logout();
     } catch {
-      // Ignore les erreurs de logout
+      // Ignore logout errors
     }
     window.location.reload();
   };
 
-  // Charge la liste des arbres au montage
+  // Load tree list on mount
   useEffect(() => {
     loadTrees();
   }, [loadTrees]);
@@ -75,7 +75,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
   const handleDuplicateStart = (tree: TreeListItem, e: React.MouseEvent) => {
     e.stopPropagation();
     setDuplicating(tree.id);
-    setDuplicateName(`${tree.name} (copie)`);
+    setDuplicateName(`${tree.name} (copy)`);
   };
 
   const handleDuplicateConfirm = async (treeIdToDuplicate: number) => {
@@ -108,7 +108,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const ok = await confirm('Supprimer l\'arbre', 'Supprimer cet arbre et tous ses assets ? Cette action est irréversible.');
+    const ok = await confirm('Delete tree', 'Delete this tree and all its assets? This action is irreversible.');
     if (!ok) return;
     try {
       await deleteCurrentTree();
@@ -122,7 +122,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
       <button
         onClick={() => setSidebarOpen(true)}
         className="fixed left-0 top-1/2 -translate-y-1/2 bg-white border border-l-0 rounded-r-lg p-2 shadow-md hover:bg-gray-50 z-10"
-        title="Ouvrir la liste des arbres"
+        title="Open tree list"
       >
         <ChevronRight size={20} className="text-gray-600" />
       </button>
@@ -135,7 +135,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
       <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trees size={20} className="text-blue-600" />
-          <span className="font-semibold text-gray-800">Arbres</span>
+          <span className="font-semibold text-gray-800">Trees</span>
           <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
             {trees.length}
           </span>
@@ -145,7 +145,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
             <button
               onClick={onOpenCreateDialog}
               className="p-1.5 hover:bg-gray-100 rounded-md"
-              title="Nouvel arbre"
+              title="New tree"
             >
               <Plus size={18} className="text-gray-600" />
             </button>
@@ -153,14 +153,14 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1.5 hover:bg-gray-100 rounded-md"
-            title="Fermer"
+            title="Close"
           >
             <X size={18} className="text-gray-600" />
           </button>
         </div>
       </div>
 
-      {/* Liste des arbres */}
+      {/* Tree list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {trees.map((tree) => (
           <div
@@ -168,8 +168,8 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
             onClick={async () => {
               if (hasUnsavedChanges) {
                 const ok = await confirm(
-                  'Modifications non sauvegardées',
-                  'Vous avez des modifications non sauvegardées. Voulez-vous continuer ?',
+                  'Unsaved changes',
+                  'You have unsaved changes. Do you want to continue?',
                   'warning'
                 );
                 if (!ok) return;
@@ -184,7 +184,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
               }
             `}
           >
-            {/* Mode duplication */}
+            {/* Duplication mode */}
             {duplicating === tree.id ? (
               <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                 <input
@@ -192,7 +192,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                   value={duplicateName}
                   onChange={(e) => setDuplicateName(e.target.value)}
                   className="w-full px-2 py-1 text-sm border rounded"
-                  placeholder="Nom de la copie"
+                  placeholder="Copy name"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleDuplicateConfirm(tree.id);
@@ -203,14 +203,14 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                   <button
                     onClick={handleDuplicateCancel}
                     className="p-1 hover:bg-gray-100 rounded"
-                    title="Annuler"
+                    title="Cancel"
                   >
                     <X size={16} className="text-gray-500" />
                   </button>
                   <button
                     onClick={() => handleDuplicateConfirm(tree.id)}
                     className="p-1 hover:bg-green-100 rounded"
-                    title="Confirmer"
+                    title="Confirm"
                   >
                     <Check size={16} className="text-green-600" />
                   </button>
@@ -218,7 +218,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
               </div>
             ) : (
               <>
-                {/* Contenu normal */}
+                {/* Normal content */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -230,7 +230,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                       )}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {tree.node_count} noeuds
+                      {tree.node_count} nodes
                     </div>
                     {tree.api_enabled && tree.api_slug && (
                       <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
@@ -241,20 +241,20 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                   </div>
                 </div>
 
-                {/* Actions (visibles uniquement pour l'arbre sélectionné, admin uniquement) */}
+                {/* Actions (visible only for selected tree, admin only) */}
                 {tree.id === treeId && isAdmin() && (
                   <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200 flex-wrap">
                     <button
                       onClick={(e) => handleDuplicateStart(tree, e)}
                       className="p-1.5 hover:bg-gray-100 rounded-md"
-                      title="Dupliquer"
+                      title="Duplicate"
                     >
                       <Copy size={16} className="text-gray-500" />
                     </button>
                     <button
                       onClick={onOpenApiConfig}
                       className="p-1.5 hover:bg-gray-100 rounded-md"
-                      title="Configurer API"
+                      title="Configure API"
                     >
                       <Settings size={16} className="text-gray-500" />
                     </button>
@@ -262,7 +262,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                       <button
                         onClick={(e) => { e.stopPropagation(); onOpenAssetImport(); }}
                         className="p-1.5 hover:bg-blue-50 rounded-md"
-                        title="Importer des assets"
+                        title="Import assets"
                       >
                         <Upload size={16} className="text-gray-500" />
                       </button>
@@ -271,7 +271,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                       <button
                         onClick={(e) => { e.stopPropagation(); onOpenWebhookConfig(); }}
                         className="p-1.5 hover:bg-orange-50 rounded-md"
-                        title="Webhooks sortants"
+                        title="Outgoing webhooks"
                       >
                         <Bell size={16} className="text-gray-500" />
                       </button>
@@ -280,7 +280,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                       <button
                         onClick={(e) => { e.stopPropagation(); onOpenIngestConfig(); }}
                         className="p-1.5 hover:bg-green-50 rounded-md"
-                        title="Webhooks entrants"
+                        title="Incoming webhooks"
                       >
                         <Download size={16} className="text-gray-500" />
                       </button>
@@ -290,14 +290,14 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                         <button
                           onClick={handleSetDefault}
                           className="p-1.5 hover:bg-yellow-50 rounded-md"
-                          title="Définir comme défaut"
+                          title="Set as default"
                         >
                           <StarOff size={16} className="text-gray-500" />
                         </button>
                         <button
                           onClick={handleDelete}
                           className="p-1.5 hover:bg-red-50 rounded-md ml-auto"
-                          title="Supprimer"
+                          title="Delete"
                         >
                           <Trash2 size={16} className="text-red-500" />
                         </button>
@@ -313,18 +313,18 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
         {trees.length === 0 && (
           <div className="text-center text-gray-500 py-8">
             <Trees size={32} className="mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Aucun arbre</p>
+            <p className="text-sm">No trees</p>
             <button
               onClick={onOpenCreateDialog}
               className="text-blue-500 hover:underline text-sm mt-2"
             >
-              Créer un arbre
+              Create a tree
             </button>
           </div>
         )}
       </div>
 
-      {/* Section utilisateur (bas de la sidebar) */}
+      {/* User section (bottom of sidebar) */}
       {currentUser && (
         <div className="border-t p-3 space-y-2">
           <div className="flex items-center gap-2">
@@ -347,7 +347,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
               className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded px-2 py-1 w-full text-left"
             >
               <KeyRound size={14} />
-              Changer le mot de passe
+              Change password
             </button>
             {isAdmin() && (
               <button
@@ -355,7 +355,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded px-2 py-1 w-full text-left"
               >
                 <Users size={14} />
-                Utilisateurs
+                Users
               </button>
             )}
             <button
@@ -363,7 +363,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
               className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded px-2 py-1 w-full text-left"
             >
               <LogOut size={14} />
-              Déconnexion
+              Sign out
             </button>
           </div>
         </div>
@@ -371,7 +371,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
 
       <ConfirmDialog {...confirmDialogProps} />
 
-      {/* Modal changement de mot de passe */}
+      {/* Password change modal */}
       {showChangePassword && (
         <ChangePasswordDialog
           onComplete={() => setShowChangePassword(false)}
@@ -379,7 +379,7 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
         />
       )}
 
-      {/* Modal gestion des utilisateurs (admin uniquement) */}
+      {/* User management modal (admin only) */}
       {showUsersPanel && (
         <UsersPanel onClose={() => setShowUsersPanel(false)} />
       )}

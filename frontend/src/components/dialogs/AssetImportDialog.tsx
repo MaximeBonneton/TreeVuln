@@ -30,7 +30,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
   const handleFileSelect = async (selectedFile: File) => {
     const isValid = selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.json');
     if (!isValid) {
-      setError('Format non supporté. Utilisez CSV ou JSON.');
+      setError('Unsupported format. Use CSV or JSON.');
       return;
     }
 
@@ -54,7 +54,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
 
       setStep('mapping');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de preview');
+      setError(err instanceof Error ? err.message : 'Preview error');
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
       setStep('result');
       onImported();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'import");
+      setError(err instanceof Error ? err.message : "Import error");
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Upload size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold">Importer des assets</h2>
+            <h2 className="text-lg font-semibold">Import assets</h2>
             <span className="text-sm text-gray-500">- {treeName}</span>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-md">
@@ -118,7 +118,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
                       : 'bg-gray-100 text-gray-500'
                 }`}
               >
-                {s === 'upload' ? '1. Fichier' : s === 'mapping' ? '2. Mapping' : '3. Resultat'}
+                {s === 'upload' ? '1. File' : s === 'mapping' ? '2. Mapping' : '3. Result'}
               </span>
             </div>
           ))}
@@ -169,7 +169,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
               onClick={onClose}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
-              Fermer
+              Close
             </button>
           ) : (
             <>
@@ -177,7 +177,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
                 onClick={onClose}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
               >
-                Annuler
+                Cancel
               </button>
               {step === 'mapping' && (
                 <button
@@ -185,7 +185,7 @@ export function AssetImportDialog({ treeId, treeName, onClose, onImported }: Ass
                   disabled={loading || !colAssetId}
                   className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
                 >
-                  {loading ? 'Import en cours...' : 'Importer'}
+                  {loading ? 'Importing...' : 'Import'}
                 </button>
               )}
             </>
@@ -237,16 +237,16 @@ function UploadStep({
       {loading ? (
         <div className="text-blue-600">
           <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
-          <p className="text-sm">Analyse du fichier...</p>
+          <p className="text-sm">Analyzing file...</p>
         </div>
       ) : (
         <>
           <Upload size={40} className="mx-auto text-gray-400 mb-3" />
           <p className="text-sm text-gray-600 font-medium">
-            Glissez-deposez un fichier CSV ou JSON
+            Drag and drop a CSV or JSON file
           </p>
           <p className="text-xs text-gray-400 mt-2">
-            Colonnes attendues : asset_id, name (optionnel), criticality (optionnel)
+            Expected columns: asset_id, name (optional), criticality (optional)
           </p>
         </>
       )}
@@ -280,13 +280,13 @@ function MappingStep({
         <FileSpreadsheet size={20} className="text-green-600" />
         <span className="font-medium text-sm">{file.name}</span>
         <span className="text-xs text-gray-500">
-          ({preview.row_count} lignes, {preview.columns.length} colonnes)
+          ({preview.row_count} rows, {preview.columns.length} columns)
         </span>
       </div>
 
       {/* Column mapping */}
       <div>
-        <h4 className="font-medium text-gray-700 mb-3">Mapping des colonnes</h4>
+        <h4 className="font-medium text-gray-700 mb-3">Column mapping</h4>
         <div className="space-y-3">
           <MappingSelect
             label="Asset ID *"
@@ -296,13 +296,13 @@ function MappingStep({
             required
           />
           <MappingSelect
-            label="Nom"
+            label="Name"
             value={colName}
             onChange={onColNameChange}
             columns={preview.columns}
           />
           <MappingSelect
-            label="Criticite"
+            label="Criticality"
             value={colCriticality}
             onChange={onColCriticalityChange}
             columns={preview.columns}
@@ -313,7 +313,7 @@ function MappingStep({
       {/* Preview table */}
       {preview.preview.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-700 mb-2">Apercu (5 premieres lignes)</h4>
+          <h4 className="font-medium text-gray-700 mb-2">Preview (first 5 rows)</h4>
           <div className="overflow-x-auto border rounded-lg">
             <table className="w-full text-xs">
               <thead>
@@ -367,7 +367,7 @@ function MappingSelect({
           required && !value ? 'border-red-300' : ''
         }`}
       >
-        <option value="">-- Non utilise --</option>
+        <option value="">-- Not used --</option>
         {columns.map((col) => (
           <option key={col} value={col}>
             {col}
@@ -388,7 +388,7 @@ function ResultStep({ result }: { result: AssetImportResult }) {
         <div className="flex items-center gap-2 mb-3">
           <Check size={20} className={hasErrors ? 'text-yellow-600' : 'text-green-600'} />
           <span className="font-medium">
-            Import {hasErrors ? 'termine avec des erreurs' : 'reussi'}
+            Import {hasErrors ? 'completed with errors' : 'successful'}
           </span>
         </div>
 
@@ -399,15 +399,15 @@ function ResultStep({ result }: { result: AssetImportResult }) {
           </div>
           <div className="bg-white p-2 rounded border">
             <div className="text-lg font-bold text-green-600">{result.created}</div>
-            <div className="text-xs text-gray-500">Crees</div>
+            <div className="text-xs text-gray-500">Created</div>
           </div>
           <div className="bg-white p-2 rounded border">
             <div className="text-lg font-bold text-blue-600">{result.updated}</div>
-            <div className="text-xs text-gray-500">Mis a jour</div>
+            <div className="text-xs text-gray-500">Updated</div>
           </div>
           <div className="bg-white p-2 rounded border">
             <div className="text-lg font-bold text-red-600">{result.errors}</div>
-            <div className="text-xs text-gray-500">Erreurs</div>
+            <div className="text-xs text-gray-500">Errors</div>
           </div>
         </div>
       </div>
@@ -415,13 +415,13 @@ function ResultStep({ result }: { result: AssetImportResult }) {
       {/* Error details */}
       {result.error_details.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-700 mb-2">Detail des erreurs</h4>
+          <h4 className="font-medium text-gray-700 mb-2">Error details</h4>
           <div className="max-h-48 overflow-y-auto border rounded-lg">
             {result.error_details.map((err, i) => (
               <div key={i} className="px-3 py-2 border-b last:border-0 text-sm flex items-start gap-2">
                 <AlertCircle size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <span className="text-gray-500">Ligne {err.row}</span>
+                  <span className="text-gray-500">Row {err.row}</span>
                   {err.asset_id && <span className="text-gray-500 ml-1">({err.asset_id})</span>}
                   <span className="text-gray-700 ml-1">: {err.error}</span>
                 </div>

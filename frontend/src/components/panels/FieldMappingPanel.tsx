@@ -49,10 +49,10 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
 
     try {
       await saveFieldMapping(fields);
-      setSuccess('Mapping sauvegardé');
+      setSuccess('Mapping saved');
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
+      setError(err instanceof Error ? err.message : 'Save error');
     } finally {
       setIsSaving(false);
     }
@@ -60,23 +60,23 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
 
   const handleDelete = async () => {
     if (!treeId) return;
-    const ok = await confirm('Supprimer le mapping', 'Supprimer le mapping des champs ? Les nœuds conserveront leurs configurations.', 'warning');
+    const ok = await confirm('Delete mapping', 'Delete field mapping? Nodes will keep their configurations.', 'warning');
     if (!ok) return;
 
     try {
       await deleteFieldMapping();
       setFields([]);
-      setSuccess('Mapping supprimé');
+      setSuccess('Mapping deleted');
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de suppression');
+      setError(err instanceof Error ? err.message : 'Delete error');
     }
   };
 
   const addField = () => {
     const newField: FieldDefinition = {
       name: `field_${fields.length + 1}`,
-      label: `Champ ${fields.length + 1}`,
+      label: `Field ${fields.length + 1}`,
       type: 'string',
       description: '',
       examples: [],
@@ -107,10 +107,10 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
       try {
         const mapping = await fieldMappingApi.importMapping(treeId, file);
         setFields(mapping.fields);
-        setSuccess(`${mapping.fields.length} champs importés`);
+        setSuccess(`${mapping.fields.length} fields imported`);
         setTimeout(() => setSuccess(null), 2000);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur d\'import');
+        setError(err instanceof Error ? err.message : 'Import error');
       }
     };
     input.click();
@@ -119,7 +119,7 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
   const handleScanResult = (result: ScanResult) => {
     setFields(result.fields);
     setShowScanDialog(false);
-    setSuccess(`${result.fields.length} champs détectés (${result.rows_scanned} lignes analysées)`);
+    setSuccess(`${result.fields.length} fields detected (${result.rows_scanned} rows scanned)`);
     setTimeout(() => setSuccess(null), 3000);
   };
 
@@ -129,11 +129,11 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h3 className="font-bold text-gray-800">Mapping des champs</h3>
+            <h3 className="font-bold text-gray-800">Field mapping</h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {fieldMapping
-                ? `Version ${fieldMapping.version} • ${fieldMapping.fields.length} champs`
-                : 'Aucun mapping configuré'}
+                ? `Version ${fieldMapping.version} • ${fieldMapping.fields.length} fields`
+                : 'No mapping configured'}
             </p>
           </div>
           <button
@@ -144,11 +144,11 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
           </button>
         </div>
 
-        {/* Info mapping existant */}
+        {/* Existing mapping info */}
         {fieldMapping && fieldMapping.fields.length > 0 && (
           <div className="mx-4 mt-4 p-3 bg-blue-50 rounded-md">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-blue-800">Mapping actuel</span>
+              <span className="text-sm font-medium text-blue-800">Current mapping</span>
               {fieldMapping.source && (
                 <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
                   {fieldMapping.source}
@@ -166,7 +166,7 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
               ))}
               {fieldMapping.fields.length > 8 && (
                 <span className="text-xs text-blue-600 px-2 py-0.5">
-                  +{fieldMapping.fields.length - 8} autres
+                  +{fieldMapping.fields.length - 8} more
                 </span>
               )}
             </div>
@@ -180,21 +180,21 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
           >
             <FileSearch size={16} />
-            Scanner fichier
+            Scan file
           </button>
           <button
             onClick={handleImportJson}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-md hover:bg-gray-100"
           >
             <Upload size={16} />
-            Importer JSON
+            Import JSON
           </button>
           <button
             onClick={addField}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-md hover:bg-gray-100"
           >
             <Plus size={16} />
-            Ajouter
+            Add
           </button>
         </div>
 
@@ -212,14 +212,14 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
           </div>
         )}
 
-        {/* Liste des champs */}
+        {/* Field list */}
         <div className="flex-1 overflow-y-auto p-4">
           {fields.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <FileSearch size={48} className="mx-auto mb-3 opacity-50" />
-              <p className="font-medium">Aucun champ configuré</p>
+              <p className="font-medium">No fields configured</p>
               <p className="text-sm mt-1">
-                Scannez un fichier CSV/JSON ou ajoutez des champs manuellement
+                Scan a CSV/JSON file or add fields manually
               </p>
             </div>
           ) : (
@@ -249,7 +249,7 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
             disabled={!fieldMapping}
             className="text-red-500 hover:text-red-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Supprimer le mapping
+            Delete mapping
           </button>
           <button
             onClick={handleSave}
@@ -264,12 +264,12 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
             `}
           >
             <Save size={16} />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
 
-      {/* Dialog de scan */}
+      {/* Scan dialog */}
       {showScanDialog && (
         <FieldScanDialog
           onClose={() => setShowScanDialog(false)}
@@ -316,7 +316,7 @@ function FieldEditor({
         </span>
         {field.required && (
           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-            Requis
+            Required
           </span>
         )}
         <button
@@ -330,13 +330,13 @@ function FieldEditor({
         </button>
       </div>
 
-      {/* Détails */}
+      {/* Details */}
       {isExpanded && (
         <div className="p-3 space-y-3 bg-white">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Nom technique
+                Technical name
               </label>
               <input
                 type="text"
@@ -347,7 +347,7 @@ function FieldEditor({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Label affiché
+                Display label
               </label>
               <input
                 type="text"
@@ -383,7 +383,7 @@ function FieldEditor({
                   onChange={(e) => onChange({ required: e.target.checked })}
                   className="w-4 h-4 text-blue-500 rounded"
                 />
-                <span className="text-sm text-gray-700">Champ requis</span>
+                <span className="text-sm text-gray-700">Required field</span>
               </label>
             </div>
           </div>
@@ -396,7 +396,7 @@ function FieldEditor({
               type="text"
               value={field.description || ''}
               onChange={(e) => onChange({ description: e.target.value })}
-              placeholder="Description du champ..."
+              placeholder="Field description..."
               className="w-full px-2 py-1.5 text-sm border rounded"
             />
           </div>
@@ -404,7 +404,7 @@ function FieldEditor({
           {field.examples.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Exemples
+                Examples
               </label>
               <div className="flex flex-wrap gap-1">
                 {field.examples.slice(0, 5).map((ex, i) => (

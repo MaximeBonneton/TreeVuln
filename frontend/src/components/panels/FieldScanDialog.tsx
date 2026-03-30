@@ -22,7 +22,7 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
       const result = await fieldMappingApi.scanFile(file);
       setPreviewResult(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du scan');
+      setError(err instanceof Error ? err.message : 'Error during scan');
     } finally {
       setIsScanning(false);
     }
@@ -73,9 +73,9 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h3 className="font-bold text-gray-800">Scanner un fichier</h3>
+            <h3 className="font-bold text-gray-800">Scan a file</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              CSV ou JSON pour détecter automatiquement les champs
+              CSV or JSON to automatically detect fields
             </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -83,11 +83,11 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
           </button>
         </div>
 
-        {/* Contenu */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {!previewResult ? (
             <>
-              {/* Zone de drop */}
+              {/* Drop zone */}
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -111,15 +111,15 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
                 )}
                 <p className="mt-4 font-medium text-gray-700">
                   {isScanning
-                    ? 'Analyse en cours...'
-                    : 'Glissez un fichier ici ou cliquez pour sélectionner'}
+                    ? 'Scanning...'
+                    : 'Drag a file here or click to select'}
                 </p>
                 <p className="mt-2 text-sm text-gray-500">
-                  Formats supportés: CSV, JSON
+                  Supported formats: CSV, JSON
                 </p>
               </div>
 
-              {/* Erreur */}
+              {/* Error */}
               {error && (
                 <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-md flex items-center gap-2">
                   <AlertCircle size={16} />
@@ -129,30 +129,30 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
 
               {/* Info */}
               <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-800">
-                <p className="font-medium">Comment ça marche ?</p>
+                <p className="font-medium">How does it work?</p>
                 <ul className="mt-2 space-y-1 text-blue-700">
-                  <li>• Les 100 premières lignes sont analysées</li>
-                  <li>• Les types sont automatiquement détectés</li>
-                  <li>• Des exemples de valeurs sont collectés</li>
+                  <li>• The first 100 rows are analyzed</li>
+                  <li>• Types are automatically detected</li>
+                  <li>• Sample values are collected</li>
                 </ul>
               </div>
             </>
           ) : (
             <>
-              {/* Résultat du scan */}
+              {/* Scan result */}
               <div className="mb-4 p-3 bg-green-50 rounded-md">
                 <p className="font-medium text-green-800">
-                  {previewResult.fields.length} champs détectés
+                  {previewResult.fields.length} fields detected
                 </p>
                 <p className="text-sm text-green-700">
-                  {previewResult.rows_scanned} lignes analysées ({previewResult.source_type.toUpperCase()})
+                  {previewResult.rows_scanned} rows scanned ({previewResult.source_type.toUpperCase()})
                 </p>
               </div>
 
               {/* Warnings */}
               {previewResult.warnings.length > 0 && (
                 <div className="mb-4 p-3 bg-amber-50 rounded-md">
-                  <p className="font-medium text-amber-800">Avertissements</p>
+                  <p className="font-medium text-amber-800">Warnings</p>
                   <ul className="mt-1 text-sm text-amber-700">
                     {previewResult.warnings.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -161,19 +161,19 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
                 </div>
               )}
 
-              {/* Liste des champs détectés */}
+              {/* Detected fields list */}
               <div className="border rounded-md overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">
-                        Champ
+                        Field
                       </th>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">
                         Type
                       </th>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">
-                        Exemples
+                        Examples
                       </th>
                     </tr>
                   </thead>
@@ -185,7 +185,7 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
                             {field.name}
                           </div>
                           {field.required && (
-                            <span className="text-xs text-blue-600">Requis</span>
+                            <span className="text-xs text-blue-600">Required</span>
                           )}
                         </td>
                         <td className="px-3 py-2">
@@ -212,7 +212,7 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
           >
-            Annuler
+            Cancel
           </button>
           {previewResult && (
             <>
@@ -220,13 +220,13 @@ export function FieldScanDialog({ onClose, onResult }: FieldScanDialogProps) {
                 onClick={() => setPreviewResult(null)}
                 className="px-4 py-2 border rounded-md hover:bg-gray-100"
               >
-                Nouveau scan
+                New scan
               </button>
               <button
                 onClick={handleConfirm}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
-                Utiliser ces champs
+                Use these fields
               </button>
             </>
           )}

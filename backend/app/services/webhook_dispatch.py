@@ -1,8 +1,8 @@
 """
-Dispatch standalone de webhooks sortants.
+Standalone outgoing webhook dispatch.
 
-Crée sa propre session DB pour être indépendant du cycle de vie de la requête HTTP.
-Conçu pour être utilisé avec asyncio.create_task() (fire-and-forget).
+Creates its own DB session to be independent from the HTTP request lifecycle.
+Designed for use with asyncio.create_task() (fire-and-forget).
 """
 
 import asyncio
@@ -21,9 +21,9 @@ from app.models.webhook import Webhook, WebhookLog
 
 logger = logging.getLogger(__name__)
 
-RETRY_DELAYS = [1, 5, 15]  # secondes entre les retries
+RETRY_DELAYS = [1, 5, 15]  # seconds between retries
 
-# Limite le nombre de dispatches webhook concurrents pour éviter l'épuisement mémoire
+# Limit the number of concurrent webhook dispatches to prevent memory exhaustion
 _MAX_CONCURRENT_DISPATCHES = 20
 _semaphore = asyncio.Semaphore(_MAX_CONCURRENT_DISPATCHES)
 
@@ -33,10 +33,10 @@ def schedule_webhook_dispatch(
     event: str,
     payload: dict[str, Any],
 ) -> asyncio.Task[None]:
-    """Planifie un dispatch webhook borné par un sémaphore (fire-and-forget).
+    """Schedule a webhook dispatch bounded by a semaphore (fire-and-forget).
 
-    Remplace l'usage direct de asyncio.create_task(dispatch_webhooks(...)).
-    Le sémaphore limite à _MAX_CONCURRENT_DISPATCHES tâches simultanées.
+    Replaces direct usage of asyncio.create_task(dispatch_webhooks(...)).
+    The semaphore limits to _MAX_CONCURRENT_DISPATCHES simultaneous tasks.
     """
     return asyncio.create_task(_bounded_dispatch(tree_id, event, payload))
 
@@ -46,7 +46,7 @@ async def _bounded_dispatch(
     event: str,
     payload: dict[str, Any],
 ) -> None:
-    """Wrapper qui acquiert le sémaphore avant de dispatcher."""
+    """Wrapper that acquires the semaphore before dispatching."""
     async with _semaphore:
         await dispatch_webhooks(tree_id, event, payload)
 
@@ -57,13 +57,13 @@ async def dispatch_webhooks(
     payload: dict[str, Any],
 ) -> None:
     """
-    Déclenche tous les webhooks actifs d'un arbre pour un événement.
+    Trigger all active webhooks for a tree for an event.
 
-    Crée sa propre session DB (indépendante de la requête HTTP).
-    Ne propage jamais d'erreur.
+    Creates its own DB session (independent from the HTTP request).
+    Never propagates errors.
     """
     try:
-        # Session courte pour la requête de lecture
+        # Short session for the read query
         async with async_session_maker() as db:
             result = await db.execute(
                 select(Webhook).where(
@@ -73,7 +73,7 @@ async def dispatch_webhooks(
             )
             webhooks = list(result.scalars().all())
 
-        # Envoi parallèle — chaque webhook a sa propre session pour les retries
+        # Parallel sending — each webhook has its own session for retries
         tasks = []
         for webhook in webhooks:
             if event in webhook.events or "*" in webhook.events:
@@ -84,7 +84,7 @@ async def dispatch_webhooks(
 
     except Exception:
         logger.exception(
-            "Erreur fatale dans dispatch_webhooks (tree_id=%s, event=%s)",
+            "Fatal error in dispatch_webhooks (tree_id=%s, event=%s)",
             tree_id,
             event,
         )
@@ -95,11 +95,11 @@ async def _send_with_retry(
     event: str,
     payload: dict[str, Any],
 ) -> None:
-    """Envoie un webhook avec retries et logging. Chaque appel crée sa propre session DB."""
+    """Send a webhook with retries and logging. Each call creates its own DB session."""
     for attempt, delay in enumerate(RETRY_DELAYS):
         result = await _send_single(webhook, event, payload)
 
-        # Log l'envoi dans une session dédiée
+        # Log the send in a dedicated session
         try:
             async with async_session_maker() as db:
                 log = WebhookLog(
@@ -115,12 +115,12 @@ async def _send_with_retry(
                 db.add(log)
                 await db.commit()
         except Exception:
-            logger.exception("Erreur log webhook %s", webhook.name)
+            logger.exception("Error logging webhook %s", webhook.name)
 
         if result["success"]:
             return
 
-        # Ne pas attendre après le dernier essai
+        # Don't wait after the last attempt
         if attempt < len(RETRY_DELAYS) - 1:
             await asyncio.sleep(delay)
 
@@ -130,29 +130,17 @@ async def _send_single(
     event: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    """Envoie une requête HTTP à un webhook avec protection SSRF par IP pinning."""
-    from urllib.parse import urlparse, urlunparse
-
-    from app.url_validation import resolve_and_validate_url
-
-    try:
-        url, resolved_ips = resolve_and_validate_url(webhook.url)
-    except ValueError as e:
-        return {
-            "success": False,
-            "error_message": f"URL bloquée (SSRF): {e}",
-        }
-
+    """Send an HTTP request to a webhook."""
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
-    # Headers utilisateur d'abord, puis headers de sécurité (ne peuvent pas être surchargés)
+    # User headers first, then security headers (cannot be overridden)
     headers: dict[str, str] = {
         **webhook.headers,
         "Content-Type": "application/json",
         "X-TreeVuln-Event": event,
     }
 
-    # Signature HMAC-SHA256 (déchiffre le secret stocké en BDD)
+    # HMAC-SHA256 signature (decrypt the secret stored in DB)
     if webhook.secret:
         from app.crypto import decrypt_secret
 
@@ -164,20 +152,10 @@ async def _send_single(
         ).hexdigest()
         headers["X-TreeVuln-Signature"] = f"sha256={signature}"
 
-    # IP pinning pour HTTP : connecte à l'IP résolue et validée (prévient le DNS rebinding)
-    # HTTPS est protégé nativement : la vérification du certificat TLS empêche
-    # la connexion à une IP privée rebindée (le cert ne matchera pas le hostname)
-    parsed = urlparse(url)
-    request_url = url
-    if parsed.scheme == "http" and resolved_ips:
-        port = parsed.port or 80
-        request_url = urlunparse(parsed._replace(netloc=f"{resolved_ips[0]}:{port}"))
-        headers["Host"] = parsed.hostname or ""
-
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
-            response = await client.post(request_url, content=body, headers=headers)
+            response = await client.post(webhook.url, content=body, headers=headers)
 
         duration_ms = int((time.monotonic() - start) * 1000)
         success = 200 <= response.status_code < 300

@@ -16,7 +16,7 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError('Le nom est requis');
+      setError('Name is required');
       return;
     }
 
@@ -24,15 +24,15 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
     setError(null);
 
     try {
-      // Crée un nouvel arbre vide
+      // Create a new empty tree
       await createNewTree(name.trim(), description.trim() || undefined);
-      // Sauvegarde immédiatement pour obtenir un ID
-      await saveTree('Création initiale');
-      // Recharge la liste des arbres
+      // Save immediately to get an ID
+      await saveTree('Initial creation');
+      // Reload the tree list
       await loadTrees();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de création');
+      setError(err instanceof Error ? err.message : 'Creation error');
       setCreating(false);
     }
   };
@@ -44,7 +44,7 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Trees size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold">Nouvel arbre</h2>
+            <h2 className="text-lg font-semibold">New tree</h2>
           </div>
           <button
             onClick={onClose}
@@ -58,13 +58,13 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nom de l'arbre *
+              Tree name *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Priorisation SSVC Production"
+              placeholder="E.g.: SSVC Production Prioritization"
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoFocus
               onKeyDown={(e) => {
@@ -78,12 +78,12 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optionnel)
+              Description (optional)
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description de l'arbre et de son contexte d'utilisation..."
+              placeholder="Tree description and its usage context..."
               rows={3}
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />
@@ -92,8 +92,8 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
           {/* Info */}
           <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
             <p>
-              L'arbre sera créé vide. Vous pourrez ensuite y ajouter des noeuds
-              depuis l'éditeur graphique et configurer ses assets.
+              The tree will be created empty. You can then add nodes
+              from the graphical editor and configure its assets.
             </p>
           </div>
 
@@ -111,14 +111,14 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !name.trim()}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
           >
-            {creating ? 'Création...' : 'Créer'}
+            {creating ? 'Creating...' : 'Create'}
           </button>
         </div>
       </div>

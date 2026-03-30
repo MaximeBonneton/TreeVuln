@@ -8,78 +8,78 @@ from app.schemas.vulnerability import VulnerabilityInput
 
 class DecisionPath(BaseModel):
     """
-    Représente une étape dans le chemin de décision (audit trail).
+    Represents a step in the decision path (audit trail).
     """
 
-    node_id: str = Field(description="ID du nœud traversé")
-    node_label: str = Field(description="Label du nœud pour lisibilité")
-    node_type: str = Field(description="Type de nœud (input, logic, output)")
+    node_id: str = Field(description="ID of the traversed node")
+    node_label: str = Field(description="Node label for readability")
+    node_type: str = Field(description="Node type (input, logic, output)")
     field_evaluated: str | None = Field(
         default=None,
-        description="Champ évalué (pour nœuds input/logic)",
+        description="Field evaluated (for input/logic nodes)",
     )
-    value_found: Any = Field(default=None, description="Valeur trouvée lors de l'évaluation")
+    value_found: Any = Field(default=None, description="Value found during evaluation")
     condition_matched: str | None = Field(
         default=None,
-        description="Label de la condition qui a matché",
+        description="Label of the matched condition",
     )
 
 
 class EvaluationResult(BaseModel):
     """
-    Résultat d'évaluation pour une vulnérabilité unique.
+    Evaluation result for a single vulnerability.
     """
 
-    vuln_id: str | None = Field(description="ID de la vulnérabilité évaluée")
-    decision: str = Field(description="Décision finale (Act, Attend, Track, Track*)")
-    decision_color: str | None = Field(default=None, description="Couleur associée à la décision")
+    vuln_id: str | None = Field(description="ID of the evaluated vulnerability")
+    decision: str = Field(description="Final decision (Act, Attend, Track, Track*)")
+    decision_color: str | None = Field(default=None, description="Color associated with the decision")
     path: list[DecisionPath] = Field(
         default_factory=list,
-        description="Chemin complet de la décision (audit trail)",
+        description="Complete decision path (audit trail)",
     )
-    error: str | None = Field(default=None, description="Erreur si l'évaluation a échoué")
+    error: str | None = Field(default=None, description="Error if evaluation failed")
 
 
 class SingleEvaluationRequest(BaseModel):
     """
-    Requête pour évaluer une seule vulnérabilité (temps réel).
+    Request to evaluate a single vulnerability (real-time).
     """
 
     vulnerability: VulnerabilityInput
     include_path: bool = Field(
         default=True,
-        description="Inclure le chemin de décision dans la réponse",
+        description="Include the decision path in the response",
     )
 
 
 class EvaluationRequest(BaseModel):
     """
-    Requête pour évaluer un batch de vulnérabilités.
+    Request to evaluate a batch of vulnerabilities.
     """
 
     vulnerabilities: list[VulnerabilityInput] = Field(
-        description="Liste des vulnérabilités à évaluer",
+        description="List of vulnerabilities to evaluate",
     )
     include_path: bool = Field(
         default=True,
-        description="Inclure le chemin de décision pour chaque vuln",
+        description="Include the decision path for each vuln",
     )
 
 
 class EvaluationResponse(BaseModel):
     """
-    Réponse d'évaluation batch.
+    Batch evaluation response.
     """
 
-    total: int = Field(description="Nombre total de vulnérabilités traitées")
-    success_count: int = Field(description="Nombre d'évaluations réussies")
-    error_count: int = Field(description="Nombre d'erreurs")
-    results: list[EvaluationResult] = Field(description="Résultats détaillés")
+    total: int = Field(description="Total number of vulnerabilities processed")
+    success_count: int = Field(description="Number of successful evaluations")
+    error_count: int = Field(description="Number of errors")
+    results: list[EvaluationResult] = Field(description="Detailed results")
 
-    # Statistiques agrégées
+    # Aggregated statistics
     decision_summary: dict[str, int] = Field(
         default_factory=dict,
-        description="Comptage par décision (ex: {'Act': 5, 'Track': 10})",
+        description="Count by decision (e.g. {'Act': 5, 'Track': 10})",
     )
 
 
@@ -93,9 +93,9 @@ class PreviewEvaluationRequest(BaseModel):
 
 
 class ExportRequest(EvaluationRequest):
-    """Requête pour évaluer et exporter un batch."""
+    """Request to evaluate and export a batch."""
 
     format: Literal["csv", "json"] = Field(
         default="csv",
-        description="Format d'export: csv ou json",
+        description="Export format: csv or json",
     )

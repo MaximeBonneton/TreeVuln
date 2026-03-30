@@ -10,8 +10,8 @@ from app.database import Base
 
 class IngestEndpoint(Base):
     """
-    Endpoint d'ingestion pour recevoir des vulnérabilités depuis des sources externes.
-    Chaque endpoint est lié à un arbre et possède sa propre clé API et mapping de champs.
+    Ingestion endpoint for receiving vulnerabilities from external sources.
+    Each endpoint is linked to a tree and has its own API key and field mapping.
     """
 
     __tablename__ = "ingest_endpoints"
@@ -46,7 +46,7 @@ class IngestEndpoint(Base):
 
 class IngestLog(Base):
     """
-    Log de réception d'un webhook entrant.
+    Incoming webhook reception log.
     """
 
     __tablename__ = "ingest_logs"

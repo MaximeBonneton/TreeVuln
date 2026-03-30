@@ -1,5 +1,5 @@
 """
-Définition des types de nœuds et de leur logique d'évaluation.
+Definition of node types and their evaluation logic.
 """
 
 import concurrent.futures
@@ -17,19 +17,19 @@ from app.schemas.tree import (
 
 
 class NodeEvaluationError(Exception):
-    """Erreur lors de l'évaluation d'un nœud."""
+    """Error during node evaluation."""
 
     pass
 
 
-# Protection ReDoS : limite de longueur et timeout pour les regex utilisateur
+# ReDoS protection: length limit and timeout for user-provided regex
 _REGEX_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 _MAX_REGEX_PATTERN_LENGTH = 200
 _REGEX_TIMEOUT_SECONDS = 1.0
 
 
 def _safe_regex_match(pattern: str, text: str) -> bool:
-    """Exécute un match regex avec limite de longueur et timeout (prévient les ReDoS)."""
+    """Execute a regex match with length limit and timeout (prevents ReDoS)."""
     if len(pattern) > _MAX_REGEX_PATTERN_LENGTH:
         return False
     try:
@@ -44,7 +44,7 @@ def _safe_regex_match(pattern: str, text: str) -> bool:
 
 
 class BaseNode(ABC):
-    """Classe de base pour tous les types de nœuds."""
+    """Base class for all node types."""
 
     def __init__(self, schema: NodeSchema):
         self.id = schema.id
@@ -56,15 +56,15 @@ class BaseNode(ABC):
     @abstractmethod
     def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
         """
-        Évalue le nœud avec le contexte donné.
+        Evaluate the node with the given context.
 
         Args:
-            context: Dictionnaire contenant les données de la vulnérabilité
-                     et les résultats des lookups.
+            context: Dictionary containing vulnerability data
+                     and lookup results.
 
         Returns:
-            Tuple (valeur_évaluée, condition_label_matchée)
-            Pour un nœud OUTPUT, retourne (décision, None)
+            Tuple (evaluated_value, matched_condition_label)
+            For an OUTPUT node, returns (decision, None)
         """
         pass
 
@@ -72,15 +72,15 @@ class BaseNode(ABC):
         self, value: Any, context: dict[str, Any] | None = None
     ) -> tuple[int, str] | None:
         """
-        Trouve la condition qui correspond à la valeur.
+        Find the condition that matches the value.
 
         Args:
-            value: Valeur principale à évaluer
-            context: Contexte complet (nécessaire pour les conditions composées
-                     qui peuvent référencer d'autres champs)
+            value: Main value to evaluate
+            context: Full context (needed for compound conditions
+                     that may reference other fields)
 
         Returns:
-            Tuple (index_condition, label_condition) ou None si aucune ne matche.
+            Tuple (condition_index, condition_label) or None if no match.
         """
         for idx, condition in enumerate(self.conditions):
             if self._evaluate_condition(value, condition, context or {}):
@@ -89,23 +89,23 @@ class BaseNode(ABC):
 
     def _get_field_value(self, context: dict[str, Any], field: str) -> Any:
         """
-        Récupère la valeur d'un champ depuis le contexte.
+        Retrieve a field value from the context.
 
         Args:
-            context: Contexte d'évaluation contenant vulnerability et lookups
-            field: Nom du champ à récupérer
+            context: Evaluation context containing vulnerability and lookups
+            field: Field name to retrieve
 
         Returns:
-            Valeur du champ ou None si non trouvé
+            Field value or None if not found
         """
         vuln_data = context.get("vulnerability", {})
         value = vuln_data.get(field)
 
-        # Cherche dans extra si pas trouvé
+        # Search in extra if not found
         if value is None and "extra" in vuln_data:
             value = vuln_data["extra"].get(field)
 
-        # Gère les champs CVSS virtuels
+        # Handle virtual CVSS fields
         if value is None:
             from app.engine.cvss import is_cvss_field, parse_cvss_vector
 
@@ -123,27 +123,27 @@ class BaseNode(ABC):
         self, value: Any, op: ConditionOperator, cond_value: Any
     ) -> bool:
         """
-        Évalue une condition simple (opérateur + valeur).
+        Evaluate a simple condition (operator + value).
 
         Args:
-            value: Valeur à tester
-            op: Opérateur de comparaison
-            cond_value: Valeur de référence
+            value: Value to test
+            op: Comparison operator
+            cond_value: Reference value
 
         Returns:
-            True si la condition est satisfaite
+            True if the condition is satisfied
         """
-        # Gestion des valeurs nulles
+        # Handle null values
         if op == ConditionOperator.IS_NULL:
             return value is None
         if op == ConditionOperator.IS_NOT_NULL:
             return value is not None
 
-        # Si la valeur est None et qu'on n'est pas dans un test de nullité
+        # If value is None and we're not in a null test
         if value is None:
             return False
 
-        # Opérateurs de comparaison
+        # Comparison operators
         if op == ConditionOperator.EQUALS:
             return value == cond_value
         if op == ConditionOperator.NOT_EQUALS:
@@ -157,7 +157,7 @@ class BaseNode(ABC):
         if op == ConditionOperator.LESS_THAN_OR_EQUAL:
             return float(value) <= float(cond_value)
 
-        # Opérateurs de chaîne
+        # String operators
         if op == ConditionOperator.CONTAINS:
             return str(cond_value) in str(value)
         if op == ConditionOperator.NOT_CONTAINS:
@@ -165,7 +165,7 @@ class BaseNode(ABC):
         if op == ConditionOperator.REGEX:
             return _safe_regex_match(str(cond_value), str(value))
 
-        # Opérateurs d'appartenance
+        # Membership operators
         if op == ConditionOperator.IN:
             if isinstance(cond_value, list):
                 return value in cond_value
@@ -184,18 +184,18 @@ class BaseNode(ABC):
         context: dict[str, Any],
     ) -> bool:
         """
-        Évalue un critère simple d'une condition composée.
+        Evaluate a simple criterion of a compound condition.
 
         Args:
-            criterion: Le critère à évaluer
-            default_value: Valeur par défaut (champ principal du nœud)
-            context: Contexte d'évaluation
+            criterion: The criterion to evaluate
+            default_value: Default value (main field of the node)
+            context: Evaluation context
 
         Returns:
-            True si le critère est satisfait
+            True if the criterion is satisfied
         """
-        # Si un champ est spécifié, on le lit depuis le contexte
-        # Sinon on utilise la valeur par défaut du nœud
+        # If a field is specified, read it from context
+        # Otherwise use the default value of the node
         if criterion.field is not None:
             value = self._get_field_value(context, criterion.field)
         else:
@@ -207,21 +207,21 @@ class BaseNode(ABC):
         self, value: Any, condition: NodeCondition, context: dict[str, Any]
     ) -> bool:
         """
-        Évalue si une valeur satisfait une condition.
+        Evaluate whether a value satisfies a condition.
 
-        Supporte deux modes :
-        - Mode simple : operator + value (rétrocompatible)
-        - Mode composé : logic (AND/OR) + criteria
+        Supports two modes:
+        - Simple mode: operator + value (backward compatible)
+        - Compound mode: logic (AND/OR) + criteria
 
         Args:
-            value: Valeur principale à tester
-            condition: Condition à évaluer
-            context: Contexte complet (pour les champs additionnels en mode composé)
+            value: Main value to test
+            condition: Condition to evaluate
+            context: Full context (for additional fields in compound mode)
 
         Returns:
-            True si la condition est satisfaite
+            True if the condition is satisfied
         """
-        # Mode composé (AND/OR avec critères multiples)
+        # Compound mode (AND/OR with multiple criteria)
         if condition.logic is not None and condition.criteria:
             results = [
                 self._evaluate_criterion(criterion, value, context)
@@ -233,18 +233,18 @@ class BaseNode(ABC):
             else:  # OR
                 return any(results)
 
-        # Mode simple (rétrocompatible)
+        # Simple mode (backward compatible)
         if condition.operator is not None:
             return self._evaluate_simple(value, condition.operator, condition.value)
 
-        # Fallback (ne devrait pas arriver avec la validation Pydantic)
+        # Fallback (should not happen with Pydantic validation)
         return False
 
 
 class InputNode(BaseNode):
     """
-    Nœud d'entrée : lit un champ de la vulnérabilité.
-    Config attendue: {"field": "cvss_score"}
+    Input node: reads a field from the vulnerability.
+    Expected config: {"field": "cvss_score"}
 
     Supports virtual CVSS fields (cvss_av, cvss_ac, etc.) that are parsed
     from the cvss_vector field on demand.
@@ -253,20 +253,20 @@ class InputNode(BaseNode):
     def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
         field = self.config.get("field")
         if not field:
-            raise NodeEvaluationError(f"Nœud {self.id}: champ 'field' non configuré")
+            raise NodeEvaluationError(f"Node {self.id}: field 'field' not configured")
 
-        # Récupère la valeur du champ via _get_field_value
+        # Retrieve field value via _get_field_value
         value = self._get_field_value(context, field)
 
-        # Trouve la condition qui matche (passe le contexte pour les conditions composées)
+        # Find matching condition (pass context for compound conditions)
         match = self.match_condition(value, context)
         if match is None:
-            # Pas de condition matchée, on continue avec default si configuré
+            # No matching condition, continue with default if configured
             default_idx = self.config.get("default_branch")
             if default_idx is not None and default_idx < len(self.conditions):
                 return value, self.conditions[default_idx].label
             raise NodeEvaluationError(
-                f"Nœud {self.id}: aucune condition ne correspond à la valeur '{value}'"
+                f"Node {self.id}: no condition matches value '{value}'"
             )
 
         return value, match[1]
@@ -274,7 +274,7 @@ class InputNode(BaseNode):
 
 class LookupNode(BaseNode):
     """
-    Nœud lookup : recherche une valeur dans une table externe (ex: assets).
+    Lookup node: searches for a value in an external table (e.g. assets).
 
     Config:
     {
@@ -291,23 +291,23 @@ class LookupNode(BaseNode):
 
         if not all([lookup_table, lookup_key, lookup_field]):
             raise NodeEvaluationError(
-                f"Nœud {self.id}: configuration lookup incomplète"
+                f"Node {self.id}: incomplete lookup configuration"
             )
 
-        # Récupère la clé de lookup depuis la vulnérabilité
+        # Retrieve lookup key from the vulnerability
         vuln_data = context.get("vulnerability", {})
         key_value = vuln_data.get(lookup_key) or vuln_data.get("extra", {}).get(lookup_key)
 
         if key_value is None:
-            # Pas de clé, on utilise la branche default si configurée
+            # No key, use the default branch if configured
             default_idx = self.config.get("default_branch")
             if default_idx is not None:
                 return None, self.conditions[default_idx].label if self.conditions else None
             raise NodeEvaluationError(
-                f"Nœud {self.id}: clé de lookup '{lookup_key}' non trouvée"
+                f"Node {self.id}: lookup key '{lookup_key}' not found"
             )
 
-        # Cherche dans le cache de lookup du contexte
+        # Search in the lookup cache from context
         lookup_cache = context.get("lookups", {}).get(lookup_table, {})
         lookup_result = lookup_cache.get(str(key_value))
 
@@ -316,17 +316,17 @@ class LookupNode(BaseNode):
             if default_idx is not None:
                 return None, self.conditions[default_idx].label if self.conditions else None
             raise NodeEvaluationError(
-                f"Nœud {self.id}: asset '{key_value}' non trouvé dans {lookup_table}"
+                f"Node {self.id}: asset '{key_value}' not found in {lookup_table}"
             )
 
-        # Extrait le champ demandé
+        # Extract the requested field
         value = lookup_result.get(lookup_field)
 
-        # Passe le contexte pour les conditions composées
+        # Pass context for compound conditions
         match = self.match_condition(value, context)
         if match is None:
             raise NodeEvaluationError(
-                f"Nœud {self.id}: aucune condition ne correspond à '{value}'"
+                f"Node {self.id}: no condition matches '{value}'"
             )
 
         return value, match[1]
@@ -334,9 +334,9 @@ class LookupNode(BaseNode):
 
 class EquationNode(BaseNode):
     """
-    Nœud équation : calcule un score à partir d'une formule multi-champs.
+    Equation node: computes a score from a multi-field formula.
 
-    Config attendue:
+    Expected config:
     {
         "formula": "cvss_score * 0.4 + epss_score * 100 * 0.3 + (kev ? 30 : 0)",
         "variables": ["cvss_score", "epss_score", "kev"],
@@ -349,13 +349,13 @@ class EquationNode(BaseNode):
         variables: dict[str, Any], value_maps: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Applique les tables de mapping texte → nombre aux variables.
+        Apply text-to-number mapping tables to variables.
 
-        Pour chaque variable ayant un value_map configuré :
-        - Si la valeur brute est une chaîne, cherche dans les entries et
-          remplace par la valeur numérique (ou default_value si non trouvé)
-        - Si la valeur est None, utilise default_value
-        - Les valeurs numériques/booléennes passent telles quelles
+        For each variable with a configured value_map:
+        - If the raw value is a string, searches in entries and
+          replaces with the numeric value (or default_value if not found)
+        - If the value is None, uses default_value
+        - Numeric/boolean values pass through as-is
         """
         for var_name, vmap in value_maps.items():
             if var_name not in variables:
@@ -384,35 +384,35 @@ class EquationNode(BaseNode):
 
         formula = self.config.get("formula")
         if not formula:
-            raise NodeEvaluationError(f"Nœud {self.id}: formule non configurée")
+            raise NodeEvaluationError(f"Node {self.id}: formula not configured")
 
         variable_names = self.config.get("variables", [])
 
-        # Collecte les valeurs des variables depuis le contexte
+        # Collect variable values from context
         variables: dict[str, Any] = {}
         for var_name in variable_names:
             value = self._get_field_value(context, var_name)
             variables[var_name] = value
 
-        # Applique les mappings texte → nombre si configurés
+        # Apply text-to-number mappings if configured
         value_maps = self.config.get("value_maps", {})
         if value_maps:
             variables = self._apply_value_maps(variables, value_maps)
 
-        # Évalue la formule
+        # Evaluate the formula
         try:
             score = evaluate_formula(formula, variables)
         except FormulaError as e:
-            raise NodeEvaluationError(f"Nœud {self.id}: {e}") from e
+            raise NodeEvaluationError(f"Node {self.id}: {e}") from e
 
-        # Route par seuils via le système de conditions existant
+        # Route by thresholds via the existing condition system
         match = self.match_condition(score, context)
         if match is None:
             default_idx = self.config.get("default_branch")
             if default_idx is not None and default_idx < len(self.conditions):
                 return score, self.conditions[default_idx].label
             raise NodeEvaluationError(
-                f"Nœud {self.id}: aucune condition ne correspond au score {score}"
+                f"Node {self.id}: no condition matches score {score}"
             )
 
         return score, match[1]
@@ -420,8 +420,8 @@ class EquationNode(BaseNode):
 
 class OutputNode(BaseNode):
     """
-    Nœud de sortie : retourne la décision finale.
-    Config attendue: {"decision": "Act", "color": "#ff0000"}
+    Output node: returns the final decision.
+    Expected config: {"decision": "Act", "color": "#ff0000"}
     """
 
     def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
@@ -430,7 +430,7 @@ class OutputNode(BaseNode):
 
 
 def create_node(schema: NodeSchema) -> BaseNode:
-    """Factory pour créer le bon type de nœud selon le schéma."""
+    """Factory to create the correct node type from the schema."""
     node_classes = {
         NodeType.INPUT: InputNode,
         NodeType.LOOKUP: LookupNode,
@@ -440,6 +440,6 @@ def create_node(schema: NodeSchema) -> BaseNode:
 
     node_class = node_classes.get(schema.type)
     if not node_class:
-        raise ValueError(f"Type de nœud inconnu: {schema.type}")
+        raise ValueError(f"Unknown node type: {schema.type}")
 
     return node_class(schema)

@@ -8,16 +8,16 @@ from app.schemas.field_mapping import FieldMapping
 
 
 class NodeType(str, Enum):
-    """Types de nœuds disponibles dans l'arbre."""
+    """Available node types in the tree."""
 
-    INPUT = "input"  # Nœud d'entrée (lecture d'un champ + conditions de sortie)
-    LOOKUP = "lookup"  # Nœud lookup (recherche dans une table externe)
-    OUTPUT = "output"  # Nœud de sortie (décision finale)
-    EQUATION = "equation"  # Nœud équation (calcul multi-champs avec formule)
+    INPUT = "input"  # Input node (reads a field + output conditions)
+    LOOKUP = "lookup"  # Lookup node (searches in an external table)
+    OUTPUT = "output"  # Output node (final decision)
+    EQUATION = "equation"  # Equation node (multi-field calculation with formula)
 
 
 class ConditionOperator(str, Enum):
-    """Opérateurs de condition pour les branches."""
+    """Condition operators for branches."""
 
     EQUALS = "eq"
     NOT_EQUALS = "neq"
@@ -28,7 +28,7 @@ class ConditionOperator(str, Enum):
     CONTAINS = "contains"
     NOT_CONTAINS = "not_contains"
     REGEX = "regex"
-    IN = "in"  # Valeur dans une liste
+    IN = "in"  # Value in a list
     NOT_IN = "not_in"
     IS_NULL = "is_null"
     IS_NOT_NULL = "is_not_null"
@@ -36,71 +36,71 @@ class ConditionOperator(str, Enum):
 
 class SimpleConditionCriteria(BaseModel):
     """
-    Critère simple pour une condition composée.
-    Permet de spécifier un champ différent du champ principal du nœud.
+    Simple criterion for a compound condition.
+    Allows specifying a field different from the node's main field.
     """
 
     field: str | None = Field(
         default=None,
-        description="Champ à évaluer. Si None, utilise le champ principal du nœud.",
+        description="Field to evaluate. If None, uses the node's main field.",
     )
     operator: ConditionOperator
-    value: Any = Field(description="Valeur de comparaison")
+    value: Any = Field(description="Comparison value")
 
 
 class NodeCondition(BaseModel):
     """
-    Condition d'une branche sortante d'un nœud.
-    Permet de définir quand suivre cette branche.
+    Condition for an outgoing branch of a node.
+    Defines when to follow this branch.
 
-    Supporte deux modes :
-    - Mode simple (rétrocompatible) : operator + value
-    - Mode composé : logic (AND/OR) + criteria (liste de critères)
+    Supports two modes:
+    - Simple mode (backward compatible): operator + value
+    - Compound mode: logic (AND/OR) + criteria (list of criteria)
     """
 
-    label: str = Field(description="Label affiché sur la branche (ex: 'High', 'Critical')")
+    label: str = Field(description="Label displayed on the branch (e.g. 'High', 'Critical')")
 
-    # Mode simple (rétrocompatible) - utilisé si logic est None
+    # Simple mode (backward compatible) - used when logic is None
     operator: ConditionOperator | None = Field(
         default=None,
-        description="Opérateur pour le mode simple",
+        description="Operator for simple mode",
     )
     value: Any = Field(
         default=None,
-        description="Valeur de comparaison pour le mode simple (peut être liste pour IN/NOT_IN)",
+        description="Comparison value for simple mode (can be a list for IN/NOT_IN)",
     )
 
-    # Mode composé - utilisé si logic est défini
+    # Compound mode - used when logic is defined
     logic: Literal["AND", "OR"] | None = Field(
         default=None,
-        description="Logique de combinaison des critères (AND ou OR)",
+        description="Logic for combining criteria (AND or OR)",
     )
     criteria: list[SimpleConditionCriteria] | None = Field(
         default=None,
-        description="Liste des critères pour le mode composé",
+        description="List of criteria for compound mode",
     )
 
     @model_validator(mode="after")
     def validate_condition_mode(self) -> "NodeCondition":
-        """Valide que la condition est en mode simple OU composé, pas les deux."""
+        """Validate that the condition is in simple OR compound mode, not both."""
         has_simple = self.operator is not None
         has_compound = self.logic is not None and self.criteria is not None
 
         if has_simple and has_compound:
             raise ValueError(
-                "Une condition ne peut pas avoir à la fois operator/value ET logic/criteria. "
-                "Utilisez soit le mode simple (operator + value), soit le mode composé (logic + criteria)."
+                "A condition cannot have both operator/value AND logic/criteria. "
+                "Use either simple mode (operator + value) or compound mode (logic + criteria)."
             )
 
         if not has_simple and not has_compound:
             raise ValueError(
-                "Une condition doit avoir soit operator (mode simple), "
-                "soit logic + criteria (mode composé)."
+                "A condition must have either operator (simple mode) "
+                "or logic + criteria (compound mode)."
             )
 
         if self.logic is not None and (self.criteria is None or len(self.criteria) == 0):
             raise ValueError(
-                "Le mode composé (logic défini) nécessite au moins un critère dans 'criteria'."
+                "Compound mode (logic defined) requires at least one criterion in 'criteria'."
             )
 
         return self
@@ -108,69 +108,69 @@ class NodeCondition(BaseModel):
 
 class NodeSchema(BaseModel):
     """
-    Schéma d'un nœud dans l'arbre de décision.
+    Schema for a node in the decision tree.
     """
 
-    id: str = Field(description="Identifiant unique du nœud")
+    id: str = Field(description="Unique node identifier")
     type: NodeType
-    label: str = Field(description="Label affiché dans l'UI")
+    label: str = Field(description="Label displayed in the UI")
 
-    # Position dans le canvas (pour React Flow)
+    # Position in the canvas (for React Flow)
     position: dict[str, float] = Field(default_factory=lambda: {"x": 0, "y": 0})
 
-    # Configuration spécifique au type de nœud
+    # Configuration specific to the node type
     config: dict[str, Any] = Field(
         default_factory=dict,
         description="""
-        Configuration selon le type:
-        - INPUT: {"field": "cvss_score", "input_count": 1} - champ à lire, nombre d'entrées
+        Configuration by type:
+        - INPUT: {"field": "cvss_score", "input_count": 1} - field to read, number of inputs
         - LOOKUP: {"lookup_table": "assets", "lookup_key": "asset_id", "lookup_field": "criticality", "input_count": 1}
         - OUTPUT: {"decision": "Act", "color": "#ff0000"}
 
-        input_count > 1 active le mode multi-input où chaque entrée génère ses propres sorties.
-        Les handles de sortie deviennent: handle-{input_index}-{condition_index}
+        input_count > 1 activates multi-input mode where each input generates its own outputs.
+        Output handles become: handle-{input_index}-{condition_index}
         """,
     )
 
-    # Conditions pour les branches sortantes (sauf OUTPUT)
+    # Conditions for outgoing branches (except OUTPUT)
     conditions: list[NodeCondition] = Field(
         default_factory=list,
-        description="Conditions pour chaque branche sortante",
+        description="Conditions for each outgoing branch",
     )
 
 
 class EdgeSchema(BaseModel):
     """
-    Schéma d'une arête (connexion) entre deux nœuds.
+    Schema for an edge (connection) between two nodes.
     """
 
-    id: str = Field(description="Identifiant unique de l'arête")
-    source: str = Field(description="ID du nœud source")
-    target: str = Field(description="ID du nœud cible")
+    id: str = Field(description="Unique edge identifier")
+    source: str = Field(description="Source node ID")
+    target: str = Field(description="Target node ID")
     source_handle: str | None = Field(
         default=None,
-        description="Handle de sortie. Format: 'handle-{condition}' ou 'handle-{input}-{condition}' pour multi-input",
+        description="Output handle. Format: 'handle-{condition}' or 'handle-{input}-{condition}' for multi-input",
     )
     target_handle: str | None = Field(
         default=None,
-        description="Handle d'entrée pour les nœuds multi-input. Format: 'input-{index}'",
+        description="Input handle for multi-input nodes. Format: 'input-{index}'",
     )
-    label: str | None = Field(default=None, description="Label de la condition")
+    label: str | None = Field(default=None, description="Condition label")
 
 
 class TreeStructure(BaseModel):
-    """Structure complète de l'arbre de décision."""
+    """Complete decision tree structure."""
 
     nodes: list[NodeSchema] = Field(default_factory=list)
     edges: list[EdgeSchema] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Métadonnées (viewport, zoom, etc.)",
+        description="Metadata (viewport, zoom, etc.)",
     )
 
 
 class TreeCreate(BaseModel):
-    """Schéma pour la création d'un arbre."""
+    """Schema for creating a tree."""
 
     name: str = Field(max_length=255)
     description: str | None = Field(default=None, max_length=1000)
@@ -178,7 +178,7 @@ class TreeCreate(BaseModel):
 
 
 class TreeUpdate(BaseModel):
-    """Schéma pour la mise à jour d'un arbre."""
+    """Schema for updating a tree."""
 
     name: str | None = Field(default=None, max_length=255)
     description: str | None = Field(default=None, max_length=1000)
@@ -186,12 +186,12 @@ class TreeUpdate(BaseModel):
     version_comment: str | None = Field(
         default=None,
         max_length=500,
-        description="Commentaire pour cette version (si sauvegarde avec versioning)",
+        description="Comment for this version (if saving with versioning)",
     )
 
 
 class TreeResponse(BaseModel):
-    """Schéma de réponse pour un arbre."""
+    """Response schema for a tree."""
 
     id: int
     name: str
@@ -208,7 +208,7 @@ class TreeResponse(BaseModel):
 
 
 class TreeListItem(BaseModel):
-    """Schéma résumé pour la liste des arbres (sidebar)."""
+    """Summary schema for the tree list (sidebar)."""
 
     id: int
     name: str
@@ -224,26 +224,26 @@ class TreeListItem(BaseModel):
 
 
 class TreeApiConfig(BaseModel):
-    """Schéma pour la configuration API d'un arbre."""
+    """Schema for the API configuration of a tree."""
 
     api_enabled: bool
     api_slug: str | None = Field(
         default=None,
         max_length=100,
         pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
-        description="Slug URL-safe (minuscules, chiffres, tirets)",
+        description="URL-safe slug (lowercase, digits, hyphens)",
     )
 
 
 class TreeDuplicateRequest(BaseModel):
-    """Schéma pour la duplication d'un arbre."""
+    """Schema for duplicating a tree."""
 
-    new_name: str = Field(max_length=255, description="Nom du nouvel arbre")
-    include_assets: bool = Field(default=True, description="Copier les assets associés")
+    new_name: str = Field(max_length=255, description="Name of the new tree")
+    include_assets: bool = Field(default=True, description="Copy associated assets")
 
 
 class TreeVersionResponse(BaseModel):
-    """Schéma de réponse pour une version d'arbre."""
+    """Response schema for a tree version."""
 
     id: int
     tree_id: int
@@ -259,7 +259,7 @@ class TreeVersionResponse(BaseModel):
 
 
 class TreeExportData(BaseModel):
-    """Contenu de l'arbre dans le fichier d'export."""
+    """Tree content in the export file."""
 
     name: str
     description: str | None = None
@@ -268,7 +268,7 @@ class TreeExportData(BaseModel):
 
 
 class TreeExportFile(BaseModel):
-    """Format complet du fichier d'export Decision-as-Code."""
+    """Complete Decision-as-Code export file format."""
 
     format: Literal["treevuln-decision-tree"]
     version: Literal[1]
@@ -277,9 +277,9 @@ class TreeExportFile(BaseModel):
 
 
 class TreeImportRequest(BaseModel):
-    """Fichier d'import Decision-as-Code (même format que l'export).
+    """Decision-as-Code import file (same format as export).
 
-    exported_at est optionnel pour permettre les fichiers créés manuellement.
+    exported_at is optional to allow manually created files.
     """
 
     format: str
@@ -291,10 +291,10 @@ class TreeImportRequest(BaseModel):
     def validate_format_and_version(self) -> "TreeImportRequest":
         if self.format != "treevuln-decision-tree":
             raise ValueError(
-                f"Format inconnu: {self.format}. Attendu: treevuln-decision-tree"
+                f"Unknown format: {self.format}. Expected: treevuln-decision-tree"
             )
         if self.version not in (1,):
             raise ValueError(
-                f"Version non supportée: {self.version}. Supportées: [1]"
+                f"Unsupported version: {self.version}. Supported: [1]"
             )
         return self

@@ -1,4 +1,7 @@
-"""Routes d'authentification : setup, login, logout, check, change-password."""
+"""Authentication routes: setup, login, logout, check, change-password."""
+import time
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,15 +13,47 @@ from app.schemas.user import (
 from app.services.user_service import UserService, verify_password
 from app.api.deps import RequireAuth
 
-SESSION_COOKIE_NAME = "treevuln_session"
-SESSION_MAX_AGE = 86400  # 24h
+SESSION_MAX_AGE = settings.session_max_age
 
 router = APIRouter()
+
+# --- Login brute force protection ---
+# In-memory tracker: {username: (fail_count, last_fail_timestamp)}
+_login_failures: dict[str, tuple[int, float]] = defaultdict(lambda: (0, 0.0))
+_MAX_FAILURES = 5
+_LOCKOUT_SECONDS = 300  # 5 minutes
+
+
+def _check_login_rate(username: str) -> None:
+    """Raise 429 if the account is temporarily locked after too many failures."""
+    fail_count, last_fail = _login_failures[username]
+    if fail_count >= _MAX_FAILURES:
+        elapsed = time.monotonic() - last_fail
+        if elapsed < _LOCKOUT_SECONDS:
+            remaining = int(_LOCKOUT_SECONDS - elapsed)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many failed attempts. Try again in {remaining}s.",
+            )
+        # Lockout expired, reset
+        _login_failures[username] = (0, 0.0)
+
+
+def _record_login_failure(username: str) -> None:
+    fail_count, _ = _login_failures[username]
+    _login_failures[username] = (fail_count + 1, time.monotonic())
+
+
+def _clear_login_failures(username: str) -> None:
+    _login_failures.pop(username, None)
+
+
+# --- Helpers ---
 
 
 def _set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
-        key=SESSION_COOKIE_NAME,
+        key=settings.session_cookie_name,
         value=token,
         httponly=True,
         samesite="lax",
@@ -32,6 +67,9 @@ def _user_info(user) -> UserInfo:
     return UserInfo(id=str(user.id), username=user.username, role=user.role)
 
 
+# --- Routes ---
+
+
 @router.get("/check")
 async def check_auth(request: Request, db: AsyncSession = Depends(get_db)) -> AuthStatus:
     service = UserService(db)
@@ -39,7 +77,7 @@ async def check_auth(request: Request, db: AsyncSession = Depends(get_db)) -> Au
     if not await service.has_any_user():
         return AuthStatus(status="setup_required")
 
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+    token = request.cookies.get(settings.session_cookie_name)
     if not token:
         return AuthStatus(status="unauthenticated")
 
@@ -68,12 +106,16 @@ async def setup(data: SetupRequest, response: Response, db: AsyncSession = Depen
 
 @router.post("/login")
 async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    _check_login_rate(data.username)
+
     service = UserService(db)
     user = await service.get_by_username(data.username)
 
     if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+        _record_login_failure(data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    _clear_login_failures(data.username)
     token = await service.create_session(user)
     await db.commit()
     _set_session_cookie(response, token)
@@ -86,12 +128,12 @@ async def login(data: LoginRequest, response: Response, db: AsyncSession = Depen
 
 @router.post("/logout")
 async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+    token = request.cookies.get(settings.session_cookie_name)
     if token:
         service = UserService(db)
         await service.delete_session(token)
         await db.commit()
-    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(key=settings.session_cookie_name, path="/")
     return {"ok": True}
 
 

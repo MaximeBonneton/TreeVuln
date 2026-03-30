@@ -11,56 +11,56 @@ import type {
 } from '@/types';
 
 export const treeApi = {
-  // --- Multi-arbres ---
+  // --- Multi-tree ---
 
-  // Liste tous les arbres (résumé)
+  // List all trees (summary)
   listTrees: () => api.get<TreeListItem[]>('/trees'),
 
-  // Récupère un arbre par ID ou l'arbre par défaut
+  // Get a tree by ID or the default tree
   getTree: (treeId?: number) =>
     api.get<TreeResponse | null>(`/tree${treeId ? `?tree_id=${treeId}` : ''}`),
 
-  // Crée un nouvel arbre
+  // Create a new tree
   createTree: (data: TreeCreate) =>
     api.post<TreeResponse>('/tree', data),
 
-  // Met à jour un arbre
+  // Update a tree
   updateTree: (treeId: number, data: TreeUpdate, createVersion = true) =>
     api.put<TreeResponse>(`/tree/${treeId}?create_version=${createVersion}`, data),
 
-  // Supprime un arbre
+  // Delete a tree
   deleteTree: (treeId: number) =>
     api.delete<void>(`/tree/${treeId}`),
 
-  // Duplique un arbre
+  // Duplicate a tree
   duplicateTree: (treeId: number, data: TreeDuplicateRequest) =>
     api.post<TreeResponse>(`/tree/${treeId}/duplicate`, data),
 
-  // Configure l'API d'un arbre
+  // Configure a tree's API
   updateApiConfig: (treeId: number, config: TreeApiConfig) =>
     api.put<TreeResponse>(`/tree/${treeId}/api-config`, config),
 
-  // Définit un arbre comme défaut
+  // Set a tree as default
   setDefaultTree: (treeId: number) =>
     api.put<TreeResponse>(`/tree/${treeId}/set-default`),
 
   // --- Versioning ---
 
-  // Liste les versions d'un arbre
+  // List tree versions
   getVersions: (treeId: number) =>
     api.get<TreeVersionResponse[]>(`/tree/${treeId}/versions`),
 
-  // Récupère une version spécifique
+  // Get a specific version
   getVersion: (versionId: number) =>
     api.get<TreeVersionResponse>(`/tree/versions/${versionId}`),
 
-  // Restaure une version
+  // Restore a version
   restoreVersion: (treeId: number, versionId: number) =>
     api.post<TreeResponse>(`/tree/${treeId}/restore/${versionId}`),
 
   // --- Decision-as-Code (export/import) ---
 
-  // Exporte un arbre (téléchargement fichier JSON)
+  // Export a tree (JSON file download)
   exportTree: async (treeId: number): Promise<void> => {
     const response = await fetch(`/api/v1/tree/${treeId}/export`, {
       credentials: 'same-origin',
@@ -77,7 +77,7 @@ export const treeApi = {
     URL.revokeObjectURL(url);
   },
 
-  // Importe un arbre depuis un fichier Decision-as-Code
+  // Import a tree from a Decision-as-Code file
   importTree: (data: TreeExportFile) =>
     api.post<TreeResponse>('/tree/import', data),
 };

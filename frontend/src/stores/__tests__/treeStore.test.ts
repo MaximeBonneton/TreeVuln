@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useTreeStore } from '../treeStore';
 import type { TreeStructure } from '@/types';
 
-// Réinitialise le store avant chaque test
+// Reset the store before each test
 beforeEach(() => {
   const store = useTreeStore.getState();
   store.setNodes([]);
@@ -16,7 +16,7 @@ beforeEach(() => {
 });
 
 describe('addNode', () => {
-  it('ajoute un nœud input avec la config par défaut', () => {
+  it('adds an input node with default config', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 100, y: 200 });
 
@@ -28,7 +28,7 @@ describe('addNode', () => {
     expect(nodes[0].position).toEqual({ x: 100, y: 200 });
   });
 
-  it('ajoute un nœud output avec la config par défaut', () => {
+  it('adds an output node with default config', () => {
     const store = useTreeStore.getState();
     store.addNode('output', { x: 0, y: 0 });
 
@@ -38,7 +38,7 @@ describe('addNode', () => {
     expect(nodes[0].data.config).toEqual({ decision: 'Track', color: '#22c55e' });
   });
 
-  it('ajoute un nœud lookup avec la config par défaut', () => {
+  it('adds a lookup node with default config', () => {
     const store = useTreeStore.getState();
     store.addNode('lookup', { x: 50, y: 50 });
 
@@ -52,7 +52,7 @@ describe('addNode', () => {
     });
   });
 
-  it('marque hasUnsavedChanges à true', () => {
+  it('marks hasUnsavedChanges as true', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     expect(useTreeStore.getState().hasUnsavedChanges).toBe(true);
@@ -60,7 +60,7 @@ describe('addNode', () => {
 });
 
 describe('updateNodeData', () => {
-  it('met à jour le label d\'un nœud', () => {
+  it('updates a node label', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     const nodeId = useTreeStore.getState().nodes[0].id;
@@ -71,7 +71,7 @@ describe('updateNodeData', () => {
     expect(node.data.label).toBe('Mon Input');
   });
 
-  it('met à jour la config d\'un nœud', () => {
+  it('updates a node config', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     const nodeId = useTreeStore.getState().nodes[0].id;
@@ -84,7 +84,7 @@ describe('updateNodeData', () => {
 });
 
 describe('deleteNode', () => {
-  it('supprime un nœud et ses edges', () => {
+  it('deletes a node and its edges', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     store.addNode('output', { x: 200, y: 0 });
@@ -93,7 +93,7 @@ describe('deleteNode', () => {
     const inputId = nodes[0].id;
     const outputId = nodes[1].id;
 
-    // Ajoute une edge manuellement
+    // Add an edge manually
     store.setEdges([
       {
         id: 'edge-1',
@@ -112,7 +112,7 @@ describe('deleteNode', () => {
     expect(state.edges).toHaveLength(0);
   });
 
-  it('désélectionne le nœud supprimé', () => {
+  it('deselects the deleted node', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     const nodeId = useTreeStore.getState().nodes[0].id;
@@ -126,7 +126,7 @@ describe('deleteNode', () => {
 });
 
 describe('deleteEdge', () => {
-  it('supprime une edge par ID', () => {
+  it('deletes an edge by ID', () => {
     const store = useTreeStore.getState();
     store.setEdges([
       { id: 'e1', source: 'a', target: 'b', type: 'colored' },
@@ -142,7 +142,7 @@ describe('deleteEdge', () => {
 });
 
 describe('duplicateNode', () => {
-  it('duplique un nœud avec un offset', () => {
+  it('duplicates a node with an offset', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 100, y: 200 });
     const nodeId = useTreeStore.getState().nodes[0].id;
@@ -168,13 +168,13 @@ describe('duplicateNode', () => {
 });
 
 describe('selectNode', () => {
-  it('sélectionne un nœud', () => {
+  it('selects a node', () => {
     const store = useTreeStore.getState();
     store.selectNode('node-1');
     expect(useTreeStore.getState().selectedNodeId).toBe('node-1');
   });
 
-  it('désélectionne avec null', () => {
+  it('deselects with null', () => {
     const store = useTreeStore.getState();
     store.selectNode('node-1');
     store.selectNode(null);
@@ -183,7 +183,7 @@ describe('selectNode', () => {
 });
 
 describe('toApiStructure / fromApiStructure', () => {
-  it('convertit les nœuds et edges vers le format API', () => {
+  it('converts nodes and edges to API format', () => {
     const store = useTreeStore.getState();
     store.addNode('input', { x: 0, y: 0 });
     store.addNode('output', { x: 300, y: 0 });
@@ -206,19 +206,19 @@ describe('toApiStructure / fromApiStructure', () => {
     expect(structure.nodes).toHaveLength(2);
     expect(structure.edges).toHaveLength(1);
 
-    // Vérifie le format API des nœuds
+    // Verify API format for nodes
     const apiNode = structure.nodes[0];
     expect(apiNode.type).toBe('input');
     expect(apiNode.label).toBe('Input');
     expect(apiNode.config).toEqual({ field: '' });
 
-    // Vérifie le format API des edges
+    // Verify API format for edges
     const apiEdge = structure.edges[0];
     expect(apiEdge.source_handle).toBe('handle-0');
     expect(apiEdge.label).toBe('Yes');
   });
 
-  it('charge depuis le format API', () => {
+  it('loads from API format', () => {
     const structure: TreeStructure = {
       nodes: [
         {
@@ -259,7 +259,7 @@ describe('toApiStructure / fromApiStructure', () => {
     expect(state.nodes).toHaveLength(2);
     expect(state.edges).toHaveLength(1);
 
-    // Vérifie le format React Flow
+    // Verify React Flow format
     const node = state.nodes[0];
     expect(node.type).toBe('treeNode');
     expect(node.data.nodeType).toBe('input');

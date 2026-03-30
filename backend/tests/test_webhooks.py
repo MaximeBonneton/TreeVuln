@@ -48,7 +48,7 @@ class TestWebhookSchemas:
         assert data.is_active is False
 
     def test_create_invalid_url_no_protocol(self):
-        with pytest.raises(ValueError, match="http:// ou https://"):
+        with pytest.raises(ValueError, match="http:// or https://"):
             WebhookCreate(
                 name="Test",
                 url="example.com/webhook",
@@ -56,7 +56,7 @@ class TestWebhookSchemas:
             )
 
     def test_create_invalid_url_ftp(self):
-        with pytest.raises(ValueError, match="http:// ou https://"):
+        with pytest.raises(ValueError, match="http:// or https://"):
             WebhookCreate(
                 name="Test",
                 url="ftp://example.com/webhook",
@@ -72,7 +72,7 @@ class TestWebhookSchemas:
         assert data.url == "http://internal.corp.com/webhook"
 
     def test_create_invalid_event(self):
-        with pytest.raises(ValueError, match="invalides"):
+        with pytest.raises(ValueError, match="Invalid events"):
             WebhookCreate(
                 name="Test",
                 url="https://example.com",
@@ -80,7 +80,7 @@ class TestWebhookSchemas:
             )
 
     def test_create_empty_events(self):
-        with pytest.raises(ValueError, match="Au moins un"):
+        with pytest.raises(ValueError, match="At least one"):
             WebhookCreate(
                 name="Test",
                 url="https://example.com",
@@ -102,11 +102,11 @@ class TestWebhookSchemas:
         assert data.events is None
 
     def test_update_invalid_url(self):
-        with pytest.raises(ValueError, match="http:// ou https://"):
+        with pytest.raises(ValueError, match="http:// or https://"):
             WebhookUpdate(url="not-a-url")
 
     def test_update_invalid_events(self):
-        with pytest.raises(ValueError, match="invalides"):
+        with pytest.raises(ValueError, match="Invalid events"):
             WebhookUpdate(events=["bad_event"])
 
     def test_update_valid_events(self):

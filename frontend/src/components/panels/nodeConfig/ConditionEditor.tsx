@@ -84,18 +84,18 @@ export function ConditionEditor({
 
   return (
     <div className="p-3 bg-gray-50 rounded-md space-y-2">
-      {/* Header avec contrôles */}
+      {/* Header with controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-gray-500">
-            Branche {index + 1}
+            Branch {index + 1}
           </span>
           <div className="flex flex-col ml-2">
             <button
               onClick={() => onMove(index, 'up')}
               disabled={index === 0}
               className={`p-0.5 rounded ${index === 0 ? 'text-gray-300' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-              title="Monter"
+              title="Move up"
             >
               <ChevronUp size={14} />
             </button>
@@ -103,7 +103,7 @@ export function ConditionEditor({
               onClick={() => onMove(index, 'down')}
               disabled={index === total - 1}
               className={`p-0.5 rounded ${index === total - 1 ? 'text-gray-300' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-              title="Descendre"
+              title="Move down"
             >
               <ChevronDown size={14} />
             </button>
@@ -122,11 +122,11 @@ export function ConditionEditor({
         type="text"
         value={condition.label}
         onChange={(e) => onChange(index, 'label', e.target.value)}
-        placeholder="Label de la branche"
+        placeholder="Branch label"
         className="w-full px-2 py-1 text-sm border rounded"
       />
 
-      {/* Toggle mode simple/composé */}
+      {/* Toggle simple/compound mode */}
       <div className="flex items-center gap-2 text-xs">
         <button
           onClick={toggleMode}
@@ -138,11 +138,11 @@ export function ConditionEditor({
           onClick={toggleMode}
           className={`px-2 py-1 rounded ${isCompound ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
         >
-          Composé
+          Compound
         </button>
       </div>
 
-      {/* Mode simple */}
+      {/* Simple mode */}
       {!isCompound && (
         <div className="flex gap-2">
           <select
@@ -169,23 +169,23 @@ export function ConditionEditor({
         </div>
       )}
 
-      {/* Mode composé */}
+      {/* Compound mode */}
       {isCompound && (
         <div className="space-y-2">
-          {/* Sélecteur AND/OR */}
+          {/* AND/OR selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Logique :</span>
+            <span className="text-xs text-gray-500">Logic:</span>
             <select
               value={condition.logic || 'AND'}
               onChange={(e) => onChange(index, 'logic', e.target.value as 'AND' | 'OR')}
               className="px-2 py-1 text-sm border rounded bg-white"
             >
-              <option value="AND">AND (toutes vraies)</option>
-              <option value="OR">OR (au moins une vraie)</option>
+              <option value="AND">AND (all true)</option>
+              <option value="OR">OR (at least one true)</option>
             </select>
           </div>
 
-          {/* Liste des critères */}
+          {/* Criteria list */}
           <div className="space-y-2">
             {(condition.criteria || []).map((criterion, criterionIndex) => (
               <CriterionEditor
@@ -200,13 +200,13 @@ export function ConditionEditor({
             ))}
           </div>
 
-          {/* Bouton ajouter critère */}
+          {/* Add criterion button */}
           <button
             onClick={addCriterion}
             className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
           >
             <Plus size={14} />
-            Ajouter critère
+            Add criterion
           </button>
         </div>
       )}

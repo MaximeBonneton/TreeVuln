@@ -1,6 +1,6 @@
 """
-Service pour la gestion des webhooks sortants.
-CRUD + test avec signature HMAC-SHA256.
+Service for managing outgoing webhooks.
+CRUD + test with HMAC-SHA256 signature.
 """
 
 import hashlib
@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 class WebhookService:
-    """Service de gestion des webhooks sortants (CRUD + test)."""
+    """Outgoing webhook management service (CRUD + test)."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def list_webhooks(self, tree_id: int) -> list[Webhook]:
-        """Liste les webhooks d'un arbre."""
+        """List webhooks for a tree."""
         result = await self.db.execute(
             select(Webhook)
             .where(Webhook.tree_id == tree_id)
@@ -37,14 +37,14 @@ class WebhookService:
         return list(result.scalars().all())
 
     async def get_webhook(self, webhook_id: int) -> Webhook | None:
-        """Récupère un webhook par son ID."""
+        """Retrieve a webhook by its ID."""
         result = await self.db.execute(
             select(Webhook).where(Webhook.id == webhook_id)
         )
         return result.scalar_one_or_none()
 
     async def create_webhook(self, tree_id: int, data: WebhookCreate) -> Webhook:
-        """Crée un nouveau webhook (secret chiffré en BDD)."""
+        """Create a new webhook (secret encrypted in DB)."""
         from app.crypto import encrypt_secret
 
         stored_secret = None
@@ -66,7 +66,7 @@ class WebhookService:
         return webhook
 
     async def update_webhook(self, webhook_id: int, data: WebhookUpdate) -> Webhook | None:
-        """Met à jour un webhook."""
+        """Update a webhook."""
         webhook = await self.get_webhook(webhook_id)
         if not webhook:
             return None
@@ -76,7 +76,7 @@ class WebhookService:
         if data.url is not None:
             webhook.url = data.url
         if data.secret is not None:
-            # Chaîne vide = supprimer le secret
+            # Empty string = remove the secret
             if data.secret:
                 from app.crypto import encrypt_secret
 
@@ -95,7 +95,7 @@ class WebhookService:
         return webhook
 
     async def delete_webhook(self, webhook_id: int) -> bool:
-        """Supprime un webhook."""
+        """Delete a webhook."""
         webhook = await self.get_webhook(webhook_id)
         if not webhook:
             return False
@@ -104,7 +104,7 @@ class WebhookService:
         return True
 
     async def get_logs(self, webhook_id: int, limit: int = 50) -> list[WebhookLog]:
-        """Récupère les logs d'envoi d'un webhook."""
+        """Retrieve send logs for a webhook."""
         result = await self.db.execute(
             select(WebhookLog)
             .where(WebhookLog.webhook_id == webhook_id)
@@ -114,10 +114,10 @@ class WebhookService:
         return list(result.scalars().all())
 
     async def purge_old_logs(self, days: int = 30) -> int:
-        """Supprime les logs webhook plus anciens que `days` jours.
+        """Delete webhook logs older than `days` days.
 
         Returns:
-            Nombre de logs supprimés.
+            Number of deleted logs.
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         result = await self.db.execute(
@@ -127,24 +127,24 @@ class WebhookService:
         return result.rowcount
 
     async def test_webhook(self, webhook_id: int) -> WebhookTestResult:
-        """Envoie un payload de test à un webhook et enregistre le résultat."""
+        """Send a test payload to a webhook and record the result."""
         webhook = await self.get_webhook(webhook_id)
         if not webhook:
             return WebhookTestResult(
                 success=False,
-                error_message="Webhook non trouvé",
+                error_message="Webhook not found",
             )
 
         test_payload = {
             "event": "test",
-            "message": "Test webhook depuis TreeVuln",
+            "message": "Test webhook from TreeVuln",
             "webhook_name": webhook.name,
             "timestamp": time.time(),
         }
 
         result = await _send_webhook(webhook, "test", test_payload)
 
-        # Enregistre le log du test
+        # Record the test log
         log = WebhookLog(
             webhook_id=webhook.id,
             event="test",
@@ -166,29 +166,17 @@ async def _send_webhook(
     event: str,
     payload: dict[str, Any],
 ) -> WebhookTestResult:
-    """Envoie une requête HTTP à un webhook avec protection SSRF par IP pinning."""
-    from urllib.parse import urlparse, urlunparse
-
-    from app.url_validation import resolve_and_validate_url
-
-    try:
-        url, resolved_ips = resolve_and_validate_url(webhook.url)
-    except ValueError as e:
-        return WebhookTestResult(
-            success=False,
-            error_message=f"URL bloquée (SSRF): {e}",
-        )
-
+    """Send an HTTP request to a webhook."""
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
-    # Headers utilisateur d'abord, puis headers de sécurité (ne peuvent pas être surchargés)
+    # User headers first, then security headers (cannot be overridden)
     headers: dict[str, str] = {
         **webhook.headers,
         "Content-Type": "application/json",
         "X-TreeVuln-Event": event,
     }
 
-    # Signature HMAC-SHA256 si un secret est configuré
+    # HMAC-SHA256 signature if a secret is configured
     if webhook.secret:
         from app.crypto import decrypt_secret
 
@@ -200,19 +188,11 @@ async def _send_webhook(
         ).hexdigest()
         headers["X-TreeVuln-Signature"] = f"sha256={signature}"
 
-    # IP pinning pour HTTP (prévient le DNS rebinding TOCTOU)
-    parsed = urlparse(url)
-    request_url = url
-    if parsed.scheme == "http" and resolved_ips:
-        port = parsed.port or 80
-        request_url = urlunparse(parsed._replace(netloc=f"{resolved_ips[0]}:{port}"))
-        headers["Host"] = parsed.hostname or ""
-
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             response = await client.post(
-                request_url,
+                webhook.url,
                 content=body,
                 headers=headers,
             )

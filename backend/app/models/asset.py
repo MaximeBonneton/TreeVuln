@@ -13,40 +13,40 @@ if TYPE_CHECKING:
 
 class Asset(Base):
     """
-    Référentiel des assets pour la contextualisation.
-    Permet d'enrichir les vulnérabilités avec des métadonnées d'asset (criticité, tags, etc.)
-    Chaque asset appartient à un arbre spécifique (contexte isolé).
+    Asset reference for contextualization.
+    Allows enriching vulnerabilities with asset metadata (criticality, tags, etc.)
+    Each asset belongs to a specific tree (isolated context).
     """
 
     __tablename__ = "assets"
     __table_args__ = (
-        # Contrainte unique sur (tree_id, asset_id)
+        # Unique constraint on (tree_id, asset_id)
         UniqueConstraint("tree_id", "asset_id", name="assets_tree_asset_unique"),
-        # Index pour la recherche par arbre et asset_id
+        # Index for searching by tree and asset_id
         Index("idx_assets_tree_asset_id", "tree_id", "asset_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # FK vers l'arbre propriétaire
+    # FK to the owning tree
     tree_id: Mapped[int] = mapped_column(
         ForeignKey("trees.id", ondelete="CASCADE"),
         nullable=False,
     )
 
-    # Identifiant unique de l'asset dans le contexte de l'arbre
+    # Unique asset identifier within the tree context
     asset_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    # Nom lisible de l'asset
+    # Human-readable asset name
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Criticité de l'asset (Low, Medium, High, Critical)
+    # Asset criticality (Low, Medium, High, Critical)
     criticality: Mapped[str] = mapped_column(String(50), nullable=False, default="Medium")
 
     # Tags additionnels (ex: {"environment": "production", "owner": "team-a"})
     tags: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
-    # Métadonnées libres pour enrichissement
+    # Free-form metadata for enrichment
     extra_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Timestamps

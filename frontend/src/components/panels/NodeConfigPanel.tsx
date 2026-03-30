@@ -43,7 +43,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
   };
 
   const handleDelete = async () => {
-    const ok = await confirm('Supprimer le nœud', 'Supprimer ce nœud et toutes ses connexions ?');
+    const ok = await confirm('Delete node', 'Delete this node and all its connections?');
     if (ok) {
       deleteNode(node.id);
       onClose();
@@ -120,7 +120,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
           />
         </div>
 
-        {/* Config selon le type */}
+        {/* Config by type */}
         {node.data.nodeType === 'input' && (
           <InputConfig
             config={config as InputNodeConfig}
@@ -151,19 +151,19 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
           />
         )}
 
-        {/* Conditions (sauf pour output) */}
+        {/* Conditions (except for output) */}
         {node.data.nodeType !== 'output' && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
-                Conditions de sortie
+                Output conditions
               </label>
               <button
                 onClick={addCondition}
                 className="text-blue-500 hover:text-blue-700 text-sm flex items-center gap-1"
               >
                 <Plus size={16} />
-                Ajouter
+                Add
               </button>
             </div>
 
@@ -184,7 +184,7 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
 
               {conditions.length === 0 && (
                 <p className="text-xs text-gray-500 italic">
-                  Aucune condition. Ajoutez des conditions pour créer des branches.
+                  No conditions. Add conditions to create branches.
                 </p>
               )}
             </div>
@@ -197,19 +197,19 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
             onClick={handleSave}
             className="flex-1 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 font-medium"
           >
-            Appliquer
+            Apply
           </button>
           <button
             onClick={handleDuplicate}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"
-            title="Dupliquer le nœud"
+            title="Duplicate node"
           >
             <Copy size={20} />
           </button>
           <button
             onClick={handleDelete}
             className="p-2 text-red-500 hover:bg-red-50 rounded-md"
-            title="Supprimer le nœud"
+            title="Delete node"
           >
             <Trash2 size={20} />
           </button>

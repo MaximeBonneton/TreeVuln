@@ -25,38 +25,38 @@ import type {
 import { treeApi, fieldMappingApi } from '@/api';
 import { getLayoutedNodes } from '@/utils/autoLayout';
 
-// AbortController pour annuler les requêtes loadTree en vol (M-6)
+// AbortController to cancel in-flight loadTree requests (M-6)
 let _loadTreeController: AbortController | null = null;
 let _isDragging = false;
 
 interface TreeState {
-  // Utilisateur courant
+  // Current user
   currentUser: { id: string; username: string; role: 'admin' | 'operator' } | null;
 
-  // Multi-arbres
+  // Multi-trees
   trees: TreeListItem[];
   isDefault: boolean;
   apiEnabled: boolean;
   apiSlug: string | null;
 
-  // Données de l'arbre courant
+  // Current tree data
   treeId: number | null;
   treeName: string;
   treeDescription: string;
   setTreeName: (name: string) => void;
   setTreeDescription: (description: string) => void;
 
-  // Nœuds et edges React Flow
+  // React Flow nodes and edges
   nodes: TreeNode[];
   edges: TreeEdge[];
 
   // Field mapping
   fieldMapping: FieldMapping | null;
 
-  // État UI
+  // UI state
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
-  hoveredInputIndex: number | null; // Pour les nœuds multi-input
+  hoveredInputIndex: number | null; // For multi-input nodes
   isLoading: boolean;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
@@ -77,7 +77,7 @@ interface TreeState {
   setDiagnosticHighlights: (highlights: Record<string, 'error' | 'warning'>) => void;
   clearDiagnosticHighlights: () => void;
 
-  // Actions utilisateur
+  // User actions
   setCurrentUser: (user: { id: string; username: string; role: 'admin' | 'operator' } | null) => void;
   isAdmin: () => boolean;
 
@@ -107,7 +107,7 @@ interface TreeState {
   saveTree: (comment?: string) => Promise<void>;
   createNewTree: (name: string, description?: string) => Promise<void>;
 
-  // Multi-arbres actions
+  // Multi-tree actions
   loadTrees: () => Promise<void>;
   selectTree: (treeId: number) => Promise<void>;
   duplicateTree: (treeId: number, options: TreeDuplicateRequest) => Promise<void>;
@@ -122,15 +122,15 @@ interface TreeState {
   fromApiStructure: (structure: TreeStructure) => void;
 }
 
-// Génère un ID unique pour les nœuds
+// Generate a unique ID for nodes
 const generateNodeId = (type: NodeType) =>
   `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-// Génère un ID unique pour les edges
+// Generate a unique ID for edges
 const generateEdgeId = () =>
   `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-// Configuration par défaut selon le type de nœud
+// Default configuration based on node type
 const getDefaultConfig = (type: NodeType): TreeNodeConfig => {
   switch (type) {
     case 'input':
@@ -144,7 +144,7 @@ const getDefaultConfig = (type: NodeType): TreeNodeConfig => {
   }
 };
 
-// Label par défaut selon le type
+// Default label based on type
 const getDefaultLabel = (type: NodeType): string => {
   switch (type) {
     case 'input':
@@ -159,18 +159,18 @@ const getDefaultLabel = (type: NodeType): string => {
 };
 
 export const useTreeStore = create<TreeState>((set, get) => ({
-  // Utilisateur courant
+  // Current user
   currentUser: null,
   setCurrentUser: (user) => set({ currentUser: user }),
   isAdmin: () => get().currentUser?.role === 'admin',
 
-  // État initial
+  // Initial state
   trees: [],
   isDefault: false,
   apiEnabled: false,
   apiSlug: null,
   treeId: null,
-  treeName: 'Nouvel arbre',
+  treeName: 'New tree',
   treeDescription: '',
   setTreeName: (name) => set({ treeName: name, hasUnsavedChanges: true }),
   setTreeDescription: (description) => set({ treeDescription: description, hasUnsavedChanges: true }),
@@ -236,12 +236,16 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   canUndo: () => get().undoStack.length > 0,
   canRedo: () => get().redoStack.length > 0,
 
-  // Setters de base
+  // Basic setters
   setNodes: (nodes) => set({ nodes, hasUnsavedChanges: true }),
   setEdges: (edges) => set({ edges, hasUnsavedChanges: true }),
 
-  // Handlers React Flow
+  // React Flow handlers
   onNodesChange: (changes) => {
+    // Filter significant changes (actual moves or modifications)
+    // - position with dragging=true = currently dragging
+    // - remove/add = deletion/addition
+    // Ignored: select, dimensions, position with dragging=false (init)
     const significantChanges = changes.filter((c) => {
       if (c.type === 'remove' || c.type === 'add') return true;
       if (c.type === 'position' && 'dragging' in c && c.dragging === true) return true;
@@ -303,7 +307,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     });
   },
 
-  // Ajoute un nouveau nœud
+  // Add a new node
   addNode: (type, position) => {
     get().pushUndoState();
     const newNode: TreeNode = {
@@ -324,7 +328,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
-  // Duplique un nœud existant
+  // Duplicate an existing node
   duplicateNode: (nodeId) => {
     const { nodes } = get();
     const nodeToCopy = nodes.find((n) => n.id === nodeId);
@@ -352,7 +356,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
-  // Met à jour les données d'un nœud
+  // Update node data
   updateNodeData: (nodeId, data) => {
     set((state) => ({
       nodes: state.nodes.map((node) =>
@@ -364,7 +368,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
-  // Supprime un nœud et ses edges associées
+  // Delete a node and its associated edges
   deleteNode: (nodeId) => {
     get().pushUndoState();
     set((state) => ({
@@ -378,7 +382,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
-  // Supprime une edge
+  // Delete an edge
   deleteEdge: (edgeId) => {
     get().pushUndoState();
     set((state) => ({
@@ -387,10 +391,10 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }));
   },
 
-  // Sélectionne un nœud
+  // Select a node
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
-  // Survole un nœud (pour le highlighting des edges)
+  // Hover a node (for edge highlighting)
   setHoveredNode: (nodeId, inputIndex = null) => set({
     hoveredNodeId: nodeId,
     hoveredInputIndex: inputIndex ?? null,
@@ -408,7 +412,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       const mapping = await fieldMappingApi.getMapping(treeId);
       set({ fieldMapping: mapping });
     } catch (err) {
-      console.error('Erreur chargement mapping:', err);
+      console.error('Error loading mapping:', err);
     }
   },
 
@@ -420,7 +424,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       const mapping = await fieldMappingApi.updateMapping(treeId, { fields, source });
       set({ fieldMapping: mapping });
     } catch (err) {
-      console.error('Erreur sauvegarde mapping:', err);
+      console.error('Error saving mapping:', err);
       throw err;
     }
   },
@@ -433,14 +437,14 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       await fieldMappingApi.deleteMapping(treeId);
       set({ fieldMapping: null });
     } catch (err) {
-      console.error('Erreur suppression mapping:', err);
+      console.error('Error deleting mapping:', err);
       throw err;
     }
   },
 
-  // Charge l'arbre depuis l'API (annule la requête précédente si en vol)
+  // Load the tree from the API (cancels the previous request if in flight)
   loadTree: async (treeId?: number) => {
-    // Annuler la requête précédente si elle est en cours
+    // Cancel the previous request if still in flight
     if (_loadTreeController) {
       _loadTreeController.abort();
     }
@@ -450,7 +454,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const tree = await treeApi.getTree(treeId);
-      // Vérifier que la requête n'a pas été annulée pendant l'attente
+      // Check that the request was not cancelled during the wait
       if (signal.aborted) return;
       if (tree) {
         get().fromApiStructure(tree.structure);
@@ -465,15 +469,15 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           undoStack: [],
           redoStack: [],
         });
-        // Charge le mapping des champs
+        // Load the field mapping
         if (!signal.aborted) {
           await get().loadFieldMapping();
         }
       }
     } catch (err) {
-      // Ignorer les erreurs d'annulation
+      // Ignore cancellation errors
       if (signal.aborted) return;
-      set({ error: err instanceof Error ? err.message : 'Erreur de chargement' });
+      set({ error: err instanceof Error ? err.message : 'Loading error' });
     } finally {
       if (!signal.aborted) {
         set({ isLoading: false });
@@ -481,7 +485,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     }
   },
 
-  // Sauvegarde l'arbre
+  // Save the tree
   saveTree: async (comment) => {
     const { treeId, treeName, treeDescription } = get();
     set({ isSaving: true, error: null });
@@ -507,14 +511,14 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
       set({ hasUnsavedChanges: false });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Erreur de sauvegarde' });
+      set({ error: err instanceof Error ? err.message : 'Save error' });
       throw err;
     } finally {
       set({ isSaving: false });
     }
   },
 
-  // Crée un nouvel arbre vide
+  // Create a new empty tree
   createNewTree: async (name, description) => {
     set({
       treeId: null,
@@ -532,42 +536,42 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     });
   },
 
-  // --- Multi-arbres ---
+  // --- Multi-tree ---
 
-  // Charge la liste des arbres
+  // Load the tree list
   loadTrees: async () => {
     try {
       const trees = await treeApi.listTrees();
       set({ trees });
     } catch (err) {
-      console.error('Erreur chargement liste arbres:', err);
+      console.error('Error loading tree list:', err);
     }
   },
 
-  // Sélectionne et charge un arbre
+  // Select and load a tree
   selectTree: async (treeId: number) => {
     await get().loadTree(treeId);
-    // Recharge la liste pour refléter les changements
+    // Reload the list to reflect changes
     await get().loadTrees();
   },
 
-  // Duplique un arbre
+  // Duplicate a tree
   duplicateTree: async (treeId: number, options: TreeDuplicateRequest) => {
     set({ isLoading: true, error: null });
     try {
       const newTree = await treeApi.duplicateTree(treeId, options);
-      // Recharge la liste et sélectionne le nouvel arbre
+      // Reload the list and select the new tree
       await get().loadTrees();
       await get().loadTree(newTree.id);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Erreur de duplication' });
+      set({ error: err instanceof Error ? err.message : 'Duplication error' });
       throw err;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  // Met à jour la configuration API
+  // Update API configuration
   updateApiConfig: async (config: TreeApiConfig) => {
     const { treeId } = get();
     if (!treeId) return;
@@ -578,15 +582,15 @@ export const useTreeStore = create<TreeState>((set, get) => ({
         apiEnabled: tree.api_enabled,
         apiSlug: tree.api_slug,
       });
-      // Recharge la liste pour refléter les changements
+      // Reload the list to reflect changes
       await get().loadTrees();
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Erreur de configuration API' });
+      set({ error: err instanceof Error ? err.message : 'API configuration error' });
       throw err;
     }
   },
 
-  // Définit l'arbre courant comme défaut
+  // Set the current tree as default
   setAsDefault: async () => {
     const { treeId } = get();
     if (!treeId) return;
@@ -594,30 +598,30 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     try {
       await treeApi.setDefaultTree(treeId);
       set({ isDefault: true });
-      // Recharge la liste pour refléter les changements
+      // Reload the list to reflect changes
       await get().loadTrees();
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Erreur définition défaut' });
+      set({ error: err instanceof Error ? err.message : 'Error setting default' });
       throw err;
     }
   },
 
-  // Supprime l'arbre courant
+  // Delete the current tree
   deleteCurrentTree: async () => {
     const { treeId, isDefault } = get();
     if (!treeId) return;
     if (isDefault) {
-      set({ error: 'Impossible de supprimer l\'arbre par défaut' });
+      set({ error: 'Cannot delete the default tree' });
       return;
     }
 
     try {
       await treeApi.deleteTree(treeId);
-      // Recharge la liste et sélectionne l'arbre par défaut
+      // Reload the list and select the default tree
       await get().loadTrees();
       await get().loadTree();
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Erreur de suppression' });
+      set({ error: err instanceof Error ? err.message : 'Deletion error' });
       throw err;
     }
   },
@@ -633,7 +637,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     set({ nodes: layouted, hasUnsavedChanges: true });
   },
 
-  // Convertit vers le format API
+  // Convert to API format
   toApiStructure: (): TreeStructure => {
     const { nodes, edges } = get();
 
@@ -668,7 +672,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     };
   },
 
-  // Charge depuis le format API
+  // Load from API format
   fromApiStructure: (structure: TreeStructure) => {
     const nodes: TreeNode[] = structure.nodes.map((apiNode) => ({
       id: apiNode.id,

@@ -1,4 +1,4 @@
-"""Service de gestion des utilisateurs : CRUD, hashing, sessions."""
+"""User management service: CRUD, hashing, sessions."""
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -58,7 +58,7 @@ class UserService:
         return user
 
     async def create_admin(self, username: str, password: str) -> User:
-        """Crée le premier admin (setup initial, pas de changement de mdp forcé)."""
+        """Create the first admin (initial setup, no forced password change)."""
         return await self.create_user(username, password, "admin", must_change_pwd=False)
 
     async def update_user(
@@ -85,7 +85,7 @@ class UserService:
     async def change_password(
         self, user: User, new_password: str, current_session_token: str | None = None,
     ) -> None:
-        """Change le mot de passe et invalide toutes les sessions sauf la courante."""
+        """Change the password and invalidate all sessions except the current one."""
         user.password_hash = hash_password(new_password)
         user.must_change_pwd = False
         user.updated_at = datetime.now(timezone.utc)
@@ -96,7 +96,7 @@ class UserService:
         await self.db.flush()
 
     async def reset_password(self, user: User, new_password: str) -> None:
-        """Reset le mot de passe par un admin (force le changement au prochain login)."""
+        """Reset password by an admin (forces change at next login)."""
         user.password_hash = hash_password(new_password)
         user.must_change_pwd = True
         user.updated_at = datetime.now(timezone.utc)
@@ -112,7 +112,7 @@ class UserService:
     # --- Sessions ---
 
     async def create_session(self, user: User) -> str:
-        """Crée une session et nettoie les sessions expirées."""
+        """Create a session and clean up expired sessions."""
         token = secrets.token_urlsafe(48)
         session = UserSession(
             user_id=user.id,
@@ -120,7 +120,7 @@ class UserService:
             expires_at=datetime.now(timezone.utc) + SESSION_DURATION,
         )
         self.db.add(session)
-        # Nettoyage des sessions expirées (tous utilisateurs)
+        # Clean up expired sessions (all users)
         await self.db.execute(
             delete(UserSession).where(UserSession.expires_at < datetime.now(timezone.utc))
         )
@@ -128,7 +128,7 @@ class UserService:
         return token
 
     async def get_session_user(self, token: str) -> User | None:
-        """Récupère l'utilisateur associé à un token de session valide."""
+        """Retrieve the user associated with a valid session token."""
         result = await self.db.execute(
             select(UserSession).where(
                 UserSession.token == token,
@@ -148,6 +148,6 @@ class UserService:
         await self.db.flush()
 
     async def invalidate_sessions(self, user_id: UUID) -> None:
-        """Supprime toutes les sessions d'un utilisateur."""
+        """Delete all sessions for a user."""
         await self.db.execute(delete(UserSession).where(UserSession.user_id == user_id))
         await self.db.flush()

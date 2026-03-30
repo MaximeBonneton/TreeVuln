@@ -61,25 +61,25 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   const inputCount = getInputCount(data);
   const isMultiInput = inputCount > 1;
 
-  // Pour les nœuds output, utilise la couleur configurée
+  // For output nodes, use the configured color
   const headerStyle =
     data.nodeType === 'output' && 'color' in data.config
       ? { backgroundColor: (data.config as { color: string }).color }
       : undefined;
 
-  // Mode multi-input: layout complètement différent
+  // Multi-input mode: completely different layout
   if (isMultiInput && data.conditions.length > 0) {
     const numConditions = data.conditions.length;
-    const rowHeight = 24; // hauteur d'une ligne de condition en px
+    const rowHeight = 24; // height of a condition row in px
     const bandHeight = numConditions * rowHeight;
     const headerHeight = 40; // header
-    const infoHeight = 28; // info champ
+    const infoHeight = 28; // field info
     const totalBandsHeight = inputCount * bandHeight;
 
     return (
       <div
         role="group"
-        aria-label={`Nœud ${data.nodeType}: ${data.label}`}
+        aria-label={`Node ${data.nodeType}: ${data.label}`}
         className={`
           min-w-[160px] rounded-lg shadow-md border-2
           ${style.bg} ${style.border}
@@ -87,25 +87,25 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         `}
         onClick={() => selectNode(id)}
       >
-        {/* Header pleine largeur */}
+        {/* Full-width header */}
         <div
           className={`${style.header} text-white px-3 py-2 flex items-center gap-2 rounded-t-md`}
           style={{ ...headerStyle, height: `${headerHeight}px` }}
         >
           <Icon size={16} />
           <span className="font-medium text-sm flex-1">{data.label}</span>
-          <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{inputCount} entrées</span>
+          <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">{inputCount} inputs</span>
         </div>
 
-        {/* Info champ */}
+        {/* Field info */}
         <div
           className="px-3 text-xs text-gray-600 border-b border-gray-200 bg-white/50 flex items-center"
           style={{ height: `${infoHeight}px` }}
         >
           {data.nodeType === 'input' && 'field' in data.config && (
             <span>
-              <span className="font-medium">Champ:</span>{' '}
-              {(data.config as { field: string }).field || '(non configuré)'}
+              <span className="font-medium">Field:</span>{' '}
+              {(data.config as { field: string }).field || '(not configured)'}
             </span>
           )}
           {data.nodeType === 'lookup' && 'lookup_table' in data.config && (
@@ -116,7 +116,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
           )}
         </div>
 
-        {/* Bandes entrée/sortie */}
+        {/* Input/output bands */}
         <div
           className="flex flex-col rounded-b-md overflow-hidden"
           onMouseLeave={() => setHoveredNode(null)}
@@ -133,12 +133,12 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
                   setHoveredNode(id, inputIdx);
                 }}
               >
-                {/* Ligne pointillée centrée verticalement */}
+                {/* Vertically centered dashed line */}
                 <div className="flex-1 flex items-center px-3">
                   <div className="w-full h-0 border-t-2 border-dashed border-gray-300" />
                 </div>
 
-                {/* Conditions en colonne */}
+                {/* Conditions in column */}
                 <div className="flex flex-col justify-center border-l border-gray-200">
                   {data.conditions.map((condition, condIdx) => (
                     <div
@@ -155,7 +155,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
           })}
         </div>
 
-        {/* Handles d'entrée - positionnés absolument */}
+        {/* Input handles - absolutely positioned */}
         {Array.from({ length: inputCount }).map((_, inputIdx) => {
           const bandTop = headerHeight + infoHeight + inputIdx * bandHeight;
           const handleTop = bandTop + bandHeight / 2;
@@ -172,7 +172,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
           );
         })}
 
-        {/* Handles de sortie - positionnés absolument */}
+        {/* Output handles - absolutely positioned */}
         {Array.from({ length: inputCount }).map((_, inputIdx) =>
           data.conditions.map((_, condIdx) => {
             const handleId = `handle-${inputIdx}-${condIdx}`;
@@ -196,11 +196,11 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
     );
   }
 
-  // Mode standard (single-input ou output)
+  // Standard mode (single-input or output)
   return (
     <div
       role="group"
-      aria-label={`Nœud ${data.nodeType}: ${data.label}`}
+      aria-label={`Node ${data.nodeType}: ${data.label}`}
       className={`
         min-w-[140px] rounded-lg shadow-md border-2 flex
         ${style.bg} ${style.border}
@@ -208,14 +208,14 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
       `}
       onClick={() => selectNode(id)}
     >
-      {/* Handle d'entrée unique */}
+      {/* Single input handle */}
       <Handle
         type="target"
         position={Position.Left}
         className="!bg-gray-400 !w-3 !h-3"
       />
 
-      {/* Contenu principal */}
+      {/* Main content */}
       <div className="flex-1">
         {/* Header */}
         <div
@@ -230,8 +230,8 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         <div className="px-3 py-2 text-xs text-gray-600">
           {data.nodeType === 'input' && 'field' in data.config && (
             <div>
-              <span className="font-medium">Champ:</span>{' '}
-              {(data.config as { field: string }).field || '(non configuré)'}
+              <span className="font-medium">Field:</span>{' '}
+              {(data.config as { field: string }).field || '(not configured)'}
             </div>
           )}
 
@@ -244,7 +244,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
 
           {data.nodeType === 'equation' && 'formula' in data.config && (
             <div className="font-mono text-[10px] text-amber-700 truncate max-w-[120px]" title={(data.config as { formula: string }).formula}>
-              {((data.config as { formula: string }).formula || '(non configuré)').slice(0, 30)}
+              {((data.config as { formula: string }).formula || '(not configured)').slice(0, 30)}
               {((data.config as { formula: string }).formula || '').length > 30 ? '...' : ''}
             </div>
           )}
@@ -257,7 +257,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         </div>
       </div>
 
-      {/* Handles de sortie pour single-input */}
+      {/* Output handles for single-input */}
       {data.nodeType !== 'output' && data.conditions.length > 0 && (
         <div className="border-l border-gray-200 flex flex-col justify-around py-1 min-w-[60px] pr-3">
           {data.conditions.map((condition, index) => {
@@ -286,7 +286,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
         </div>
       )}
 
-      {/* Handle de sortie unique pour output ou nœuds sans conditions */}
+      {/* Single output handle for output or nodes without conditions */}
       {(data.nodeType === 'output' || data.conditions.length === 0) && (
         <Handle
           type="source"

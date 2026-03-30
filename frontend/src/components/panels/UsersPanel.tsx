@@ -21,7 +21,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
   const { confirm, confirmDialogProps } = useConfirm();
   const currentUser = useTreeStore((s) => s.currentUser);
 
-  // Charge la liste des utilisateurs
+  // Load the user list
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -29,7 +29,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
       setUsers(data);
       setError(null);
     } catch {
-      setError('Erreur lors du chargement des utilisateurs');
+      setError('Error loading users');
     } finally {
       setLoading(false);
     }
@@ -39,31 +39,31 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
     loadUsers();
   }, [loadUsers]);
 
-  // Bascule le rôle d'un utilisateur
+  // Toggle a user's role
   const handleToggleRole = async (user: UserResponse) => {
     const newRole = user.role === 'admin' ? 'operator' : 'admin';
     try {
       await usersApi.update(user.id, { role: newRole });
       await loadUsers();
     } catch {
-      setError('Erreur lors de la modification du rôle');
+      setError('Error changing role');
     }
   };
 
-  // Bascule l'état actif/inactif
+  // Toggle active/inactive state
   const handleToggleActive = async (user: UserResponse) => {
     try {
       await usersApi.update(user.id, { is_active: !user.is_active });
       await loadUsers();
     } catch {
-      setError('Erreur lors de la modification du statut');
+      setError('Error changing status');
     }
   };
 
-  // Réinitialise le mot de passe
+  // Reset password
   const handleResetPassword = async (userId: string) => {
     if (newPassword.length < 12) {
-      setResetError('Le mot de passe doit contenir au moins 12 caractères');
+      setResetError('Password must be at least 12 characters');
       return;
     }
     try {
@@ -72,22 +72,22 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
       setNewPassword('');
       setResetError(null);
     } catch {
-      setResetError('Erreur lors de la réinitialisation');
+      setResetError('Error resetting password');
     }
   };
 
-  // Supprime un utilisateur
+  // Delete a user
   const handleDelete = async (user: UserResponse) => {
     const ok = await confirm(
-      'Supprimer l\'utilisateur',
-      `Supprimer l'utilisateur "${user.username}" ? Cette action est irréversible.`
+      'Delete user',
+      `Delete user "${user.username}"? This action is irreversible.`
     );
     if (!ok) return;
     try {
       await usersApi.delete(user.id);
       await loadUsers();
     } catch {
-      setError('Erreur lors de la suppression');
+      setError('Error deleting user');
     }
   };
 
@@ -98,7 +98,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <Shield size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800">Gestion des utilisateurs</h2>
+            <h2 className="text-lg font-semibold text-gray-800">User management</h2>
             <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
               {users.length}
             </span>
@@ -109,7 +109,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
               className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600"
             >
               <Plus size={16} />
-              Nouvel utilisateur
+              New user
             </button>
             <button
               onClick={onClose}
@@ -120,7 +120,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
           </div>
         </div>
 
-        {/* Contenu */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">
@@ -129,15 +129,15 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
           )}
 
           {loading ? (
-            <div className="text-center text-gray-500 py-8">Chargement...</div>
+            <div className="text-center text-gray-500 py-8">Loading...</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
-                  <th className="pb-2 font-medium">Utilisateur</th>
+                  <th className="pb-2 font-medium">User</th>
                   <th className="pb-2 font-medium">Email</th>
-                  <th className="pb-2 font-medium">Rôle</th>
-                  <th className="pb-2 font-medium">Statut</th>
+                  <th className="pb-2 font-medium">Role</th>
+                  <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -150,7 +150,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-800">{user.username}</span>
                           {isSelf && (
-                            <span className="text-xs text-gray-400">(vous)</span>
+                            <span className="text-xs text-gray-400">(you)</span>
                           )}
                         </div>
                       </td>
@@ -176,18 +176,18 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                               : 'bg-red-100 text-red-600'
                           }`}
                         >
-                          {user.is_active ? 'Actif' : 'Inactif'}
+                          {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="py-3">
-                        {/* Ligne de réinitialisation de mot de passe */}
+                        {/* Password reset row */}
                         {resetPasswordUserId === user.id ? (
                           <div className="flex items-center gap-2 justify-end">
                             <input
                               type="text"
                               value={newPassword}
                               onChange={(e) => { setNewPassword(e.target.value); setResetError(null); }}
-                              placeholder="Nouveau mot de passe (12+ car.)"
+                              placeholder="New password (12+ chars)"
                               className="w-48 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                               autoFocus
                               onKeyDown={(e) => {
@@ -205,17 +205,17 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                               onClick={() => { setResetPasswordUserId(null); setNewPassword(''); setResetError(null); }}
                               className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded"
                             >
-                              Annuler
+                              Cancel
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1 justify-end">
-                            {/* Bascule rôle */}
+                            {/* Toggle role */}
                             <button
                               onClick={() => handleToggleRole(user)}
                               disabled={isSelf}
                               className="p-1.5 hover:bg-gray-100 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
-                              title={user.role === 'admin' ? 'Passer en opérateur' : 'Passer en admin'}
+                              title={user.role === 'admin' ? 'Switch to operator' : 'Switch to admin'}
                             >
                               {user.role === 'admin' ? (
                                 <ShieldOff size={16} className="text-gray-500" />
@@ -223,7 +223,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                                 <Shield size={16} className="text-blue-500" />
                               )}
                             </button>
-                            {/* Bascule actif/inactif */}
+                            {/* Toggle active/inactive */}
                             <button
                               onClick={() => handleToggleActive(user)}
                               disabled={isSelf}
@@ -232,24 +232,24 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                                   ? 'text-orange-600 hover:bg-orange-50'
                                   : 'text-green-600 hover:bg-green-50'
                               }`}
-                              title={user.is_active ? 'Désactiver' : 'Activer'}
+                              title={user.is_active ? 'Disable' : 'Enable'}
                             >
-                              {user.is_active ? 'Désactiver' : 'Activer'}
+                              {user.is_active ? 'Disable' : 'Enable'}
                             </button>
-                            {/* Réinitialiser le mot de passe */}
+                            {/* Reset password */}
                             <button
                               onClick={() => { setResetPasswordUserId(user.id); setNewPassword(''); setResetError(null); }}
                               className="p-1.5 hover:bg-gray-100 rounded-md"
-                              title="Réinitialiser le mot de passe"
+                              title="Reset password"
                             >
                               <KeyRound size={16} className="text-gray-500" />
                             </button>
-                            {/* Supprimer */}
+                            {/* Delete */}
                             <button
                               onClick={() => handleDelete(user)}
                               disabled={isSelf}
                               className="p-1.5 hover:bg-red-50 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Supprimer"
+                              title="Delete"
                             >
                               <Trash2 size={16} className="text-red-500" />
                             </button>
@@ -263,7 +263,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
             </table>
           )}
 
-          {/* Erreur réinitialisation mot de passe */}
+          {/* Password reset error */}
           {resetError && (
             <div className="bg-red-50 text-red-600 text-sm p-2 rounded mt-2">
               {resetError}
@@ -274,7 +274,7 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
 
       <ConfirmDialog {...confirmDialogProps} />
 
-      {/* Dialog de création d'utilisateur */}
+      {/* Create user dialog */}
       {showCreateDialog && (
         <CreateUserDialog
           onClose={() => setShowCreateDialog(false)}

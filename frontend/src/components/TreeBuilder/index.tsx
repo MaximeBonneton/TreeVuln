@@ -38,19 +38,19 @@ export function TreeBuilder() {
   const undo = useTreeStore((state) => state.undo);
   const redo = useTreeStore((state) => state.redo);
 
-  // Charge l'arbre et la liste au montage
+  // Load tree and list on mount
   useEffect(() => {
     loadTree();
     loadTrees();
   }, [loadTree, loadTrees]);
 
-  // Raccourcis clavier
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
 
-      // Ctrl/Cmd+S : Sauvegarder (admin uniquement)
+      // Ctrl/Cmd+S: Save (admin only)
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (isAdminUser()) {
@@ -59,17 +59,17 @@ export function TreeBuilder() {
         return;
       }
 
-      // Ne pas traiter Delete/Escape si focus dans un champ de saisie
+      // Do not handle Delete/Escape if focus is in an input field
       if (isInput) return;
 
-      // Ctrl/Cmd+Z : Undo
+      // Ctrl/Cmd+Z: Undo
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
         undo();
         return;
       }
 
-      // Ctrl/Cmd+Shift+Z ou Ctrl/Cmd+Y : Redo
+      // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y: Redo
       if ((e.ctrlKey || e.metaKey) && (
         (e.shiftKey && e.key === 'z') ||
         (e.shiftKey && e.key === 'Z') ||
@@ -80,7 +80,7 @@ export function TreeBuilder() {
         return;
       }
 
-      // Delete/Backspace : Supprimer nœud ou edge sélectionné (admin uniquement)
+      // Delete/Backspace: Delete selected node or edge (admin only)
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!isAdminUser()) return;
         if (selectedNodeId) {
@@ -94,7 +94,7 @@ export function TreeBuilder() {
         return;
       }
 
-      // Escape : Désélectionner
+      // Escape: Deselect
       if (e.key === 'Escape') {
         selectNode(null);
         setSelectedNode(null);
@@ -107,18 +107,18 @@ export function TreeBuilder() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedNodeId, selectedEdge, saveTree, deleteNode, deleteEdge, selectNode, undo, redo]);
 
-  // Synchronise le nœud sélectionné avec le store
+  // Sync selected node with the store
   useEffect(() => {
     if (selectedNodeId) {
       const node = nodes.find((n) => n.id === selectedNodeId);
       setSelectedNode(node || null);
-      setSelectedEdge(null); // Deselectionne l'edge si on selectionne un noeud
+      setSelectedEdge(null); // Deselect edge when selecting a node
     } else {
       setSelectedNode(null);
     }
   }, [selectedNodeId, nodes]);
 
-  // Met a jour l'edge selectionne si les edges changent
+  // Update selected edge if edges change
   useEffect(() => {
     if (selectedEdge) {
       const edge = edges.find((e) => e.id === selectedEdge.id);
@@ -139,13 +139,13 @@ export function TreeBuilder() {
   const handleNodeClick = useCallback((node: TreeNode) => {
     selectNode(node.id);
     setSelectedNode(node);
-    setSelectedEdge(null); // Deselectionne l'edge
+    setSelectedEdge(null); // Deselect edge
   }, [selectNode]);
 
   const handleEdgeClick = useCallback((edge: TreeEdge) => {
     setSelectedEdge(edge);
     setSelectedNode(null);
-    selectNode(null); // Deselectionne le noeud
+    selectNode(null); // Deselect node
   }, [selectNode]);
 
   const handleCloseConfig = useCallback(() => {
@@ -166,7 +166,7 @@ export function TreeBuilder() {
         />
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar des arbres */}
+          {/* Tree sidebar */}
           <TreeSidebar
             onOpenCreateDialog={() => setShowCreateDialog(true)}
             onOpenApiConfig={() => setShowApiConfig(true)}
@@ -175,15 +175,15 @@ export function TreeBuilder() {
             onOpenIngestConfig={() => setShowIngestConfig(true)}
           />
 
-          {/* Palette gauche */}
+          {/* Left palette */}
           <div className={`p-4 ${sidebarOpen ? '' : 'ml-8'}`}>
             <NodePalette onDragStart={handleDragStart} />
           </div>
 
-          {/* Canvas central */}
+          {/* Central canvas */}
           <Canvas onNodeClick={handleNodeClick} onEdgeClick={handleEdgeClick} />
 
-          {/* Panel de configuration noeud (droit) */}
+          {/* Node config panel (right) */}
           {selectedNode && (
             <div className="p-4">
               <NodeConfigPanel
@@ -194,7 +194,7 @@ export function TreeBuilder() {
             </div>
           )}
 
-          {/* Panel de configuration edge (droit) */}
+          {/* Edge config panel (right) */}
           {selectedEdge && !selectedNode && (
             <div className="p-4">
               <EdgeConfigPanel
@@ -205,30 +205,30 @@ export function TreeBuilder() {
             </div>
           )}
 
-          {/* Panel de test (droit) */}
+          {/* Test panel (right) */}
           {showTestPanel && (
             <TestPanel onClose={() => setShowTestPanel(false)} />
           )}
         </div>
 
-        {/* Modal de mapping des champs */}
+        {/* Field mapping modal */}
         {showMappingPanel && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <FieldMappingPanel onClose={() => setShowMappingPanel(false)} />
           </div>
         )}
 
-        {/* Dialog de configuration API */}
+        {/* API configuration dialog */}
         {showApiConfig && (
           <ApiConfigDialog onClose={() => setShowApiConfig(false)} />
         )}
 
-        {/* Dialog de création d'arbre */}
+        {/* Tree creation dialog */}
         {showCreateDialog && (
           <CreateTreeDialog onClose={() => setShowCreateDialog(false)} />
         )}
 
-        {/* Dialog d'import d'assets */}
+        {/* Asset import dialog */}
         {showAssetImport && treeId && (
           <AssetImportDialog
             treeId={treeId}
@@ -238,7 +238,7 @@ export function TreeBuilder() {
           />
         )}
 
-        {/* Dialog de configuration webhooks sortants */}
+        {/* Outgoing webhooks configuration dialog */}
         {showWebhookConfig && treeId && (
           <WebhookConfigDialog
             treeId={treeId}
@@ -247,7 +247,7 @@ export function TreeBuilder() {
           />
         )}
 
-        {/* Dialog de configuration webhooks entrants */}
+        {/* Incoming webhooks configuration dialog */}
         {showIngestConfig && treeId && (
           <IngestConfigDialog
             treeId={treeId}

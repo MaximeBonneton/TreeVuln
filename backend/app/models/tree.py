@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 class Tree(Base):
     """
-    Modèle représentant un arbre de décision.
-    Support multi-arbres avec contextes isolés (assets propres à chaque arbre).
+    Model representing a decision tree.
+    Multi-tree support with isolated contexts (assets specific to each tree).
     """
 
     __tablename__ = "trees"
@@ -24,11 +24,11 @@ class Tree(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="Main Tree")
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    # Structure de l'arbre en JSON
+    # Tree structure in JSON
     # Format: { "nodes": [...], "edges": [...], "metadata": {...} }
     structure: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
-    # Multi-arbres: gestion du défaut et API
+    # Multi-tree: default and API management
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     api_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     api_slug: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)

@@ -1,60 +1,60 @@
 /**
- * Types pour le mapping des champs.
+ * Types for field mapping.
  */
 
-/** Types de données supportés pour les champs */
+/** Supported data types for fields */
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'unknown';
 
-/** Labels pour les types de champs */
+/** Labels for field types */
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  string: 'Texte',
-  number: 'Nombre',
-  boolean: 'Booléen',
+  string: 'Text',
+  number: 'Number',
+  boolean: 'Boolean',
   date: 'Date',
-  array: 'Liste',
-  unknown: 'Inconnu',
+  array: 'Array',
+  unknown: 'Unknown',
 };
 
-/** Définition d'un champ disponible */
+/** Definition of an available field */
 export interface FieldDefinition {
-  /** Nom technique du champ (ex: cvss_score) */
+  /** Technical field name (e.g., cvss_score) */
   name: string;
-  /** Label affiché (ex: Score CVSS) */
+  /** Displayed label (e.g., CVSS Score) */
   label?: string;
-  /** Type de données */
+  /** Data type */
   type: FieldType;
-  /** Description du champ */
+  /** Field description */
   description?: string;
-  /** Exemples de valeurs (max 5) */
+  /** Example values (max 5) */
   examples: (string | number | boolean)[];
-  /** Champ obligatoire dans les vulnérabilités */
+  /** Required field in vulnerabilities */
   required: boolean;
 }
 
-/** Mapping complet des champs pour un arbre */
+/** Complete field mapping for a tree */
 export interface FieldMapping {
-  /** Liste des champs disponibles */
+  /** List of available fields */
   fields: FieldDefinition[];
-  /** Origine du mapping: 'manual', 'import', 'scan:fichier.csv' */
+  /** Mapping origin: 'manual', 'import', 'scan:file.csv' */
   source?: string;
-  /** Version du mapping */
+  /** Mapping version */
   version: number;
 }
 
-/** Schéma pour la mise à jour du mapping */
+/** Schema for mapping update */
 export interface FieldMappingUpdate {
   fields: FieldDefinition[];
   source?: string;
 }
 
-/** Résultat du scan d'un fichier */
+/** File scan result */
 export interface ScanResult {
-  /** Champs détectés */
+  /** Detected fields */
   fields: FieldDefinition[];
-  /** Nombre de lignes analysées */
+  /** Number of rows analyzed */
   rows_scanned: number;
-  /** Type de fichier: 'csv' ou 'json' */
+  /** File type: 'csv' or 'json' */
   source_type: string;
-  /** Avertissements éventuels */
+  /** Possible warnings */
   warnings: string[];
 }

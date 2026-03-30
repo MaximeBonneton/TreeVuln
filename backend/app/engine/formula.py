@@ -1,10 +1,10 @@
 """
-Évaluateur de formules sécurisé basé sur le module ast.
+Secure formula evaluator based on the ast module.
 
-Parse les formules en AST Python et n'évalue que les constructions autorisées :
-- Littéraux numériques, variables, opérateurs arithmétiques (+, -, *, /, **, %)
-- Comparaisons, ternaire (condition ? val_true : val_false)
-- Fonctions : min(), max(), abs(), round()
+Parses formulas into Python AST and only evaluates allowed constructs:
+- Numeric literals, variables, arithmetic operators (+, -, *, /, **, %)
+- Comparisons, ternary (condition ? val_true : val_false)
+- Functions: min(), max(), abs(), round()
 """
 
 import ast
@@ -13,29 +13,29 @@ from typing import Any
 
 
 class FormulaError(Exception):
-    """Erreur lors de la validation ou l'évaluation d'une formule."""
+    """Error during formula validation or evaluation."""
 
     pass
 
 
-# Fonctions autorisées dans les formules
+# Allowed functions in formulas
 _ALLOWED_FUNCTIONS = {"min", "max", "abs", "round"}
 
-# Regex pour convertir la syntaxe ternaire C-style en Python
+# Regex to convert C-style ternary syntax to Python
 # condition ? val_true : val_false  ->  (val_true if condition else val_false)
 _TERNARY_RE = re.compile(
     r"""
-    \(([^?()]+)\)   # groupe 1 : condition entre parenthèses
+    \(([^?()]+)\)   # group 1: condition in parentheses
     \s*\?\s*        # ?
-    ([^:]+?)        # groupe 2 : val_true
+    ([^:]+?)        # group 2: val_true
     \s*:\s*         # :
-    ([^)]+?)        # groupe 3 : val_false
-    (?=\s*[+\-*/%),]|\s*$)  # suivi d'un opérateur, fermeture, ou fin
+    ([^)]+?)        # group 3: val_false
+    (?=\s*[+\-*/%),]|\s*$)  # followed by an operator, closing, or end
     """,
     re.VERBOSE,
 )
 
-# Version simplifiée sans parenthèses autour de la condition
+# Simplified version without parentheses around the condition
 _TERNARY_SIMPLE_RE = re.compile(
     r"""
     ([a-zA-Z_][a-zA-Z0-9_]*(?:\s*[><=!]+\s*[\w.]+)?)  # condition simple
@@ -50,17 +50,17 @@ _TERNARY_SIMPLE_RE = re.compile(
 
 
 def _preprocess_formula(formula: str) -> str:
-    """Convertit la syntaxe ternaire C-style en Python."""
+    """Convert C-style ternary syntax to Python."""
     result = formula
 
-    # Remplace les ternaires avec parenthèses : (cond) ? a : b -> (a if cond else b)
+    # Replace parenthesized ternaries: (cond) ? a : b -> (a if cond else b)
     def replace_paren_ternary(m: re.Match) -> str:
         cond, val_true, val_false = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
         return f"({val_true} if {cond} else {val_false})"
 
     result = _TERNARY_RE.sub(replace_paren_ternary, result)
 
-    # Remplace les ternaires simples : var ? a : b -> (a if var else b)
+    # Replace simple ternaries: var ? a : b -> (a if var else b)
     def replace_simple_ternary(m: re.Match) -> str:
         cond, val_true, val_false = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
         return f"({val_true} if {cond} else {val_false})"
@@ -71,101 +71,101 @@ def _preprocess_formula(formula: str) -> str:
 
 
 def _validate_node(node: ast.AST) -> None:
-    """Valide récursivement un noeud AST. Lève FormulaError si interdit."""
-    # Littéraux numériques et booléens
+    """Recursively validate an AST node. Raises FormulaError if forbidden."""
+    # Numeric and boolean literals
     if isinstance(node, ast.Constant):
         if not isinstance(node.value, (int, float, bool)):
-            raise FormulaError(f"Type de littéral non autorisé : {type(node.value).__name__}")
+            raise FormulaError(f"Unauthorized literal type: {type(node.value).__name__}")
         return
 
-    # Variables
+    # Variables (names)
     if isinstance(node, ast.Name):
         return
 
-    # Opérations unaires (-, +, not)
+    # Unary operations (-, +, not)
     if isinstance(node, ast.UnaryOp):
         if not isinstance(node.op, (ast.UAdd, ast.USub, ast.Not)):
-            raise FormulaError(f"Opérateur unaire non autorisé : {type(node.op).__name__}")
+            raise FormulaError(f"Unauthorized unary operator: {type(node.op).__name__}")
         _validate_node(node.operand)
         return
 
-    # Opérations binaires (+, -, *, /, **, %, //)
+    # Binary operations (+, -, *, /, **, %, //)
     if isinstance(node, ast.BinOp):
         allowed_ops = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv)
         if not isinstance(node.op, allowed_ops):
-            raise FormulaError(f"Opérateur binaire non autorisé : {type(node.op).__name__}")
+            raise FormulaError(f"Unauthorized binary operator: {type(node.op).__name__}")
         _validate_node(node.left)
         _validate_node(node.right)
         return
 
-    # Comparaisons (<, >, <=, >=, ==, !=)
+    # Comparisons (<, >, <=, >=, ==, !=)
     if isinstance(node, ast.Compare):
         allowed_cmp = (ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq)
         for op in node.ops:
             if not isinstance(op, allowed_cmp):
-                raise FormulaError(f"Opérateur de comparaison non autorisé : {type(op).__name__}")
+                raise FormulaError(f"Unauthorized comparison operator: {type(op).__name__}")
         _validate_node(node.left)
         for comparator in node.comparators:
             _validate_node(comparator)
         return
 
-    # Opérations booléennes (and, or)
+    # Boolean operations (and, or)
     if isinstance(node, ast.BoolOp):
         for value in node.values:
             _validate_node(value)
         return
 
-    # Ternaire (val_true if condition else val_false)
+    # Ternary (val_true if condition else val_false)
     if isinstance(node, ast.IfExp):
         _validate_node(node.test)
         _validate_node(node.body)
         _validate_node(node.orelse)
         return
 
-    # Appels de fonctions (min, max, abs, round uniquement)
+    # Function calls (min, max, abs, round only)
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name):
-            raise FormulaError("Seuls les appels de fonctions simples sont autorisés")
+            raise FormulaError("Only simple function calls are allowed")
         if node.func.id not in _ALLOWED_FUNCTIONS:
             raise FormulaError(
-                f"Fonction '{node.func.id}' non autorisée. "
-                f"Fonctions disponibles : {', '.join(sorted(_ALLOWED_FUNCTIONS))}"
+                f"Function '{node.func.id}' not allowed. "
+                f"Available functions: {', '.join(sorted(_ALLOWED_FUNCTIONS))}"
             )
         if node.keywords:
-            raise FormulaError("Les arguments nommés ne sont pas autorisés dans les fonctions")
+            raise FormulaError("Named arguments are not allowed in functions")
         for arg in node.args:
             _validate_node(arg)
         return
 
-    # Expression wrapper
+    # Expression wrapper (top-level)
     if isinstance(node, ast.Expression):
         _validate_node(node.body)
         return
 
-    # Tout le reste est interdit
+    # Everything else is forbidden
     raise FormulaError(
-        f"Construction non autorisée dans la formule : {type(node).__name__}. "
-        "Seuls les littéraux, variables, opérateurs arithmétiques, comparaisons, "
-        "ternaires et fonctions min/max/abs/round sont autorisés."
+        f"Unauthorized construct in formula: {type(node).__name__}. "
+        "Only literals, variables, arithmetic operators, comparisons, "
+        "ternaries and min/max/abs/round functions are allowed."
     )
 
 
 def extract_variables(formula: str) -> list[str]:
     """
-    Extrait les noms de variables d'une formule.
+    Extract variable names from a formula.
 
     Args:
-        formula: La formule à analyser
+        formula: The formula to analyze
 
     Returns:
-        Liste des noms de variables (dédupliquée, ordre d'apparition)
+        List of variable names (deduplicated, in order of appearance)
     """
     preprocessed = _preprocess_formula(formula)
 
     try:
         tree = ast.parse(preprocessed, mode="eval")
     except SyntaxError:
-        # Fallback : extraction par regex
+        # Fallback: extraction by regex
         tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", formula)
         seen: set[str] = set()
         result: list[str] = []
@@ -189,27 +189,27 @@ def extract_variables(formula: str) -> list[str]:
 
 def validate_formula(formula: str, available_variables: list[str] | None = None) -> list[str]:
     """
-    Valide la syntaxe d'une formule et retourne les variables utilisées.
+    Validate formula syntax and return used variables.
 
     Args:
-        formula: La formule à valider
-        available_variables: Si fourni, vérifie que les variables sont dans cette liste
+        formula: The formula to validate
+        available_variables: If provided, verifies that variables are in this list
 
     Returns:
-        Liste des variables utilisées
+        List of used variables
 
     Raises:
-        FormulaError: Si la formule est invalide
+        FormulaError: If the formula is invalid
     """
     if not formula or not formula.strip():
-        raise FormulaError("La formule ne peut pas être vide")
+        raise FormulaError("Formula cannot be empty")
 
     preprocessed = _preprocess_formula(formula)
 
     try:
         tree = ast.parse(preprocessed, mode="eval")
     except SyntaxError as e:
-        raise FormulaError(f"Erreur de syntaxe dans la formule : {e}") from e
+        raise FormulaError(f"Syntax error in formula: {e}") from e
 
     _validate_node(tree)
 
@@ -219,8 +219,8 @@ def validate_formula(formula: str, available_variables: list[str] | None = None)
         unknown = [v for v in variables if v not in available_variables]
         if unknown:
             raise FormulaError(
-                f"Variables inconnues : {', '.join(unknown)}. "
-                f"Variables disponibles : {', '.join(available_variables)}"
+                f"Unknown variables: {', '.join(unknown)}. "
+                f"Available variables: {', '.join(available_variables)}"
             )
 
     return variables
@@ -228,37 +228,37 @@ def validate_formula(formula: str, available_variables: list[str] | None = None)
 
 def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
     """
-    Évalue une formule avec les variables fournies.
+    Evaluate a formula with the provided variables.
 
     Args:
-        formula: La formule à évaluer
-        variables: Dictionnaire {nom_variable: valeur}
+        formula: The formula to evaluate
+        variables: Dictionary {variable_name: value}
 
     Returns:
-        Résultat numérique (float)
+        Numeric result (float)
 
     Raises:
-        FormulaError: Si l'évaluation échoue
+        FormulaError: If evaluation fails
     """
     if not formula or not formula.strip():
-        raise FormulaError("La formule ne peut pas être vide")
+        raise FormulaError("Formula cannot be empty")
 
     preprocessed = _preprocess_formula(formula)
 
     try:
         tree = ast.parse(preprocessed, mode="eval")
     except SyntaxError as e:
-        raise FormulaError(f"Erreur de syntaxe dans la formule : {e}") from e
+        raise FormulaError(f"Syntax error in formula: {e}") from e
 
     _validate_node(tree)
 
-    # Prépare les variables : coerce booleans en float, rejette None
+    # Prepare variables: coerce booleans to float, reject None
     safe_vars: dict[str, float] = {}
     for name, value in variables.items():
         if value is None:
             raise FormulaError(
-                f"La variable '{name}' est None. "
-                "Toutes les variables doivent avoir une valeur pour évaluer la formule."
+                f"Variable '{name}' is None. "
+                "All variables must have a value to evaluate the formula."
             )
         if isinstance(value, bool):
             safe_vars[name] = 1.0 if value else 0.0
@@ -269,14 +269,14 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
                 safe_vars[name] = float(value)
             except ValueError:
                 raise FormulaError(
-                    f"La variable '{name}' a la valeur '{value}' qui ne peut pas être convertie en nombre"
+                    f"Variable '{name}' has value '{value}' which cannot be converted to a number"
                 )
         else:
             raise FormulaError(
-                f"La variable '{name}' a un type non supporté : {type(value).__name__}"
+                f"Variable '{name}' has unsupported type: {type(value).__name__}"
             )
 
-    # Environnement d'exécution restreint
+    # Restricted execution environment
     safe_globals: dict[str, Any] = {"__builtins__": {}}
     safe_globals["min"] = min
     safe_globals["max"] = max
@@ -290,9 +290,9 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
     try:
         result = eval(compiled, safe_globals, safe_vars)  # noqa: S307
     except ZeroDivisionError:
-        raise FormulaError("Division par zéro dans la formule")
+        raise FormulaError("Division by zero in formula")
     except Exception as e:
-        raise FormulaError(f"Erreur d'évaluation : {e}") from e
+        raise FormulaError(f"Evaluation error: {e}") from e
 
     if isinstance(result, bool):
         return 1.0 if result else 0.0
@@ -300,4 +300,4 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
     try:
         return float(result)
     except (TypeError, ValueError) as e:
-        raise FormulaError(f"Le résultat de la formule n'est pas un nombre : {result}") from e
+        raise FormulaError(f"Formula result is not a number: {result}") from e

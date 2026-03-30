@@ -37,7 +37,7 @@ class TestEmptyTree:
         tree = TreeStructure()
         warnings = validate_tree_structure(tree)
         assert len(warnings) == 1
-        assert "aucun nœud" in warnings[0].lower()
+        assert "no nodes" in warnings[0].lower()
 
 
 class TestInvalidEdges:
@@ -53,7 +53,7 @@ class TestInvalidEdges:
         ]
         tree = TreeStructure(nodes=nodes, edges=edges)
         warnings = validate_tree_structure(tree)
-        assert any("source inexistant" in w for w in warnings)
+        assert any("non-existent source" in w for w in warnings)
 
     def test_edge_references_nonexistent_target(self):
         """Warning si une edge référence un nœud cible inexistant."""
@@ -69,7 +69,7 @@ class TestInvalidEdges:
         ]
         tree = TreeStructure(nodes=nodes, edges=edges)
         warnings = validate_tree_structure(tree)
-        assert any("cible inexistant" in w for w in warnings)
+        assert any("non-existent target" in w for w in warnings)
 
 
 class TestCycleDetection:
@@ -121,7 +121,7 @@ class TestNoRootNode:
         ]
         tree = TreeStructure(nodes=nodes, edges=edges)
         warnings = validate_tree_structure(tree)
-        assert any("racine" in w.lower() for w in warnings)
+        assert any("root" in w.lower() for w in warnings)
 
 
 class TestNoOutputNode:

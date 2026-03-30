@@ -18,13 +18,13 @@ export function Login({ onLogin }: LoginProps) {
 
     try {
       const result = await authApi.login(username, password);
-      // Que le statut soit "authenticated" ou "must_change_password",
-      // on appelle onLogin() — App.tsx gère l'état via checkAuth
+      // Whether status is "authenticated" or "must_change_password",
+      // we call onLogin() — App.tsx manages state via checkAuth
       if (result.status === 'authenticated' || result.status === 'must_change_password') {
         onLogin();
       }
     } catch (err: any) {
-      setError(err.message || 'Identifiants invalides');
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -36,35 +36,35 @@ export function Login({ onLogin }: LoginProps) {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">TreeVuln</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Connectez-vous pour accéder à l&apos;application.
+            Sign in to access the application.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Nom d&apos;utilisateur
+              Username
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Nom d'utilisateur"
+              placeholder="Username"
               autoFocus
               required
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Mot de passe
+              Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Mot de passe"
+              placeholder="Password"
               required
             />
           </div>
@@ -78,7 +78,7 @@ export function Login({ onLogin }: LoginProps) {
             disabled={loading || !username || !password}
             className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
           >
-            {loading ? 'Connexion...' : 'Se connecter'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
       </div>

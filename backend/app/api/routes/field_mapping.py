@@ -1,5 +1,5 @@
 """
-Routes API pour la gestion du mapping des champs.
+API routes for managing field mapping.
 """
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
@@ -15,10 +15,10 @@ from app.schemas.field_mapping import (
 )
 from app.services import field_mapping_service
 
-# Routes par arbre (montées sous /tree)
+# Per-tree routes (mounted under /tree)
 router = APIRouter()
 
-# Routes globales (montées sous /mapping)
+# Global routes (mounted under /mapping)
 global_router = APIRouter()
 
 
@@ -28,15 +28,15 @@ async def get_mapping(
     tree_service: TreeServiceDep,
 ):
     """
-    Récupère le mapping des champs pour un arbre.
+    Retrieve the field mapping for a tree.
 
-    Retourne null si aucun mapping n'est configuré.
+    Returns null if no mapping is configured.
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
 
     structure = tree_service.get_tree_structure(tree)
@@ -51,36 +51,36 @@ async def update_mapping(
     _=require_role("admin"),
 ):
     """
-    Met à jour le mapping des champs pour un arbre.
+    Update the field mapping for a tree.
 
-    Le mapping est stocké dans les métadonnées de l'arbre.
+    The mapping is stored in the tree metadata.
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Récupère le mapping existant pour obtenir la version
+    # Retrieve existing mapping to get the version
     existing = field_mapping_service.get_mapping_from_tree_metadata(structure.metadata)
     new_version = (existing.version + 1) if existing else 1
 
-    # Crée le nouveau mapping
+    # Create the new mapping
     new_mapping = FieldMapping(
         fields=data.fields,
         source=data.source,
         version=new_version,
     )
 
-    # Met à jour les métadonnées
+    # Update the metadata
     structure.metadata = field_mapping_service.set_mapping_in_tree_metadata(
         structure.metadata, new_mapping
     )
 
-    # Sauvegarde sans créer de version (modification de métadonnées)
+    # Save without creating a version (metadata modification)
     from app.schemas.tree import TreeUpdate
 
     await tree_service.update_tree(
@@ -100,18 +100,18 @@ async def import_mapping(
     _=require_role("admin"),
 ):
     """
-    Importe un mapping depuis un fichier JSON.
+    Import a mapping from a JSON file.
 
-    Le fichier doit contenir un objet avec une liste de FieldDefinition.
+    The file must contain an object with a list of FieldDefinition.
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
 
-    # Lit le fichier
+    # Read the file
     content = await file.read()
     try:
         import json
@@ -120,22 +120,22 @@ async def import_mapping(
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Fichier JSON invalide: {e}",
+            detail=f"Invalid JSON file: {e}",
         )
 
-    # Valide le mapping
+    # Validate the mapping
     try:
-        # Accepte soit un FieldMapping complet, soit juste une liste de fields
+        # Accept either a full FieldMapping or just a list of fields
         if isinstance(mapping_data, list):
             mapping_data = {"fields": mapping_data}
         imported_mapping = FieldMapping.model_validate(mapping_data)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Format de mapping invalide: {e}",
+            detail=f"Invalid mapping format: {e}",
         )
 
-    # Met à jour avec la source appropriée
+    # Update with the appropriate source
     structure = tree_service.get_tree_structure(tree)
     existing = field_mapping_service.get_mapping_from_tree_metadata(structure.metadata)
     new_version = (existing.version + 1) if existing else 1
@@ -168,16 +168,16 @@ async def delete_mapping(
     _=require_role("admin"),
 ):
     """
-    Supprime le mapping des champs pour un arbre.
+    Delete the field mapping for a tree.
 
-    Les nœuds existants conservent leurs configurations mais les
-    utilisateurs devront à nouveau saisir manuellement les noms de champs.
+    Existing nodes keep their configurations but users will need
+    to manually enter field names again.
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Arbre {tree_id} non trouvé",
+            detail=f"Tree {tree_id} not found",
         )
 
     structure = tree_service.get_tree_structure(tree)
@@ -199,20 +199,20 @@ async def scan_file(
     file: UploadFile = File(...),
 ):
     """
-    Scanne un fichier CSV ou JSON pour détecter les champs disponibles.
+    Scan a CSV or JSON file to detect available fields.
 
-    Analyse jusqu'à 100 lignes pour inférer les types et collecter des exemples.
-    Le résultat peut être utilisé pour créer ou mettre à jour un mapping.
+    Analyzes up to 100 rows to infer types and collect examples.
+    The result can be used to create or update a mapping.
 
-    Formats supportés:
-    - CSV avec en-têtes
-    - JSON (array d'objets ou objet avec une clé contenant un array)
+    Supported formats:
+    - CSV with headers
+    - JSON (array of objects or object with a key containing an array)
     """
     safe_name = sanitize_filename(file.filename)
     if not safe_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nom de fichier requis",
+            detail="Filename required",
         )
 
     content = await file.read()
@@ -221,7 +221,7 @@ async def scan_file(
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le fichier doit être encodé en UTF-8",
+            detail="File must be UTF-8 encoded",
         )
 
     result = field_mapping_service.scan_file_content(content_str, safe_name)
@@ -231,12 +231,12 @@ async def scan_file(
 @global_router.get("/cvss-fields", response_model=list[FieldDefinition])
 async def get_cvss_fields():
     """
-    Retourne les définitions des champs CVSS virtuels.
+    Return the definitions of virtual CVSS fields.
 
-    Ces champs sont extraits automatiquement du vecteur CVSS (cvss_vector)
-    lors de l'évaluation. Ils permettent de créer des conditions sur les
-    métriques individuelles (Attack Vector, Attack Complexity, etc.).
+    These fields are automatically extracted from the CVSS vector (cvss_vector)
+    during evaluation. They allow creating conditions on individual
+    metrics (Attack Vector, Attack Complexity, etc.).
 
-    Supporte CVSS 3.1 et 4.0.
+    Supports CVSS 3.1 and 4.0.
     """
     return get_cvss_field_definitions()

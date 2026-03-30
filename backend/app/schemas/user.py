@@ -1,19 +1,19 @@
-"""Schemas Pydantic pour l'authentification et la gestion des utilisateurs."""
+"""Pydantic schemas for authentication and user management."""
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 
-# --- Validation réutilisable ---
+# --- Reusable validation ---
 
 class PasswordField:
-    """Validation du mot de passe : minimum 12 caractères."""
+    """Password validation: minimum 12 characters."""
 
     @staticmethod
     def validate(v: str) -> str:
         if len(v) < 12:
-            raise ValueError("Le mot de passe doit contenir au moins 12 caractères")
+            raise ValueError("Password must be at least 12 characters")
         return v
 
 

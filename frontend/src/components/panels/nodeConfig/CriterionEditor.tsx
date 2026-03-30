@@ -20,7 +20,7 @@ export function CriterionEditor({
   return (
     <div className="p-2 bg-white border rounded space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">Critère {index + 1}</span>
+        <span className="text-xs text-gray-400">Criterion {index + 1}</span>
         {canRemove && (
           <button
             onClick={onRemove}
@@ -31,18 +31,18 @@ export function CriterionEditor({
         )}
       </div>
 
-      {/* Champ optionnel */}
+      {/* Optional field */}
       <div>
         <input
           type="text"
           value={criterion.field || ''}
           onChange={(e) => onChange('field', e.target.value || undefined)}
-          placeholder="Champ (vide = champ du nœud)"
+          placeholder="Field (empty = node field)"
           className="w-full px-2 py-1 text-xs border rounded"
         />
       </div>
 
-      {/* Opérateur + valeur */}
+      {/* Operator + value */}
       <div className="flex gap-2">
         <select
           value={criterion.operator}
