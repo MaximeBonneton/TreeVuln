@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_asset_service, get_tree_service
+from app.api.deps import get_asset_service, get_tree_service, require_auth
 from app.main import app
 from app.schemas.tree import (
     ConditionOperator,
@@ -77,15 +77,28 @@ def _make_mock_asset_service():
     return service
 
 
+def _make_fake_user():
+    """Crée un faux utilisateur pour bypasser l'auth."""
+    user = MagicMock()
+    user.id = "00000000-0000-0000-0000-000000000001"
+    user.username = "test-admin"
+    user.role = "admin"
+    user.is_active = True
+    user.must_change_pwd = False
+    return user
+
+
 @pytest.fixture
 def mock_services():
     """Fixture qui override les dépendances avec des mocks."""
     tree = _make_simple_tree_model()
     tree_service = _make_mock_tree_service(tree)
     asset_service = _make_mock_asset_service()
+    fake_user = _make_fake_user()
 
     app.dependency_overrides[get_tree_service] = lambda: tree_service
     app.dependency_overrides[get_asset_service] = lambda: asset_service
+    app.dependency_overrides[require_auth] = lambda: fake_user
 
     yield tree_service, asset_service
 
@@ -200,9 +213,11 @@ class TestEvaluateNoTree:
         tree_service = AsyncMock()
         tree_service.get_tree = AsyncMock(return_value=None)
         asset_service = _make_mock_asset_service()
+        fake_user = _make_fake_user()
 
         app.dependency_overrides[get_tree_service] = lambda: tree_service
         app.dependency_overrides[get_asset_service] = lambda: asset_service
+        app.dependency_overrides[require_auth] = lambda: fake_user
 
         try:
             async with AsyncClient(
