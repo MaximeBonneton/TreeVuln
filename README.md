@@ -1,10 +1,14 @@
-# TreeVuln — Security Decision Engine
+<p align="center">
+  <img src="docs/logo_with_text.png" alt="TreeVuln - Security Decision Engine" width="500">
+</p>
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg)](https://fastapi.tiangolo.com)
-[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](docker-compose.yml)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg" alt="Python 3.11+"></a>
+  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-009688.svg" alt="FastAPI"></a>
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18-61DAFB.svg" alt="React 18"></a>
+  <a href="docker-compose.yml"><img src="https://img.shields.io/badge/Docker-ready-2496ED.svg" alt="Docker"></a>
+</p>
 
 A visual, auditable security decision engine. Build decision trees graphically and use them to automate the processing of massive volumes of vulnerabilities, non-compliance findings, cloud audits, containers, and more.
 
