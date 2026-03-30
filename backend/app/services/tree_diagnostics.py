@@ -1,12 +1,12 @@
 """
-Diagnostic complet d'un arbre de decision.
-Orchestre les checks structurels, de configuration et logiques.
+Complete diagnostic of a decision tree.
+Orchestrates structural, configuration and logic checks.
 """
 
 from app.schemas.diagnostic import DiagnosticItem, DiagnosticResult
 from app.schemas.tree import ConditionOperator, NodeType, TreeStructure
 
-# Operateurs numeriques pour la detection de trous/chevauchements
+# Numeric operators for gap/overlap detection
 _NUMERIC_OPS = {
     ConditionOperator.GREATER_THAN,
     ConditionOperator.GREATER_THAN_OR_EQUAL,
@@ -16,7 +16,7 @@ _NUMERIC_OPS = {
 
 
 def _get_numeric_fields(structure: TreeStructure) -> set[str]:
-    """Extrait les noms de champs numeriques ou booleens depuis le field mapping dans metadata."""
+    """Extract numeric or boolean field names from the field mapping in metadata."""
     mapping_data = structure.metadata.get("field_mapping")
     if not mapping_data:
         return set()
@@ -26,7 +26,7 @@ def _get_numeric_fields(structure: TreeStructure) -> set[str]:
 
 
 def diagnose_tree(structure: TreeStructure) -> DiagnosticResult:
-    """Analyse complete d'un arbre. Retourne erreurs et warnings."""
+    """Complete analysis of a tree. Returns errors and warnings."""
     errors: list[DiagnosticItem] = []
     warnings: list[DiagnosticItem] = []
 
@@ -42,41 +42,41 @@ def _check_structural(
     errors: list[DiagnosticItem],
     warnings: list[DiagnosticItem],
 ) -> None:
-    """Checks structurels : edges, cycles, racine, output."""
+    """Structural checks: edges, cycles, root, output."""
     if not structure.nodes:
         errors.append(DiagnosticItem(
-            code="NO_ROOT", message="L'arbre ne contient aucun noeud", severity="error",
+            code="NO_ROOT", message="The tree contains no nodes", severity="error",
         ))
         return
 
     node_ids = {n.id for n in structure.nodes}
     node_map = {n.id: n for n in structure.nodes}
 
-    # Edges invalides
+    # Invalid edges
     for edge in structure.edges:
         if edge.source not in node_ids:
             errors.append(DiagnosticItem(
                 code="EDGE_SOURCE_MISSING",
-                message=f"L'edge '{edge.id}' reference un noeud source inexistant: '{edge.source}'",
+                message=f"Edge '{edge.id}' references a non-existent source node: '{edge.source}'",
                 severity="error", edge_id=edge.id,
             ))
         if edge.target not in node_ids:
             errors.append(DiagnosticItem(
                 code="EDGE_TARGET_MISSING",
-                message=f"L'edge '{edge.id}' reference un noeud cible inexistant: '{edge.target}'",
+                message=f"Edge '{edge.id}' references a non-existent target node: '{edge.target}'",
                 severity="error", edge_id=edge.id,
             ))
 
-    # Edge depuis un output
+    # Edge from an output node
     for edge in structure.edges:
         if edge.source in node_map and node_map[edge.source].type == NodeType.OUTPUT:
             warnings.append(DiagnosticItem(
                 code="EDGE_FROM_OUTPUT",
-                message=f"L'edge '{edge.id}' sort d'un noeud output '{edge.source}'",
+                message=f"Edge '{edge.id}' originates from an output node '{edge.source}'",
                 severity="warning", node_id=edge.source, edge_id=edge.id,
             ))
 
-    # Handles invalides
+    # Invalid handles
     for edge in structure.edges:
         if edge.source_handle and edge.source in node_map:
             source_node = node_map[edge.source]
@@ -92,7 +92,7 @@ def _check_structural(
                         if cond_idx >= len(source_node.conditions):
                             warnings.append(DiagnosticItem(
                                 code="INVALID_SOURCE_HANDLE",
-                                message=f"L'edge '{edge.id}' utilise condition_index={cond_idx} mais le noeud '{edge.source}' a {len(source_node.conditions)} conditions",
+                                message=f"Edge '{edge.id}' uses condition_index={cond_idx} but node '{edge.source}' has {len(source_node.conditions)} conditions",
                                 severity="warning", node_id=edge.source, edge_id=edge.id,
                             ))
                     elif len(parts) == 1:
@@ -100,36 +100,36 @@ def _check_structural(
                         if cond_idx >= len(source_node.conditions):
                             warnings.append(DiagnosticItem(
                                 code="INVALID_SOURCE_HANDLE",
-                                message=f"L'edge '{edge.id}' utilise condition_index={cond_idx} mais le noeud '{edge.source}' a {len(source_node.conditions)} conditions",
+                                message=f"Edge '{edge.id}' uses condition_index={cond_idx} but node '{edge.source}' has {len(source_node.conditions)} conditions",
                                 severity="warning", node_id=edge.source, edge_id=edge.id,
                             ))
                 except ValueError:
                     warnings.append(DiagnosticItem(
                         code="INVALID_SOURCE_HANDLE",
-                        message=f"L'edge '{edge.id}' a un source_handle invalide: '{handle}'",
+                        message=f"Edge '{edge.id}' has an invalid source_handle: '{handle}'",
                         severity="warning", edge_id=edge.id,
                     ))
 
-    # Noeud racine
+    # Root node
     target_nodes = {e.target for e in structure.edges}
     root_nodes = [nid for nid in node_ids if nid not in target_nodes]
     if not root_nodes:
         errors.append(DiagnosticItem(
             code="NO_ROOT",
-            message="Aucun noeud racine detecte (tous les noeuds sont cibles par des edges)",
+            message="No root node detected (all nodes are targets of edges)",
             severity="error",
         ))
 
-    # Noeud output
+    # Output node
     output_nodes = [n for n in structure.nodes if n.type == NodeType.OUTPUT]
     if not output_nodes:
         errors.append(DiagnosticItem(
             code="NO_OUTPUT",
-            message="L'arbre ne contient aucun noeud de sortie (output)",
+            message="The tree contains no output nodes",
             severity="error",
         ))
 
-    # Detection de cycles (DFS)
+    # Cycle detection (DFS)
     adj: dict[str, list[str]] = {nid: [] for nid in node_ids}
     for edge in structure.edges:
         if edge.source in node_ids and edge.target in node_ids:
@@ -153,7 +153,7 @@ def _check_structural(
             if has_cycle(nid):
                 errors.append(DiagnosticItem(
                     code="CYCLE_DETECTED",
-                    message="Cycle detecte dans l'arbre - risque de boucle infinie",
+                    message="Cycle detected in the tree - risk of infinite loop",
                     severity="error",
                 ))
                 break
@@ -164,21 +164,21 @@ def _check_configuration(
     errors: list[DiagnosticItem],
     warnings: list[DiagnosticItem],
 ) -> None:
-    """Checks de configuration : champs manquants, noeuds isoles, handles orphelins."""
+    """Configuration checks: missing fields, isolated nodes, orphan handles."""
     if not structure.nodes:
         return
 
     node_ids = {n.id for n in structure.nodes}
 
-    # Noeuds connectes (source ou target d'une edge)
+    # Connected nodes (source or target of an edge)
     connected_nodes: set[str] = set()
     for edge in structure.edges:
         connected_nodes.add(edge.source)
         connected_nodes.add(edge.target)
 
-    # Edges sortantes par noeud, indexees par source_handle
+    # Outgoing edges per node, indexed by source_handle
     outgoing_handles: dict[str, set[str]] = {n.id: set() for n in structure.nodes}
-    # Noeuds qui ont au moins une edge sortante sans source_handle
+    # Nodes that have at least one outgoing edge without source_handle
     has_unhandled_edges: set[str] = set()
     for edge in structure.edges:
         if edge.source in node_ids:
@@ -188,21 +188,21 @@ def _check_configuration(
                 has_unhandled_edges.add(edge.source)
 
     for node in structure.nodes:
-        # Noeuds non-output sans conditions de sortie
+        # Non-output nodes without exit conditions
         if node.type in (NodeType.INPUT, NodeType.LOOKUP, NodeType.EQUATION) and not node.conditions:
             errors.append(DiagnosticItem(
                 code="NO_CONDITIONS",
-                message=f"Le noeud '{node.id}' ({node.label}) n'a aucune condition de sortie",
+                message=f"Node '{node.id}' ({node.label}) has no exit conditions",
                 severity="error", node_id=node.id,
             ))
 
-        # Config manquante
+        # Missing configuration
         if node.type == NodeType.INPUT:
             field = node.config.get("field")
             if not field or not str(field).strip():
                 errors.append(DiagnosticItem(
                     code="INPUT_NO_FIELD",
-                    message=f"Le noeud input '{node.id}' n'a pas de champ configure",
+                    message=f"Input node '{node.id}' has no field configured",
                     severity="error", node_id=node.id,
                 ))
 
@@ -212,7 +212,7 @@ def _check_configuration(
             if missing:
                 errors.append(DiagnosticItem(
                     code="LOOKUP_INCOMPLETE",
-                    message=f"Le noeud lookup '{node.id}' manque: {', '.join(missing)}",
+                    message=f"Lookup node '{node.id}' is missing: {', '.join(missing)}",
                     severity="error", node_id=node.id,
                 ))
 
@@ -221,7 +221,7 @@ def _check_configuration(
             if not decision or not str(decision).strip():
                 errors.append(DiagnosticItem(
                     code="OUTPUT_NO_DECISION",
-                    message=f"Le noeud output '{node.id}' n'a pas de decision configuree",
+                    message=f"Output node '{node.id}' has no decision configured",
                     severity="error", node_id=node.id,
                 ))
 
@@ -230,11 +230,11 @@ def _check_configuration(
             if not formula or not str(formula).strip():
                 errors.append(DiagnosticItem(
                     code="EQUATION_NO_FORMULA",
-                    message=f"Le noeud equation '{node.id}' n'a pas de formule configuree",
+                    message=f"Equation node '{node.id}' has no formula configured",
                     severity="error", node_id=node.id,
                 ))
-            # Variables sans value_map : risque de texte dans un calcul numerique
-            # On skip les variables connues comme numeriques ou booleennes via le field mapping
+            # Variables without value_map: risk of text in a numeric calculation
+            # Skip variables known as numeric or boolean via the field mapping
             variables = node.config.get("variables", [])
             value_maps = node.config.get("value_maps", {})
             numeric_fields = _get_numeric_fields(structure)
@@ -242,20 +242,20 @@ def _check_configuration(
                 if var_name not in value_maps and var_name not in numeric_fields:
                     warnings.append(DiagnosticItem(
                         code="EQUATION_NO_VALUE_MAP",
-                        message=f"La variable '{var_name}' du noeud equation '{node.id}' n'a pas de correspondance texte/nombre (value_map). Si ce champ contient du texte, l'evaluation echouera.",
+                        message=f"Variable '{var_name}' of equation node '{node.id}' has no text-to-number mapping (value_map). If this field contains text, evaluation will fail.",
                         severity="warning", node_id=node.id,
                     ))
 
-        # Noeud isole
+        # Isolated node
         if node.id not in connected_nodes:
             warnings.append(DiagnosticItem(
                 code="ISOLATED_NODE",
-                message=f"Le noeud '{node.id}' ({node.label}) n'est connecte a aucune edge",
+                message=f"Node '{node.id}' ({node.label}) is not connected to any edge",
                 severity="warning", node_id=node.id,
             ))
 
-        # Handles orphelins (conditions sans edge)
-        # Skip si le noeud a des edges sortantes sans source_handle (on ne peut pas determiner le mapping)
+        # Orphan handles (conditions without edge)
+        # Skip if the node has outgoing edges without source_handle (we cannot determine the mapping)
         if node.type != NodeType.OUTPUT and node.conditions and node.id not in has_unhandled_edges:
             input_count = node.config.get("input_count", 1)
             for cond_idx in range(len(node.conditions)):
@@ -265,7 +265,7 @@ def _check_configuration(
                         if expected not in outgoing_handles.get(node.id, set()):
                             warnings.append(DiagnosticItem(
                                 code="ORPHAN_HANDLE",
-                                message=f"La condition '{node.conditions[cond_idx].label}' (entree {input_idx}) du noeud '{node.id}' n'a pas d'edge connectee",
+                                message=f"Condition '{node.conditions[cond_idx].label}' (input {input_idx}) of node '{node.id}' has no connected edge",
                                 severity="warning", node_id=node.id,
                             ))
                 else:
@@ -273,7 +273,7 @@ def _check_configuration(
                     if expected not in outgoing_handles.get(node.id, set()):
                         warnings.append(DiagnosticItem(
                             code="ORPHAN_HANDLE",
-                            message=f"La condition '{node.conditions[cond_idx].label}' du noeud '{node.id}' n'a pas d'edge connectee",
+                            message=f"Condition '{node.conditions[cond_idx].label}' of node '{node.id}' has no connected edge",
                             severity="warning", node_id=node.id,
                         ))
 
@@ -283,20 +283,20 @@ def _check_logic(
     errors: list[DiagnosticItem],
     warnings: list[DiagnosticItem],
 ) -> None:
-    """Checks logiques : branches mortes, trous/chevauchements numeriques, branchement unique."""
+    """Logic checks: dead branches, numeric gaps/overlaps, single branching."""
     if not structure.nodes:
         return
 
     node_ids = {n.id for n in structure.nodes}
     node_map = {n.id: n for n in structure.nodes}
 
-    # Adjacence
+    # Adjacency
     adj: dict[str, list[str]] = {nid: [] for nid in node_ids}
     for edge in structure.edges:
         if edge.source in node_ids and edge.target in node_ids:
             adj[edge.source].append(edge.target)
 
-    # Branches mortes
+    # Dead branches
     target_nodes = {e.target for e in structure.edges}
     root_nodes = [nid for nid in node_ids if nid not in target_nodes]
     output_ids = {n.id for n in structure.nodes if n.type == NodeType.OUTPUT}
@@ -304,20 +304,20 @@ def _check_logic(
     for root_id in root_nodes:
         _find_dead_branches(root_id, adj, output_ids, set(), warnings, node_map)
 
-    # Checks par noeud
+    # Per-node checks
     for node in structure.nodes:
         if node.type == NodeType.OUTPUT:
             continue
 
-        # Branchement unique
+        # Single branching
         if len(node.conditions) == 1:
             warnings.append(DiagnosticItem(
                 code="SINGLE_CONDITION",
-                message=f"Le noeud '{node.id}' ({node.label}) n'a qu'une seule condition de sortie",
+                message=f"Node '{node.id}' ({node.label}) has only one exit condition",
                 severity="warning", node_id=node.id,
             ))
 
-        # Analyse numerique
+        # Numeric analysis
         _check_numeric_conditions(node, warnings)
 
 
@@ -329,7 +329,7 @@ def _find_dead_branches(
     warnings: list[DiagnosticItem],
     node_map: dict,
 ) -> bool:
-    """Retourne True si le noeud peut atteindre un output."""
+    """Returns True if the node can reach an output."""
     if node_id in output_ids:
         return True
     if node_id in visited:
@@ -342,7 +342,7 @@ def _find_dead_branches(
         if node_id in node_map:
             warnings.append(DiagnosticItem(
                 code="DEAD_BRANCH",
-                message=f"Le noeud '{node_id}' ({node_map[node_id].label}) ne mene a aucun noeud output",
+                message=f"Node '{node_id}' ({node_map[node_id].label}) does not lead to any output node",
                 severity="warning", node_id=node_id,
             ))
         return False
@@ -356,16 +356,16 @@ def _find_dead_branches(
 
 
 def _check_numeric_conditions(node, warnings: list[DiagnosticItem]) -> None:
-    """Detecte les trous et chevauchements dans les conditions numeriques d'un noeud."""
+    """Detects gaps and overlaps in the numeric conditions of a node."""
     if len(node.conditions) < 2:
         return
 
     intervals = []
     for cond in node.conditions:
         if cond.logic is not None or cond.operator is None:
-            return  # Conditions composees : on skip
+            return  # Compound conditions: skip
         if cond.operator not in _NUMERIC_OPS:
-            return  # Pas entierement numerique
+            return  # Not entirely numeric
         try:
             val = float(cond.value)
         except (TypeError, ValueError):
@@ -375,7 +375,7 @@ def _check_numeric_conditions(node, warnings: list[DiagnosticItem]) -> None:
     if len(intervals) < 2:
         return
 
-    # Construire les bornes inferieures/superieures
+    # Build lower/upper bounds
     lowers = []  # (val, inclusive)
     uppers = []  # (val, inclusive)
     for op, val in intervals:
@@ -388,34 +388,34 @@ def _check_numeric_conditions(node, warnings: list[DiagnosticItem]) -> None:
         elif op == ConditionOperator.LESS_THAN_OR_EQUAL:
             uppers.append((val, True))
 
-    # Trous
+    # Gaps
     for upper_val, upper_incl in uppers:
         for lower_val, lower_incl in lowers:
             if upper_val < lower_val:
                 warnings.append(DiagnosticItem(
                     code="NUMERIC_GAP",
-                    message=f"Trou dans les conditions du noeud '{node.id}': aucune condition ne couvre les valeurs entre {upper_val} et {lower_val}",
+                    message=f"Gap in conditions of node '{node.id}': no condition covers values between {upper_val} and {lower_val}",
                     severity="warning", node_id=node.id,
                 ))
             elif upper_val == lower_val and not upper_incl and not lower_incl:
                 warnings.append(DiagnosticItem(
                     code="NUMERIC_GAP",
-                    message=f"Trou dans les conditions du noeud '{node.id}': la valeur {upper_val} n'est couverte par aucune condition",
+                    message=f"Gap in conditions of node '{node.id}': value {upper_val} is not covered by any condition",
                     severity="warning", node_id=node.id,
                 ))
 
-    # Chevauchements
+    # Overlaps
     for lower_val, lower_incl in lowers:
         for upper_val, upper_incl in uppers:
             if lower_val < upper_val:
                 warnings.append(DiagnosticItem(
                     code="NUMERIC_OVERLAP",
-                    message=f"Chevauchement dans les conditions du noeud '{node.id}': les valeurs entre {lower_val} et {upper_val} correspondent a plusieurs conditions",
+                    message=f"Overlap in conditions of node '{node.id}': values between {lower_val} and {upper_val} match multiple conditions",
                     severity="warning", node_id=node.id,
                 ))
             elif lower_val == upper_val and lower_incl and upper_incl:
                 warnings.append(DiagnosticItem(
                     code="NUMERIC_OVERLAP",
-                    message=f"Chevauchement dans les conditions du noeud '{node.id}': la valeur {lower_val} correspond a plusieurs conditions",
+                    message=f"Overlap in conditions of node '{node.id}': value {lower_val} matches multiple conditions",
                     severity="warning", node_id=node.id,
                 ))

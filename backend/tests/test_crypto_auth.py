@@ -1,5 +1,5 @@
 """
-Tests unitaires pour crypto.py (chiffrement Fernet avec clé en cache module).
+Unit tests for crypto.py (Fernet encryption with module-level key cache).
 """
 
 import pytest
@@ -11,7 +11,7 @@ from app.crypto import decrypt_secret, encrypt_secret, set_encryption_key, _rese
 
 
 class TestEncryptDecrypt:
-    """Tests du chiffrement/déchiffrement Fernet."""
+    """Tests for Fernet encryption/decryption."""
 
     def setup_method(self):
         set_encryption_key("test-admin-key")
@@ -20,19 +20,19 @@ class TestEncryptDecrypt:
         _reset_key()
 
     def test_round_trip(self):
-        """Un secret chiffré puis déchiffré retourne le texte original."""
+        """An encrypted then decrypted secret returns the original text."""
         secret = "my-webhook-secret-123"
         encrypted = encrypt_secret(secret)
         decrypted = decrypt_secret(encrypted)
         assert decrypted == secret
 
     def test_encrypted_has_prefix(self):
-        """Le secret chiffré commence par 'enc:'."""
+        """The encrypted secret starts with 'enc:'."""
         encrypted = encrypt_secret("test")
         assert encrypted.startswith("enc:")
 
     def test_different_keys_produce_different_ciphertexts(self):
-        """Deux clés différentes produisent des chiffrés différents."""
+        """Two different keys produce different ciphertexts."""
         secret = "same-secret"
         set_encryption_key("key-1")
         enc1 = encrypt_secret(secret)
@@ -41,7 +41,7 @@ class TestEncryptDecrypt:
         assert enc1 != enc2
 
     def test_wrong_key_fails(self):
-        """Le déchiffrement avec une mauvaise clé lève une erreur."""
+        """Decryption with a wrong key raises an error."""
         set_encryption_key("key-1")
         encrypted = encrypt_secret("secret")
         set_encryption_key("key-2")
@@ -49,29 +49,29 @@ class TestEncryptDecrypt:
             decrypt_secret(encrypted)
 
     def test_plaintext_retrocompatibility(self):
-        """Un secret sans préfixe 'enc:' est retourné tel quel (rétrocompatibilité)."""
+        """A secret without the 'enc:' prefix is returned as-is (backward compatibility)."""
         plaintext = "old-plaintext-secret"
         result = decrypt_secret(plaintext)
         assert result == plaintext
 
     def test_empty_string_retrocompatibility(self):
-        """Une chaîne vide est retournée telle quelle."""
+        """An empty string is returned as-is."""
         assert decrypt_secret("") == ""
 
     def test_encrypt_empty_string(self):
-        """Une chaîne vide peut être chiffrée et déchiffrée."""
+        """An empty string can be encrypted and decrypted."""
         encrypted = encrypt_secret("")
         assert decrypt_secret(encrypted) == ""
 
     def test_encrypt_unicode(self):
-        """Les caractères unicode sont supportés."""
+        """Unicode characters are supported."""
         secret = "clé-sécurisée-éàü-日本語"
         encrypted = encrypt_secret(secret)
         assert decrypt_secret(encrypted) == secret
 
 
 class TestCryptoModuleCache:
-    """Tests du cache module pour la clé de chiffrement."""
+    """Tests for the module-level encryption key cache."""
 
     def setup_method(self):
         _reset_key()

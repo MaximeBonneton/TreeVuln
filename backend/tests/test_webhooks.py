@@ -1,9 +1,9 @@
 """
-Tests pour les webhooks sortants.
-- Validation des schemas (URL, events)
-- Signature HMAC-SHA256
-- Construction des payloads
-- Dispatch non-bloquant (erreurs capturées)
+Tests for outbound webhooks.
+- Schema validation (URL, events)
+- HMAC-SHA256 signature
+- Payload construction
+- Non-blocking dispatch (errors captured)
 """
 
 import hashlib
@@ -16,11 +16,11 @@ import pytest
 from app.schemas.webhook import WebhookCreate, WebhookUpdate, WebhookTestResult
 
 
-# --- Tests de validation des schemas ---
+# --- Schema validation tests ---
 
 
 class TestWebhookSchemas:
-    """Tests de validation Pydantic pour les webhooks."""
+    """Pydantic validation tests for webhooks."""
 
     def test_create_valid(self):
         data = WebhookCreate(
@@ -114,14 +114,14 @@ class TestWebhookSchemas:
         assert data.events == ["on_batch_complete"]
 
 
-# --- Tests de signature HMAC ---
+# --- HMAC signature tests ---
 
 
 class TestWebhookHMAC:
-    """Tests de la signature HMAC-SHA256 des webhooks."""
+    """Tests for HMAC-SHA256 webhook signature."""
 
     def test_hmac_signature(self):
-        """Vérifie que la signature HMAC est correcte."""
+        """Verify that the HMAC signature is correct."""
         secret = "test-secret-key"
         payload = {"event": "on_act", "vuln_id": "CVE-2024-1234"}
         body = json.dumps(payload, default=str, ensure_ascii=False)
@@ -140,40 +140,40 @@ class TestWebhookHMAC:
         ).hexdigest()
 
     def test_hmac_different_secrets(self):
-        """Deux secrets différents donnent des signatures différentes."""
+        """Two different secrets produce different signatures."""
         body = b'{"test": true}'
         sig1 = hmac.new(b"secret1", body, hashlib.sha256).hexdigest()
         sig2 = hmac.new(b"secret2", body, hashlib.sha256).hexdigest()
         assert sig1 != sig2
 
     def test_hmac_different_bodies(self):
-        """Deux payloads différents donnent des signatures différentes."""
+        """Two different payloads produce different signatures."""
         secret = b"same-secret"
         sig1 = hmac.new(secret, b'{"a": 1}', hashlib.sha256).hexdigest()
         sig2 = hmac.new(secret, b'{"a": 2}', hashlib.sha256).hexdigest()
         assert sig1 != sig2
 
 
-# --- Tests du dispatch ---
+# --- Dispatch tests ---
 
 
 class TestWebhookDispatch:
-    """Tests du module webhook_dispatch."""
+    """Tests for the webhook_dispatch module."""
 
     @pytest.mark.asyncio
     async def test_dispatch_catches_errors(self):
-        """Le dispatch ne doit jamais propager d'erreurs."""
+        """Dispatch must never propagate errors."""
         from app.services.webhook_dispatch import dispatch_webhooks
 
-        # Mock async_session_maker pour lever une exception
+        # Mock async_session_maker to raise an exception
         with patch("app.services.webhook_dispatch.async_session_maker") as mock_session:
             mock_session.side_effect = Exception("DB connection failed")
-            # Ne doit PAS lever d'exception
+            # Must NOT raise an exception
             await dispatch_webhooks(tree_id=999, event="on_act", payload={"test": True})
 
     @pytest.mark.asyncio
     async def test_send_single_success(self):
-        """Teste l'envoi d'un webhook avec réponse OK."""
+        """Test sending a webhook with an OK response."""
         from app.services.webhook_dispatch import _send_single
 
         webhook = MagicMock()
@@ -199,7 +199,7 @@ class TestWebhookDispatch:
 
     @pytest.mark.asyncio
     async def test_send_single_failure(self):
-        """Teste l'envoi d'un webhook avec erreur réseau."""
+        """Test sending a webhook with a network error."""
         from app.services.webhook_dispatch import _send_single
 
         webhook = MagicMock()
@@ -221,7 +221,7 @@ class TestWebhookDispatch:
 
     @pytest.mark.asyncio
     async def test_send_single_with_hmac(self):
-        """Vérifie que le header HMAC est ajouté quand un secret est configuré."""
+        """Verify that the HMAC header is added when a secret is configured."""
         from app.services.webhook_dispatch import _send_single
 
         webhook = MagicMock()
@@ -242,7 +242,7 @@ class TestWebhookDispatch:
 
             await _send_single(webhook, "on_act", {"data": "test"})
 
-            # Vérifie que le header de signature a été envoyé
+            # Verify that the signature header was sent
             call_kwargs = mock_instance.post.call_args
             headers = call_kwargs.kwargs.get("headers") or call_kwargs[1].get("headers")
             assert "X-TreeVuln-Signature" in headers
@@ -250,7 +250,7 @@ class TestWebhookDispatch:
 
     @pytest.mark.asyncio
     async def test_send_single_without_secret(self):
-        """Vérifie que le header HMAC n'est PAS ajouté sans secret."""
+        """Verify that the HMAC header is NOT added without a secret."""
         from app.services.webhook_dispatch import _send_single
 
         webhook = MagicMock()
@@ -276,11 +276,11 @@ class TestWebhookDispatch:
             assert "X-TreeVuln-Signature" not in headers
 
 
-# --- Tests du WebhookTestResult ---
+# --- WebhookTestResult tests ---
 
 
 class TestWebhookTestResult:
-    """Tests du schema WebhookTestResult."""
+    """Tests for the WebhookTestResult schema."""
 
     def test_success_result(self):
         result = WebhookTestResult(

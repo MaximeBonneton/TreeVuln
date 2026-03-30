@@ -1,4 +1,4 @@
-"""Tests pour la sanitisation des noms de fichiers uploadés."""
+"""Tests for uploaded filename sanitization."""
 
 import pytest
 
@@ -6,9 +6,9 @@ from app.filename_validation import sanitize_filename
 
 
 class TestSanitizeFilename:
-    """Validation de sanitize_filename contre les vecteurs d'attaque courants."""
+    """Validation of sanitize_filename against common attack vectors."""
 
-    # --- Cas nominaux ---
+    # --- Nominal cases ---
 
     def test_normal_filename(self):
         assert sanitize_filename("data.csv") == "data.csv"
@@ -22,7 +22,7 @@ class TestSanitizeFilename:
     def test_filename_with_hyphens_underscores(self):
         assert sanitize_filename("my-file_2024.csv") == "my-file_2024.csv"
 
-    # --- Valeurs vides / None ---
+    # --- Empty values / None ---
 
     def test_none_returns_none(self):
         assert sanitize_filename(None) is None
@@ -33,7 +33,7 @@ class TestSanitizeFilename:
     def test_whitespace_only_returns_none(self):
         assert sanitize_filename("   ") is None
 
-    # --- Traversée de chemin ---
+    # --- Path traversal ---
 
     def test_path_traversal_unix(self):
         assert sanitize_filename("../../../etc/passwd") == "passwd"
@@ -51,14 +51,14 @@ class TestSanitizeFilename:
         assert sanitize_filename("path/to\\file.csv") == "file.csv"
 
     def test_dot_dot_only(self):
-        """Un nom composé uniquement de '..' doit être rejeté."""
+        """A name consisting only of '..' must be rejected."""
         assert sanitize_filename("..") is None
 
     def test_single_dot(self):
-        """Un nom composé d'un seul '.' doit être rejeté (fichier caché vide)."""
+        """A name consisting of a single '.' must be rejected (empty hidden file)."""
         assert sanitize_filename(".") is None
 
-    # --- Fichiers cachés (dot-prefix) ---
+    # --- Hidden files (dot-prefix) ---
 
     def test_hidden_file(self):
         assert sanitize_filename(".htaccess") == "htaccess"
@@ -66,7 +66,7 @@ class TestSanitizeFilename:
     def test_hidden_file_with_path(self):
         assert sanitize_filename("/var/www/.env") == "env"
 
-    # --- Caractères nuls et de contrôle ---
+    # --- Null bytes and control characters ---
 
     def test_null_byte_injection(self):
         result = sanitize_filename("file.csv\x00.exe")
@@ -81,10 +81,10 @@ class TestSanitizeFilename:
         result = sanitize_filename("file\t\n.csv")
         assert result == "file.csv"
 
-    # --- Caractères spéciaux dangereux ---
+    # --- Dangerous special characters ---
 
     def test_angle_brackets(self):
-        """Protège contre injection HTML dans les headers."""
+        """Protects against HTML injection in headers."""
         result = sanitize_filename("<script>alert(1)</script>.csv")
         assert "<" not in result
         assert ">" not in result
@@ -95,7 +95,7 @@ class TestSanitizeFilename:
         assert "?" not in result
 
     def test_double_quotes(self):
-        """Protège contre injection dans Content-Disposition."""
+        """Protects against injection in Content-Disposition."""
         result = sanitize_filename('file"name.csv')
         assert '"' not in result
 
@@ -107,7 +107,7 @@ class TestSanitizeFilename:
         result = sanitize_filename("file*name.csv")
         assert "*" not in result
 
-    # --- Longueur ---
+    # --- Length ---
 
     def test_very_long_filename_truncated(self):
         long_name = "a" * 300 + ".csv"
@@ -118,7 +118,7 @@ class TestSanitizeFilename:
         name = "a" * 100 + ".csv"
         assert sanitize_filename(name) == name
 
-    # --- Cas combinés ---
+    # --- Combined cases ---
 
     def test_traversal_with_null_byte(self):
         result = sanitize_filename("../../\x00file.csv")
@@ -129,6 +129,6 @@ class TestSanitizeFilename:
         assert result == "scriptalert.csv"
 
     def test_extension_preserved_after_sanitization(self):
-        """L'extension doit rester intacte pour la détection de format."""
+        """The extension must remain intact for format detection."""
         assert sanitize_filename("../data.csv").endswith(".csv")
         assert sanitize_filename("..\\data.json").endswith(".json")

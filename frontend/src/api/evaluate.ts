@@ -10,15 +10,15 @@ import type {
 } from '@/types';
 
 export const evaluateApi = {
-  // Évalue une vulnérabilité unique
+  // Evaluate a single vulnerability
   evaluateSingle: (data: SingleEvaluationRequest) =>
     api.post<EvaluationResult>('/evaluate/single', data),
 
-  // Évalue un batch de vulnérabilités
+  // Evaluate a batch of vulnerabilities
   evaluateBatch: (data: EvaluationRequest) =>
     api.post<EvaluationResponse>('/evaluate', data),
 
-  // Évalue un fichier CSV (upload)
+  // Evaluate a CSV file (upload)
   evaluateCsv: async (file: File, includePath = false): Promise<EvaluationResponse> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -40,7 +40,7 @@ export const evaluateApi = {
     return response.json();
   },
 
-  // Exporte un fichier CSV évalué en CSV
+  // Export an evaluated CSV file as CSV
   exportCsvFile: async (file: File, format: 'csv' | 'json' = 'csv'): Promise<Blob> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -62,7 +62,7 @@ export const evaluateApi = {
     return response.blob();
   },
 
-  // Exporte un batch JSON en CSV ou JSON
+  // Export a JSON batch as CSV or JSON
   exportBatch: async (
     data: EvaluationRequest & { format: 'csv' | 'json' },
   ): Promise<Blob> => {
@@ -81,7 +81,7 @@ export const evaluateApi = {
     return response.blob();
   },
 
-  // Preview : evalue sur un arbre non sauvegarde
+  // Preview: evaluate on an unsaved tree
   evaluatePreview: (data: PreviewEvaluationRequest) =>
     api.post<EvaluationResult>('/evaluate/preview', data),
 

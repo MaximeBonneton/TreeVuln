@@ -1,5 +1,5 @@
 """
-Configuration des tests pytest.
+Pytest test configuration.
 """
 
 import pytest
@@ -18,11 +18,11 @@ from app.schemas.tree import (
 @pytest.fixture
 def simple_tree_structure() -> TreeStructure:
     """
-    Arbre de test simple:
-    - Nœud INPUT vérifie cvss_score
-    - Si >= 9.0 -> Act
-    - Si >= 7.0 -> Attend
-    - Sinon -> Track
+    Simple test tree:
+    - INPUT node checks cvss_score
+    - If >= 9.0 -> Act
+    - If >= 7.0 -> Attend
+    - Otherwise -> Track
     """
     nodes = [
         NodeSchema(
@@ -68,10 +68,10 @@ def simple_tree_structure() -> TreeStructure:
 @pytest.fixture
 def tree_with_lookup() -> TreeStructure:
     """
-    Arbre de test avec lookup asset:
-    - Nœud INPUT vérifie cvss_score (>= 7.0 -> lookup asset)
-    - Nœud LOGIC lookup asset criticality
-    - Décision basée sur criticité
+    Test tree with asset lookup:
+    - INPUT node checks cvss_score (>= 7.0 -> asset lookup)
+    - LOGIC node looks up asset criticality
+    - Decision based on criticality
     """
     nodes = [
         NodeSchema(
@@ -134,11 +134,11 @@ def tree_with_lookup() -> TreeStructure:
 @pytest.fixture
 def compound_condition_tree() -> TreeStructure:
     """
-    Arbre de test avec conditions composées:
-    - Nœud INPUT vérifie cvss_av AND cvss_ac en mode composé
-    - Si cvss_av=Network AND cvss_ac=Low -> Act
-    - Si cvss_av=Network OR cvss_ac=Low -> Attend
-    - Sinon -> Track
+    Test tree with compound conditions:
+    - INPUT node checks cvss_av AND cvss_ac in compound mode
+    - If cvss_av=Network AND cvss_ac=Low -> Act
+    - If cvss_av=Network OR cvss_ac=Low -> Attend
+    - Otherwise -> Track
     """
     nodes = [
         NodeSchema(
@@ -202,10 +202,10 @@ def compound_condition_tree() -> TreeStructure:
 @pytest.fixture
 def multi_input_tree() -> TreeStructure:
     """
-    Arbre de test avec nœud multi-input (input_count=2):
-    - Nœud INPUT "kev" (2 sorties: true/false)
-    - Nœud INPUT "Technical Impact" (input_count=2, 2 conditions chacune: >=9 / <9)
-    - 4 nœuds output
+    Test tree with multi-input node (input_count=2):
+    - INPUT node "kev" (2 outputs: true/false)
+    - INPUT node "Technical Impact" (input_count=2, 2 conditions each: >=9 / <9)
+    - 4 output nodes
     """
     nodes = [
         NodeSchema(
@@ -255,17 +255,17 @@ def multi_input_tree() -> TreeStructure:
     ]
 
     edges = [
-        # kev=true -> input-impact entrée 0
+        # kev=true -> input-impact input 0
         EdgeSchema(id="e1", source="input-kev", target="input-impact", source_handle="handle-0", target_handle="input-0", label="Active"),
-        # kev=false -> input-impact entrée 1
+        # kev=false -> input-impact input 1
         EdgeSchema(id="e2", source="input-kev", target="input-impact", source_handle="handle-1", target_handle="input-1", label="None"),
-        # input-impact, entrée 0 (kev=true), cvss>=9 -> Act
+        # input-impact, input 0 (kev=true), cvss>=9 -> Act
         EdgeSchema(id="e3", source="input-impact", target="output-act", source_handle="handle-0-0"),
-        # input-impact, entrée 0 (kev=true), cvss<9 -> Attend
+        # input-impact, input 0 (kev=true), cvss<9 -> Attend
         EdgeSchema(id="e4", source="input-impact", target="output-attend", source_handle="handle-0-1"),
-        # input-impact, entrée 1 (kev=false), cvss>=9 -> Track*
+        # input-impact, input 1 (kev=false), cvss>=9 -> Track*
         EdgeSchema(id="e5", source="input-impact", target="output-track-star", source_handle="handle-1-0"),
-        # input-impact, entrée 1 (kev=false), cvss<9 -> Track
+        # input-impact, input 1 (kev=false), cvss<9 -> Track
         EdgeSchema(id="e6", source="input-impact", target="output-track", source_handle="handle-1-1"),
     ]
 

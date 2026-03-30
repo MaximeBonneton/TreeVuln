@@ -1,5 +1,5 @@
 """
-Tests du moteur d'inférence.
+Tests for the inference engine.
 """
 
 import pytest
@@ -10,10 +10,10 @@ from app.schemas.vulnerability import VulnerabilityInput
 
 
 class TestInferenceEngine:
-    """Tests pour InferenceEngine."""
+    """Tests for InferenceEngine."""
 
     def test_simple_tree_critical_cvss(self, simple_tree_structure: TreeStructure):
-        """Test: CVSS >= 9.0 devrait retourner Act."""
+        """Test: CVSS >= 9.0 should return Act."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-1", cvss_score=9.5)
 
@@ -24,7 +24,7 @@ class TestInferenceEngine:
         assert len(result.path) == 2  # input + output
 
     def test_simple_tree_high_cvss(self, simple_tree_structure: TreeStructure):
-        """Test: CVSS >= 7.0 et < 9.0 devrait retourner Attend."""
+        """Test: CVSS >= 7.0 and < 9.0 should return Attend."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-2", cvss_score=7.5)
 
@@ -34,7 +34,7 @@ class TestInferenceEngine:
         assert result.error is None
 
     def test_simple_tree_low_cvss(self, simple_tree_structure: TreeStructure):
-        """Test: CVSS < 7.0 devrait retourner Track."""
+        """Test: CVSS < 7.0 should return Track."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-3", cvss_score=4.0)
 
@@ -44,7 +44,7 @@ class TestInferenceEngine:
         assert result.error is None
 
     def test_audit_trail_contains_all_nodes(self, simple_tree_structure: TreeStructure):
-        """Test: Le chemin de décision contient tous les nœuds traversés."""
+        """Test: The decision path contains all traversed nodes."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-4", cvss_score=9.0)
 
@@ -57,7 +57,7 @@ class TestInferenceEngine:
         assert result.path[1].node_id == "output-act"
 
     def test_no_path_when_disabled(self, simple_tree_structure: TreeStructure):
-        """Test: Pas de chemin quand include_path=False."""
+        """Test: No path when include_path=False."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-5", cvss_score=9.0)
 
@@ -68,10 +68,10 @@ class TestInferenceEngine:
 
 
 class TestInferenceEngineWithLookup:
-    """Tests pour InferenceEngine avec lookup."""
+    """Tests for InferenceEngine with lookup."""
 
     def test_lookup_critical_asset(self, tree_with_lookup: TreeStructure):
-        """Test: CVSS élevé + asset critique -> Act."""
+        """Test: High CVSS + critical asset -> Act."""
         engine = InferenceEngine(tree_with_lookup)
         vuln = VulnerabilityInput(
             id="vuln-1",
@@ -90,7 +90,7 @@ class TestInferenceEngineWithLookup:
         assert result.error is None
 
     def test_lookup_high_asset(self, tree_with_lookup: TreeStructure):
-        """Test: CVSS élevé + asset high -> Attend."""
+        """Test: High CVSS + high asset -> Attend."""
         engine = InferenceEngine(tree_with_lookup)
         vuln = VulnerabilityInput(
             id="vuln-2",
@@ -108,7 +108,7 @@ class TestInferenceEngineWithLookup:
         assert result.decision == "Attend"
 
     def test_lookup_normal_asset(self, tree_with_lookup: TreeStructure):
-        """Test: CVSS élevé + asset normal -> Track."""
+        """Test: High CVSS + normal asset -> Track."""
         engine = InferenceEngine(tree_with_lookup)
         vuln = VulnerabilityInput(
             id="vuln-3",
@@ -126,26 +126,26 @@ class TestInferenceEngineWithLookup:
         assert result.decision == "Track"
 
     def test_low_cvss_skips_lookup(self, tree_with_lookup: TreeStructure):
-        """Test: CVSS bas ne passe pas par le lookup."""
+        """Test: Low CVSS does not go through the lookup."""
         engine = InferenceEngine(tree_with_lookup)
         vuln = VulnerabilityInput(
             id="vuln-4",
             cvss_score=5.0,
-            asset_id="srv-prod-001",  # Asset critique mais CVSS bas
+            asset_id="srv-prod-001",  # Critical asset but low CVSS
         )
 
         result = engine.evaluate(vuln)  # Pas de lookups fournis
 
         assert result.decision == "Track"
-        # Seuls 2 nœuds traversés (input + output, pas de lookup)
+        # Only 2 nodes traversed (input + output, no lookup)
         assert len(result.path) == 2
 
 
 class TestInferenceEngineEdgeCases:
-    """Tests des cas limites."""
+    """Tests for edge cases."""
 
     def test_missing_field(self, simple_tree_structure: TreeStructure):
-        """Test: Champ manquant retourne une erreur."""
+        """Test: Missing field returns an error."""
         engine = InferenceEngine(simple_tree_structure)
         vuln = VulnerabilityInput(id="vuln-1")  # Pas de cvss_score
 
@@ -156,7 +156,7 @@ class TestInferenceEngineEdgeCases:
         assert "no condition" in result.error.lower()
 
     def test_empty_tree(self):
-        """Test: Arbre vide retourne une erreur."""
+        """Test: Empty tree returns an error."""
         engine = InferenceEngine(TreeStructure())
         vuln = VulnerabilityInput(id="vuln-1", cvss_score=9.0)
 
@@ -166,8 +166,8 @@ class TestInferenceEngineEdgeCases:
         assert "empty" in result.error.lower() or "invalid" in result.error.lower()
 
     def test_extra_fields_in_vulnerability(self, simple_tree_structure: TreeStructure):
-        """Test: Les champs extra sont accessibles."""
-        # Crée un arbre qui utilise un champ custom
+        """Test: Extra fields are accessible."""
+        # Create a tree that uses a custom field
         from app.schemas.tree import (
             ConditionOperator,
             EdgeSchema,
@@ -217,7 +217,7 @@ class TestInferenceEngineEdgeCases:
         assert result.decision == "Proceed"
 
     def test_get_required_fields(self, tree_with_lookup: TreeStructure):
-        """Test: get_required_fields retourne les champs nécessaires."""
+        """Test: get_required_fields returns the required fields."""
         engine = InferenceEngine(tree_with_lookup)
 
         fields = engine.get_required_fields()
@@ -226,7 +226,7 @@ class TestInferenceEngineEdgeCases:
         assert "asset_id" in fields
 
     def test_get_lookup_tables(self, tree_with_lookup: TreeStructure):
-        """Test: get_lookup_tables retourne les tables de lookup."""
+        """Test: get_lookup_tables returns the lookup tables."""
         engine = InferenceEngine(tree_with_lookup)
 
         tables = engine.get_lookup_tables()

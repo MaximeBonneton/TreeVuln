@@ -1,6 +1,6 @@
 """
-Tests d'intégration pour les endpoints d'évaluation.
-Utilise httpx.AsyncClient avec override des dépendances FastAPI.
+Integration tests for evaluation endpoints.
+Uses httpx.AsyncClient with FastAPI dependency overrides.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -21,7 +21,7 @@ from app.schemas.tree import (
 
 
 def _make_simple_tree_model():
-    """Crée un objet Tree mocké avec un arbre simple."""
+    """Create a mocked Tree object with a simple tree."""
     structure = TreeStructure(
         nodes=[
             NodeSchema(
@@ -61,7 +61,7 @@ def _make_simple_tree_model():
 
 
 def _make_mock_tree_service(tree):
-    """Crée un mock de TreeService."""
+    """Create a mock TreeService."""
     service = AsyncMock()
     service.get_tree = AsyncMock(return_value=tree)
     service.get_tree_structure = MagicMock(
@@ -71,14 +71,14 @@ def _make_mock_tree_service(tree):
 
 
 def _make_mock_asset_service():
-    """Crée un mock d'AssetService."""
+    """Create a mock AssetService."""
     service = AsyncMock()
     service.get_lookup_cache = AsyncMock(return_value={})
     return service
 
 
 def _make_fake_user():
-    """Crée un faux utilisateur pour bypasser l'auth."""
+    """Create a fake user to bypass authentication."""
     user = MagicMock()
     user.id = "00000000-0000-0000-0000-000000000001"
     user.username = "test-admin"
@@ -90,7 +90,7 @@ def _make_fake_user():
 
 @pytest.fixture
 def mock_services():
-    """Fixture qui override les dépendances avec des mocks."""
+    """Fixture that overrides dependencies with mocks."""
     tree = _make_simple_tree_model()
     tree_service = _make_mock_tree_service(tree)
     asset_service = _make_mock_asset_service()
@@ -107,7 +107,7 @@ def mock_services():
 
 @pytest.fixture
 async def client(mock_services):
-    """Client HTTP async pour les tests."""
+    """Async HTTP client for tests."""
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -120,7 +120,7 @@ class TestEvaluateSingle:
 
     @pytest.mark.asyncio
     async def test_evaluate_single_critical(self, client: AsyncClient):
-        """CVSS >= 9.0 devrait retourner Act."""
+        """CVSS >= 9.0 should return Act."""
         response = await client.post(
             "/api/v1/evaluate/single",
             json={
@@ -136,7 +136,7 @@ class TestEvaluateSingle:
 
     @pytest.mark.asyncio
     async def test_evaluate_single_low(self, client: AsyncClient):
-        """CVSS < 9.0 devrait retourner Track."""
+        """CVSS < 9.0 should return Track."""
         response = await client.post(
             "/api/v1/evaluate/single",
             json={
@@ -149,7 +149,7 @@ class TestEvaluateSingle:
 
     @pytest.mark.asyncio
     async def test_evaluate_single_no_path(self, client: AsyncClient):
-        """include_path=false ne retourne pas de chemin."""
+        """include_path=false does not return a path."""
         response = await client.post(
             "/api/v1/evaluate/single",
             json={
@@ -168,7 +168,7 @@ class TestEvaluateBatch:
 
     @pytest.mark.asyncio
     async def test_evaluate_batch(self, client: AsyncClient):
-        """Batch de 3 vulnérabilités."""
+        """Batch of 3 vulnerabilities."""
         response = await client.post(
             "/api/v1/evaluate",
             json={
@@ -191,7 +191,7 @@ class TestEvaluateBatch:
 
     @pytest.mark.asyncio
     async def test_evaluate_batch_empty(self, client: AsyncClient):
-        """Batch vide retourne un résultat vide."""
+        """Empty batch returns an empty result."""
         response = await client.post(
             "/api/v1/evaluate",
             json={
@@ -205,11 +205,11 @@ class TestEvaluateBatch:
 
 
 class TestEvaluateNoTree:
-    """Tests quand aucun arbre n'est configuré."""
+    """Tests when no tree is configured."""
 
     @pytest.mark.asyncio
     async def test_evaluate_single_no_tree(self):
-        """Retourne 404 si aucun arbre par défaut."""
+        """Returns 404 if no default tree exists."""
         tree_service = AsyncMock()
         tree_service.get_tree = AsyncMock(return_value=None)
         asset_service = _make_mock_asset_service()

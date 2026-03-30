@@ -1,4 +1,4 @@
-"""Schemas pour le diagnostic d'arbre de decision."""
+"""Schemas for decision tree diagnostics."""
 
 from typing import Literal
 
@@ -8,7 +8,7 @@ from app.schemas.tree import TreeStructure
 
 
 class DiagnosticItem(BaseModel):
-    """Un probleme detecte dans l'arbre."""
+    """A problem detected in the tree."""
 
     code: str
     message: str
@@ -18,13 +18,13 @@ class DiagnosticItem(BaseModel):
 
 
 class DiagnosticResult(BaseModel):
-    """Resultat complet du diagnostic."""
+    """Complete diagnostic result."""
 
     errors: list[DiagnosticItem] = []
     warnings: list[DiagnosticItem] = []
 
 
 class DiagnosticRequest(BaseModel):
-    """Requete de diagnostic d'arbre."""
+    """Tree diagnostic request."""
 
     structure: TreeStructure

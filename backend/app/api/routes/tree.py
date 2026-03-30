@@ -302,5 +302,5 @@ async def restore_version(
 async def diagnose_tree_endpoint(
     request: DiagnosticRequest,
 ):
-    """Analyse un arbre et retourne les diagnostics."""
+    """Analyze a tree and return diagnostics."""
     return diagnose_tree(request.structure)

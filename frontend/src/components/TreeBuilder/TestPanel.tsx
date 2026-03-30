@@ -552,7 +552,7 @@ function DiagnosticTab() {
 
       setSelectedDiagNodeId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du diagnostic');
+      setError(err instanceof Error ? err.message : 'Diagnostic error');
     } finally {
       setIsLoading(false);
     }
@@ -569,7 +569,7 @@ function DiagnosticTab() {
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:opacity-50"
         >
           <AlertTriangle size={18} />
-          {isLoading ? 'Analyse en cours...' : "Analyser l'arbre"}
+          {isLoading ? 'Analyzing...' : 'Analyze tree'}
         </button>
       </div>
 
@@ -583,13 +583,13 @@ function DiagnosticTab() {
         <div className="flex-1 overflow-y-auto p-4">
           {totalIssues === 0 ? (
             <div className="text-center py-8 text-green-600">
-              <p className="font-medium">Aucun probleme detecte</p>
-              <p className="text-sm text-gray-500 mt-1">L'arbre est valide</p>
+              <p className="font-medium">No issues detected</p>
+              <p className="text-sm text-gray-500 mt-1">The tree is valid</p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-gray-600">
-                {result.errors.length} erreur(s), {result.warnings.length} warning(s)
+                {result.errors.length} error(s), {result.warnings.length} warning(s)
               </p>
 
               {result.errors.map((item, i) => (
@@ -606,7 +606,7 @@ function DiagnosticTab() {
 
       {!result && !error && (
         <div className="text-center text-gray-500 py-8">
-          <p className="text-sm">Cliquez sur "Analyser" pour verifier votre arbre</p>
+          <p className="text-sm">Click "Analyze" to check your tree</p>
         </div>
       )}
     </div>
@@ -654,7 +654,7 @@ function DiagnosticItemRow({ item, selectedNodeId, onSelect }: {
           <p className={`text-sm mt-1 ${textClass}`}>{item.message}</p>
           {item.node_id && (
             <p className="text-xs text-gray-500 mt-1 font-mono">
-              Noeud: {item.node_id}
+              Node: {item.node_id}
             </p>
           )}
         </div>
@@ -664,7 +664,7 @@ function DiagnosticItemRow({ item, selectedNodeId, onSelect }: {
 }
 
 // ============================================
-// COMPOSANTS PARTAGES
+// SHARED COMPONENTS
 // ============================================
 
 function PathStep({ step, isLast }: { step: DecisionPath; isLast: boolean }) {

@@ -1,5 +1,5 @@
 """
-Tests de la validation de structure d'arbre.
+Tests for tree structure validation.
 """
 
 import pytest
@@ -16,24 +16,24 @@ from app.services.tree_validation import validate_tree_structure
 
 
 class TestValidTreeStructure:
-    """Tests avec des arbres valides."""
+    """Tests with valid trees."""
 
     def test_valid_simple_tree(self, simple_tree_structure: TreeStructure):
-        """Un arbre simple valide ne génère pas de warnings."""
+        """A valid simple tree does not generate warnings."""
         warnings = validate_tree_structure(simple_tree_structure)
         assert warnings == []
 
     def test_valid_tree_with_lookup(self, tree_with_lookup: TreeStructure):
-        """Un arbre avec lookup valide ne génère pas de warnings."""
+        """A valid tree with lookup does not generate warnings."""
         warnings = validate_tree_structure(tree_with_lookup)
         assert warnings == []
 
 
 class TestEmptyTree:
-    """Tests avec un arbre vide."""
+    """Tests with an empty tree."""
 
     def test_empty_tree(self):
-        """Un arbre vide génère un warning."""
+        """An empty tree generates a warning."""
         tree = TreeStructure()
         warnings = validate_tree_structure(tree)
         assert len(warnings) == 1
@@ -41,10 +41,10 @@ class TestEmptyTree:
 
 
 class TestInvalidEdges:
-    """Tests des edges invalides."""
+    """Tests for invalid edges."""
 
     def test_edge_references_nonexistent_source(self):
-        """Warning si une edge référence un nœud source inexistant."""
+        """Warning if an edge references a non-existent source node."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
         ]
@@ -56,7 +56,7 @@ class TestInvalidEdges:
         assert any("non-existent source" in w for w in warnings)
 
     def test_edge_references_nonexistent_target(self):
-        """Warning si une edge référence un nœud cible inexistant."""
+        """Warning if an edge references a non-existent target node."""
         nodes = [
             NodeSchema(
                 id="n1", type=NodeType.INPUT, label="In",
@@ -73,10 +73,10 @@ class TestInvalidEdges:
 
 
 class TestCycleDetection:
-    """Tests de détection de cycles."""
+    """Tests for cycle detection."""
 
     def test_cycle_detected(self):
-        """Warning si un cycle est détecté."""
+        """Warning if a cycle is detected."""
         nodes = [
             NodeSchema(
                 id="n1", type=NodeType.INPUT, label="A",
@@ -99,10 +99,10 @@ class TestCycleDetection:
 
 
 class TestNoRootNode:
-    """Tests sans nœud racine."""
+    """Tests without a root node."""
 
     def test_no_root_node(self):
-        """Warning si tous les nœuds sont ciblés par des edges."""
+        """Warning if all nodes are targeted by edges."""
         nodes = [
             NodeSchema(
                 id="n1", type=NodeType.INPUT, label="A",
@@ -125,10 +125,10 @@ class TestNoRootNode:
 
 
 class TestNoOutputNode:
-    """Tests sans nœud output."""
+    """Tests without an output node."""
 
     def test_no_output_node(self):
-        """Warning si aucun nœud output n'est présent."""
+        """Warning if no output node is present."""
         nodes = [
             NodeSchema(
                 id="n1", type=NodeType.INPUT, label="A",
@@ -142,10 +142,10 @@ class TestNoOutputNode:
 
 
 class TestInvalidHandles:
-    """Tests des handles invalides."""
+    """Tests for invalid handles."""
 
     def test_condition_index_out_of_range(self):
-        """Warning si un handle pointe vers une condition inexistante."""
+        """Warning if a handle points to a non-existent condition."""
         nodes = [
             NodeSchema(
                 id="n1", type=NodeType.INPUT, label="A",
@@ -160,7 +160,7 @@ class TestInvalidHandles:
             ),
         ]
         edges = [
-            # handle-5 mais il n'y a qu'une seule condition (index 0)
+            # handle-5 but there is only one condition (index 0)
             EdgeSchema(id="e1", source="n1", target="n2", source_handle="handle-5"),
         ]
         tree = TreeStructure(nodes=nodes, edges=edges)
@@ -168,7 +168,7 @@ class TestInvalidHandles:
         assert any("condition_index=5" in w for w in warnings)
 
     def test_edge_from_output_node(self):
-        """Warning si une edge sort d'un nœud output."""
+        """Warning if an edge originates from an output node."""
         nodes = [
             NodeSchema(
                 id="out", type=NodeType.OUTPUT, label="Out",

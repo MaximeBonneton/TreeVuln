@@ -1,5 +1,5 @@
 """
-Tests du traitement batch.
+Tests for batch processing.
 """
 
 import pytest
@@ -10,11 +10,11 @@ from app.schemas.vulnerability import VulnerabilityInput
 
 
 class TestBatchProcessor:
-    """Tests pour BatchProcessor."""
+    """Tests for BatchProcessor."""
 
     @pytest.mark.asyncio
     async def test_process_batch(self, simple_tree_structure: TreeStructure):
-        """Test: Traitement d'un batch de vulnérabilités."""
+        """Test: Processing a batch of vulnerabilities."""
         processor = BatchProcessor(simple_tree_structure, chunk_size=10)
 
         vulns = [
@@ -36,12 +36,12 @@ class TestBatchProcessor:
 
     @pytest.mark.asyncio
     async def test_process_batch_with_errors(self, simple_tree_structure: TreeStructure):
-        """Test: Batch avec des erreurs (champs manquants)."""
+        """Test: Batch with errors (missing fields)."""
         processor = BatchProcessor(simple_tree_structure)
 
         vulns = [
             VulnerabilityInput(id="v1", cvss_score=9.5),  # OK
-            VulnerabilityInput(id="v2"),  # Pas de cvss_score -> erreur
+            VulnerabilityInput(id="v2"),  # No cvss_score -> error
             VulnerabilityInput(id="v3", cvss_score=4.0),  # OK
         ]
 
@@ -53,24 +53,24 @@ class TestBatchProcessor:
 
     @pytest.mark.asyncio
     async def test_process_batch_no_path(self, simple_tree_structure: TreeStructure):
-        """Test: Batch sans chemin de décision (performance)."""
+        """Test: Batch without decision path (performance)."""
         processor = BatchProcessor(simple_tree_structure)
 
         vulns = [
             VulnerabilityInput(id=f"v{i}", cvss_score=float(i))
-            for i in range(1, 11)  # 10 vulnérabilités
+            for i in range(1, 11)  # 10 vulnerabilities
         ]
 
         response = await processor.process_batch(vulns, include_path=False)
 
         assert response.total == 10
-        # Vérifie qu'aucun résultat n'a de chemin
+        # Verify that no result has a path
         for result in response.results:
             assert len(result.path) == 0
 
     @pytest.mark.asyncio
     async def test_process_batch_with_lookups(self, tree_with_lookup: TreeStructure):
-        """Test: Batch avec lookups d'assets."""
+        """Test: Batch with asset lookups."""
         processor = BatchProcessor(tree_with_lookup)
 
         vulns = [
@@ -92,7 +92,7 @@ class TestBatchProcessor:
         assert response.total == 3
         assert response.success_count == 3
 
-        # Vérifie les décisions
+        # Verify the decisions
         decisions = {r.vuln_id: r.decision for r in response.results}
         assert decisions["v1"] == "Act"
         assert decisions["v2"] == "Attend"
@@ -100,10 +100,10 @@ class TestBatchProcessor:
 
 
 class TestBatchProcessorDataLoading:
-    """Tests pour le chargement de données."""
+    """Tests for data loading."""
 
     def test_from_json_list(self):
-        """Test: Conversion de JSON en DataFrame."""
+        """Test: Convert JSON to DataFrame."""
         data = [
             {"id": "v1", "cvss_score": 9.0, "cve_id": "CVE-2024-0001"},
             {"id": "v2", "cvss_score": 7.5, "cve_id": "CVE-2024-0002"},
@@ -116,7 +116,7 @@ class TestBatchProcessorDataLoading:
         assert df["cvss_score"][0] == 9.0
 
     def test_from_csv(self):
-        """Test: Chargement d'un CSV."""
+        """Test: Loading a CSV file."""
         csv_content = """id,cvss_score,cve_id
 v1,9.0,CVE-2024-0001
 v2,7.5,CVE-2024-0002

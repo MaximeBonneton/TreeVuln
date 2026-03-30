@@ -26,7 +26,7 @@ export const useEnterpriseStore = create<EnterpriseState>((set) => ({
         isLoaded: true,
       });
     } catch {
-      // Serveur down ou erreur — rester en Community
+      // Server down or error — stay in Community
       set({ edition: 'community', features: {}, isLoaded: true });
     }
   },

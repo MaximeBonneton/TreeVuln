@@ -128,12 +128,12 @@ async def evaluate_preview(
     asset_service: AssetServiceDep,
 ):
     """
-    Evalue une vulnerabilite sur un arbre non sauvegarde (preview).
-    Ne declenche PAS de webhooks.
+    Evaluate a vulnerability against an unsaved tree (preview).
+    Does NOT trigger webhooks.
     """
     engine = InferenceEngine(request.structure)
 
-    # Charge les lookups d'assets si tree_id fourni
+    # Load asset lookups if tree_id provided
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     if request.tree_id and "assets" in engine.get_lookup_tables():
         asset_ids = []
@@ -160,7 +160,7 @@ async def evaluate_batch(
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Batch trop grand. Maximum: {settings.max_batch_size}",
+            detail=f"Batch too large. Maximum: {settings.max_batch_size}",
         )
 
     tree = await tree_service.get_tree()
@@ -421,7 +421,7 @@ async def export_batch(
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Batch trop grand. Maximum: {settings.max_batch_size}",
+            detail=f"Batch too large. Maximum: {settings.max_batch_size}",
         )
 
     tree = await tree_service.get_tree()
@@ -561,7 +561,7 @@ async def evaluate_batch_by_slug(
     if len(request.vulnerabilities) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Batch trop grand. Maximum: {settings.max_batch_size}",
+            detail=f"Batch too large. Maximum: {settings.max_batch_size}",
         )
 
     tree = await tree_service.get_tree_by_slug(slug)

@@ -1,4 +1,4 @@
-"""Tests du module de diagnostic d'arbre."""
+"""Tests for the tree diagnostics module."""
 
 import pytest
 
@@ -15,12 +15,12 @@ from app.services.tree_diagnostics import diagnose_tree
 
 
 class TestDiagnosticSchemas:
-    """Tests des schemas de diagnostic."""
+    """Tests for diagnostic schemas."""
 
     def test_diagnostic_item_creation(self):
         item = DiagnosticItem(
             code="NO_ROOT",
-            message="Aucun noeud racine",
+            message="No root node",
             severity="error",
         )
         assert item.code == "NO_ROOT"
@@ -31,7 +31,7 @@ class TestDiagnosticSchemas:
     def test_diagnostic_item_with_node_id(self):
         item = DiagnosticItem(
             code="INPUT_NO_FIELD",
-            message="Champ non configure",
+            message="Field not configured",
             severity="error",
             node_id="input-1",
         )
@@ -47,7 +47,7 @@ class TestDiagnosticSchemas:
 
 
 class TestStructuralChecks:
-    """Tests des checks structurels."""
+    """Tests for structural checks."""
 
     def test_valid_tree_no_errors(self, simple_tree_structure: TreeStructure):
         result = diagnose_tree(simple_tree_structure)
@@ -104,7 +104,7 @@ class TestStructuralChecks:
         assert "NO_OUTPUT" in codes
 
     def test_no_conditions_input(self):
-        """Un noeud input sans condition de sortie."""
+        """An input node without output conditions."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.INPUT, label="In", config={"field": "x"}, conditions=[]),
             NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
@@ -115,7 +115,7 @@ class TestStructuralChecks:
         assert "NO_CONDITIONS" in codes
 
     def test_no_conditions_equation(self):
-        """Un noeud equation sans condition de sortie."""
+        """An equation node without output conditions."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq", config={"formula": "x * 2", "variables": ["x"]}, conditions=[]),
             NodeSchema(id="out", type=NodeType.OUTPUT, label="Out", config={"decision": "X"}),
@@ -137,7 +137,7 @@ class TestStructuralChecks:
 
 
 class TestConfigurationChecks:
-    """Tests des checks de configuration."""
+    """Tests for configuration checks."""
 
     def test_input_no_field(self):
         nodes = [
@@ -186,7 +186,7 @@ class TestConfigurationChecks:
         assert "EQUATION_NO_FORMULA" in codes
 
     def test_equation_variable_no_value_map(self):
-        """Warning si une variable d'equation n'a pas de value_map."""
+        """Warning if an equation variable has no value_map."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
                        config={"formula": "x * 2", "variables": ["x"]},
@@ -199,7 +199,7 @@ class TestConfigurationChecks:
         assert "EQUATION_NO_VALUE_MAP" in codes
 
     def test_equation_variable_with_value_map_no_warning(self):
-        """Pas de warning si la variable a un value_map."""
+        """No warning if the variable has a value_map."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
                        config={
@@ -216,7 +216,7 @@ class TestConfigurationChecks:
         assert "EQUATION_NO_VALUE_MAP" not in codes
 
     def test_equation_numeric_field_no_warning(self):
-        """Pas de warning si la variable est un champ numerique dans le field mapping."""
+        """No warning if the variable is a numeric field in the field mapping."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.EQUATION, label="Eq",
                        config={"formula": "epss * 100", "variables": ["epss"]},
@@ -252,7 +252,7 @@ class TestConfigurationChecks:
         assert isolated_warning.node_id == "isolated"
 
     def test_orphan_handle(self):
-        """Un noeud avec 2 conditions mais seulement 1 edge connectee."""
+        """A node with 2 conditions but only 1 connected edge."""
         nodes = [
             NodeSchema(id="n1", type=NodeType.INPUT, label="In", config={"field": "x"},
                        conditions=[
@@ -268,7 +268,7 @@ class TestConfigurationChecks:
 
 
 class TestLogicChecks:
-    """Tests des checks logiques."""
+    """Tests for logic checks."""
 
     def test_dead_branch(self):
         nodes = [

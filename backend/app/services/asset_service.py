@@ -1,5 +1,5 @@
 """
-Service pour la gestion des assets.
+Service for asset management.
 Multi-tree support: each asset belongs to a specific tree.
 """
 
@@ -68,7 +68,7 @@ class AssetService:
         Args:
             tree_id: Tree ID (default if not provided)
             limit: Maximum number of assets
-            offset: Offset pour la pagination
+            offset: Offset for pagination
             criticality: Filter by criticality
         """
         resolved_tree_id = await self._resolve_tree_id(tree_id)
@@ -158,7 +158,7 @@ class AssetService:
         tree_id: int | None = None,
     ) -> tuple[int, int]:
         """
-        Import bulk avec upsert (insert ou update si existe).
+        Bulk import with upsert (insert or update if exists).
 
         Args:
             assets: List of assets to import
@@ -223,7 +223,7 @@ class AssetService:
 
         Args:
             rows: Raw data rows
-            column_mapping: Mapping {champ_asset: colonne_source}
+            column_mapping: Mapping {asset_field: source_column}
             tree_id: Target tree ID
 
         Returns:
@@ -258,7 +258,7 @@ class AssetService:
             criticality_val = "Medium"
             if criticality_col and criticality_col in row:
                 raw_crit = str(row[criticality_col]).strip()
-                # Normalise la casse
+                # Normalize case
                 crit_normalized = raw_crit.capitalize()
                 if crit_normalized in valid_criticalities:
                     criticality_val = crit_normalized
@@ -276,7 +276,7 @@ class AssetService:
                 criticality=criticality_val,
             ))
 
-        # Bulk upsert des assets valides
+        # Bulk upsert valid assets
         created = 0
         updated = 0
         if valid_assets:

@@ -84,7 +84,7 @@ class EvaluationResponse(BaseModel):
 
 
 class PreviewEvaluationRequest(BaseModel):
-    """Requete d'evaluation preview (arbre non sauvegarde)."""
+    """Preview evaluation request (unsaved tree)."""
 
     structure: TreeStructure
     vulnerability: VulnerabilityInput

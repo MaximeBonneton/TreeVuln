@@ -1,6 +1,6 @@
 """
-Tests pour la fonctionnalité Decision-as-Code (export/import).
-Tests unitaires sur les schemas Pydantic et la logique de nommage.
+Tests for the Decision-as-Code feature (export/import).
+Unit tests on Pydantic schemas and naming logic.
 """
 
 import pytest
@@ -14,18 +14,18 @@ from app.schemas.tree import (
 )
 
 
-# --- Tests schemas export ---
+# --- Export schema tests ---
 
 
 def test_export_file_valid():
-    """Un fichier d'export valide est correctement parsé."""
+    """A valid export file is correctly parsed."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 1,
         "exported_at": "2026-03-16T14:30:00Z",
         "tree": {
             "name": "Test Tree",
-            "description": "Un arbre de test",
+            "description": "A test tree",
             "structure": {"nodes": [], "edges": [], "metadata": {}},
             "field_mapping": None,
         },
@@ -38,7 +38,7 @@ def test_export_file_valid():
 
 
 def test_export_file_with_field_mapping():
-    """Un fichier d'export avec field mapping est correctement parsé."""
+    """An export file with field mapping is correctly parsed."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 1,
@@ -62,7 +62,7 @@ def test_export_file_with_field_mapping():
 
 
 def test_export_file_serialization():
-    """model_dump_json() produit un JSON valide avec datetime sérialisé."""
+    """model_dump_json() produces valid JSON with serialized datetime."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 1,
@@ -79,11 +79,11 @@ def test_export_file_serialization():
     assert '"2026-03-16' in json_str
 
 
-# --- Tests schemas import ---
+# --- Import schema tests ---
 
 
 def test_import_valid():
-    """Un fichier d'import valide est accepté."""
+    """A valid import file is accepted."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 1,
@@ -98,7 +98,7 @@ def test_import_valid():
 
 
 def test_import_with_exported_at():
-    """exported_at est accepté quand fourni."""
+    """exported_at is accepted when provided."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 1,
@@ -113,7 +113,7 @@ def test_import_with_exported_at():
 
 
 def test_import_invalid_format():
-    """Un format inconnu est rejeté avec une erreur claire."""
+    """An unknown format is rejected with a clear error."""
     data = {
         "format": "wrong-format",
         "version": 1,
@@ -127,7 +127,7 @@ def test_import_invalid_format():
 
 
 def test_import_invalid_version():
-    """Une version non supportée est rejetée."""
+    """An unsupported version is rejected."""
     data = {
         "format": "treevuln-decision-tree",
         "version": 99,
@@ -141,7 +141,7 @@ def test_import_invalid_version():
 
 
 def test_import_missing_format():
-    """Un fichier sans le champ format est rejeté."""
+    """A file without the format field is rejected."""
     data = {
         "version": 1,
         "tree": {
@@ -153,19 +153,19 @@ def test_import_missing_format():
         TreeImportRequest.model_validate(data)
 
 
-# --- Test round-trip ---
+# --- Round-trip test ---
 
 
 def test_round_trip_export_import(simple_tree_structure):
-    """Un arbre exporté puis importé conserve sa structure."""
-    # Simuler un export
+    """An exported then imported tree preserves its structure."""
+    # Simulate an export
     export_data = {
         "format": "treevuln-decision-tree",
         "version": 1,
         "exported_at": "2026-03-16T14:30:00Z",
         "tree": {
             "name": "Round Trip Test",
-            "description": "Test de round-trip",
+            "description": "Round-trip test",
             "structure": simple_tree_structure.model_dump(),
             "field_mapping": {
                 "fields": [
@@ -177,17 +177,17 @@ def test_round_trip_export_import(simple_tree_structure):
         },
     }
 
-    # Valider comme export
+    # Validate as export
     export_file = TreeExportFile.model_validate(export_data)
 
-    # Ré-importer le JSON sérialisé
+    # Re-import the serialized JSON
     import_data = export_file.model_dump()
     import_data["exported_at"] = export_file.exported_at.isoformat()
     import_req = TreeImportRequest.model_validate(import_data)
 
-    # Vérifier que les données sont identiques
+    # Verify that the data is identical
     assert import_req.tree.name == "Round Trip Test"
-    assert import_req.tree.description == "Test de round-trip"
+    assert import_req.tree.description == "Round-trip test"
     assert len(import_req.tree.structure.nodes) == len(simple_tree_structure.nodes)
     assert len(import_req.tree.structure.edges) == len(simple_tree_structure.edges)
     assert import_req.tree.field_mapping is not None
@@ -195,8 +195,8 @@ def test_round_trip_export_import(simple_tree_structure):
 
 
 def test_export_no_field_mapping_duplication(simple_tree_structure):
-    """Le field_mapping ne doit pas être dupliqué dans structure.metadata."""
-    # Simuler un arbre avec field_mapping dans metadata
+    """The field_mapping must not be duplicated in structure.metadata."""
+    # Simulate a tree with field_mapping in metadata
     structure_dict = simple_tree_structure.model_dump()
     structure_dict["metadata"]["field_mapping"] = {
         "fields": [{"name": "test", "type": "string"}],
@@ -204,7 +204,7 @@ def test_export_no_field_mapping_duplication(simple_tree_structure):
         "version": 1,
     }
 
-    # Construire un export (simulation de ce que fait le service)
+    # Build an export (simulating what the service does)
     from copy import deepcopy
 
     structure_copy = deepcopy(structure_dict)
@@ -223,6 +223,6 @@ def test_export_no_field_mapping_duplication(simple_tree_structure):
 
     export_file = TreeExportFile.model_validate(export_data)
 
-    # Vérifier : field_mapping dans tree.field_mapping, PAS dans structure.metadata
+    # Verify: field_mapping in tree.field_mapping, NOT in structure.metadata
     assert export_file.tree.field_mapping is not None
     assert "field_mapping" not in export_file.tree.structure.metadata

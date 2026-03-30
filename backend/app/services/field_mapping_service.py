@@ -43,7 +43,7 @@ def infer_field_type(values: list[Any]) -> FieldType:
     # Check if they are dates (common patterns)
     date_patterns = [
         r"^\d{4}-\d{2}-\d{2}",  # ISO format
-        r"^\d{2}/\d{2}/\d{4}",  # DD/MM/YYYY ou MM/DD/YYYY
+        r"^\d{2}/\d{2}/\d{4}",  # DD/MM/YYYY or MM/DD/YYYY
         r"^\d{2}-\d{2}-\d{4}",  # DD-MM-YYYY
     ]
     if all(any(re.match(p, str(v)) for p in date_patterns) for v in non_null_values):
@@ -145,7 +145,7 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
     warnings: list[str] = []
     fields: list[FieldDefinition] = []
 
-    # Parse le CSV
+    # Parse the CSV
     reader = csv.DictReader(io.StringIO(content))
     headers = reader.fieldnames or []
 
@@ -157,7 +157,7 @@ def scan_csv_content(content: str, filename: str = "upload.csv") -> ScanResult:
             warnings=["No headers detected in CSV file"],
         )
 
-    # Collecte les valeurs pour chaque colonne
+    # Collect values for each column
     column_values: dict[str, list[Any]] = {h: [] for h in headers}
     rows_scanned = 0
 
@@ -309,7 +309,7 @@ def scan_file_content(content: str, filename: str) -> ScanResult:
     elif lower_filename.endswith(".json"):
         return scan_json_content(content, filename)
     else:
-        # Tente de deviner le format
+        # Try to guess the format
         content_stripped = content.strip()
         if content_stripped.startswith(("{", "[")):
             return scan_json_content(content, filename)

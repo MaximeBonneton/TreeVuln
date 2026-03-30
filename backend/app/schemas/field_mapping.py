@@ -40,7 +40,7 @@ class FieldMapping(BaseModel):
         default=None,
         description="Mapping origin: 'manual', 'import', 'scan:file.csv'",
     )
-    version: int = Field(default=1, description="Version du mapping")
+    version: int = Field(default=1, description="Mapping version")
 
 
 class FieldMappingUpdate(BaseModel):
@@ -55,5 +55,5 @@ class ScanResult(BaseModel):
 
     fields: list[FieldDefinition]
     rows_scanned: int = Field(description="Number of rows analyzed")
-    source_type: str = Field(description="Type de fichier: 'csv' ou 'json'")
+    source_type: str = Field(description="File type: 'csv' or 'json'")
     warnings: list[str] = Field(default_factory=list, description="Any warnings")
