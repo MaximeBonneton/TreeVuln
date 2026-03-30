@@ -243,9 +243,8 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
           )}
 
           {data.nodeType === 'equation' && 'formula' in data.config && (
-            <div className="font-mono text-[10px] text-amber-700 truncate max-w-[120px]" title={(data.config as { formula: string }).formula}>
-              {((data.config as { formula: string }).formula || '(not configured)').slice(0, 30)}
-              {((data.config as { formula: string }).formula || '').length > 30 ? '...' : ''}
+            <div className="font-mono text-[10px] text-amber-700 truncate max-w-[200px]" title={(data.config as { formula: string }).formula}>
+              {(data.config as { formula: string }).formula || '(not configured)'}
             </div>
           )}
 
@@ -259,7 +258,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
 
       {/* Output handles for single-input */}
       {data.nodeType !== 'output' && data.conditions.length > 0 && (
-        <div className="border-l border-gray-200 flex flex-col justify-around py-1 min-w-[60px] pr-3">
+        <div className="border-l border-gray-200 flex flex-col justify-around py-1 pr-3">
           {data.conditions.map((condition, index) => {
             const handleColor = getHandleColor(id, index);
             const totalConditions = data.conditions.length;
@@ -269,7 +268,7 @@ function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
                 key={index}
                 className="flex items-center justify-end text-xs py-0.5"
               >
-                <span className="text-gray-500 truncate max-w-[50px]">{condition.label}</span>
+                <span className="text-gray-500 whitespace-nowrap pl-2">{condition.label}</span>
                 <Handle
                   type="source"
                   position={Position.Right}
