@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo_with_text.png" alt="TreeVuln - Security Decision Engine" width="500">
+  <img src="docs/logo_with_text.png" alt="TreeVuln - Security Decision Engine" width="100%">
 </p>
 
 <p align="center">
