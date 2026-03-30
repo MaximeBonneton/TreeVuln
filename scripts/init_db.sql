@@ -153,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_ingest_logs_endpoint_id ON ingest_logs(endpoint_i
 -- Criteria: Exploitation (KEV), Automatable (EPSS >= 0.2), Technical Impact (CVSS >= 9), Mission & Well-being (asset_criticality)
 -- Optimized structure: 8 nodes instead of 26 thanks to multi-input
 INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
-    'Default Tree',
+    'SSVC Example',
     'Optimized SSVC tree - Vulnerability prioritization with multi-input',
     TRUE,
     FALSE,
@@ -336,3 +336,137 @@ FROM (VALUES
     ('net-sw-001', 'Core Switch', 'High', '{"environment": "network", "team": "network"}', '{"vendor": "Cisco", "role": "switch"}')
 ) AS t(asset_id, name, criticality, tags, extra_data)
 ON CONFLICT (tree_id, asset_id) DO NOTHING;
+
+-- Insert Equation Example tree (non-default)
+-- Demonstrates: Equation node with formula, value mapping, compound conditions, CVSS vector parsing
+INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
+    'Equation Example',
+    'Example tree using Equation nodes with formula-based risk scoring',
+    FALSE,
+    FALSE,
+    NULL,
+    '{
+        "nodes": [
+            {
+                "id": "input-kev",
+                "type": "input",
+                "label": "Input",
+                "position": {"x": 180, "y": 105},
+                "config": {"field": "kev"},
+                "conditions": [
+                    {"label": "No", "operator": "eq", "value": false},
+                    {"label": "Yes", "operator": "eq", "value": true}
+                ]
+            },
+            {
+                "id": "input-cvss-av",
+                "type": "input",
+                "label": "Input",
+                "position": {"x": 465, "y": 195},
+                "config": {"field": "cvss_av"},
+                "conditions": [
+                    {"label": "Risque Local", "operator": "neq", "value": "Network"},
+                    {"label": "Risque Externe", "operator": "eq", "value": "Network"}
+                ]
+            },
+            {
+                "id": "equation-risk",
+                "type": "equation",
+                "label": "Equation",
+                "position": {"x": 730, "y": 300},
+                "config": {
+                    "formula": "cvss_score * asset_criticality * epss_score",
+                    "variables": ["cvss_score", "asset_criticality", "epss_score"],
+                    "value_maps": {
+                        "asset_criticality": {
+                            "entries": [
+                                {"text": "Critical", "value": 10},
+                                {"text": "High", "value": 8},
+                                {"text": "Medium", "value": 5},
+                                {"text": "Low", "value": 2}
+                            ],
+                            "default_value": 10
+                        }
+                    },
+                    "output_label": "Score"
+                },
+                "conditions": [
+                    {"label": "Low", "operator": "lt", "value": 30},
+                    {"label": "Important", "logic": "AND", "criteria": [
+                        {"field": null, "operator": "gte", "value": 30},
+                        {"field": null, "operator": "lt", "value": 50}
+                    ]},
+                    {"label": "Major", "logic": "AND", "criteria": [
+                        {"field": null, "operator": "gte", "value": 50},
+                        {"field": null, "operator": "lt", "value": 70}
+                    ]},
+                    {"label": "Critical", "operator": "gte", "value": 70}
+                ]
+            },
+            {
+                "id": "output-low",
+                "type": "output",
+                "label": "Risque",
+                "position": {"x": 1070, "y": 50},
+                "config": {"decision": "Low", "color": "#22c55e"},
+                "conditions": []
+            },
+            {
+                "id": "output-important",
+                "type": "output",
+                "label": "Risque",
+                "position": {"x": 1065, "y": 225},
+                "config": {"decision": "Important", "color": "#eab308"},
+                "conditions": []
+            },
+            {
+                "id": "output-major",
+                "type": "output",
+                "label": "Risque",
+                "position": {"x": 1070, "y": 380},
+                "config": {"decision": "Major", "color": "#f97316"},
+                "conditions": []
+            },
+            {
+                "id": "output-act",
+                "type": "output",
+                "label": "Risque",
+                "position": {"x": 1065, "y": 525},
+                "config": {"decision": "Act", "color": "#dc2626"},
+                "conditions": []
+            }
+        ],
+        "edges": [
+            {"id": "e-kev-no", "source": "input-kev", "target": "output-low", "source_handle": "handle-0"},
+            {"id": "e-kev-yes", "source": "input-kev", "target": "input-cvss-av", "source_handle": "handle-1"},
+            {"id": "e-av-local", "source": "input-cvss-av", "target": "output-low", "source_handle": "handle-0"},
+            {"id": "e-av-network", "source": "input-cvss-av", "target": "equation-risk", "source_handle": "handle-1"},
+            {"id": "e-eq-low", "source": "equation-risk", "target": "output-low", "source_handle": "handle-0"},
+            {"id": "e-eq-important", "source": "equation-risk", "target": "output-important", "source_handle": "handle-1"},
+            {"id": "e-eq-major", "source": "equation-risk", "target": "output-major", "source_handle": "handle-2"},
+            {"id": "e-eq-critical", "source": "equation-risk", "target": "output-act", "source_handle": "handle-3"}
+        ],
+        "metadata": {
+            "field_mapping": {
+                "fields": [
+                    {"name": "cve_id", "type": "string", "label": "CVE ID", "examples": ["CVE-2024-21762", "CVE-2024-3400"], "required": true},
+                    {"name": "cvss_score", "type": "number", "label": "CVSS Score", "examples": [9.8, 7.5, 4.2], "required": true},
+                    {"name": "cvss_vector", "type": "string", "label": "CVSS Vector", "examples": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"], "required": false, "description": "Full CVSS vector for metric extraction"},
+                    {"name": "epss_score", "type": "number", "label": "EPSS Score", "examples": [0.97, 0.12, 0.003], "required": true},
+                    {"name": "kev", "type": "boolean", "label": "KEV Status", "examples": [true, false], "required": true},
+                    {"name": "asset_criticality", "type": "string", "label": "Asset Criticality", "examples": ["Critical", "High", "Medium", "Low"], "required": true},
+                    {"name": "cvss_av", "type": "string", "label": "CVSS Attack Vector", "examples": ["Network", "Local", "Adjacent"], "required": false, "description": "Derived from cvss_vector. Values: Network, Adjacent, Local, Physical"},
+                    {"name": "cvss_ac", "type": "string", "label": "CVSS Attack Complexity", "examples": ["Low", "High"], "required": false, "description": "Derived from cvss_vector. Values: Low, High"},
+                    {"name": "cvss_pr", "type": "string", "label": "CVSS Privileges Required", "examples": ["None", "Low", "High"], "required": false, "description": "Derived from cvss_vector. Values: None, Low, High"},
+                    {"name": "cvss_ui", "type": "string", "label": "CVSS User Interaction", "examples": ["None", "Required"], "required": false, "description": "Derived from cvss_vector. Values: None, Required"},
+                    {"name": "cvss_s", "type": "string", "label": "CVSS Scope", "examples": ["Unchanged", "Changed"], "required": false, "description": "Derived from cvss_vector. Values: Unchanged, Changed"},
+                    {"name": "cvss_c", "type": "string", "label": "CVSS Confidentiality Impact", "examples": ["High", "None", "Low"], "required": false, "description": "Derived from cvss_vector. Values: None, Low, High"},
+                    {"name": "cvss_i", "type": "string", "label": "CVSS Integrity Impact", "examples": ["High", "None", "Low"], "required": false, "description": "Derived from cvss_vector. Values: None, Low, High"},
+                    {"name": "cvss_a", "type": "string", "label": "CVSS Availability Impact", "examples": ["High", "None"], "required": false, "description": "Derived from cvss_vector. Values: None, Low, High"}
+                ],
+                "source": "default",
+                "version": 1
+            }
+        }
+    }'::jsonb
+) ON CONFLICT DO NOTHING;
