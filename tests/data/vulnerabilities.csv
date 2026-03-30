@@ -29,3 +29,22 @@ CVE-2024-38812,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.02,false,RCE,s
 CVE-2024-47575,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.01,false,Missing Auth,srv-fortinet-001,FortiManager Server,10.0.3.40,High,SOC2,Fortinet FortiManager Missing Authentication
 CVE-2024-9999,3.5,CVSS:3.1/AV:A/AC:H/PR:L/UI:R/S:U/C:L/I:L/A:N,0.001,false,Info Disclosure,srv-dev-001,Development Server,10.0.6.10,Low,N/A,Test Low Severity Vulnerability
 CVE-2024-8888,5.5,CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H,0.02,false,DoS,srv-staging-001,Staging Web Server,10.0.6.20,Medium,N/A,Test Medium Severity Vulnerability
+CVE-2023-44228,10.0,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H,0.97,true,RCE,srv-prod-003,PHP Application Server,10.0.1.30,Critical,PCI-DSS,Apache Log4j Remote Code Execution (Log4Shell)
+CVE-2023-27997,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.91,true,RCE,net-fw-001,Main Firewall,10.0.0.1,Critical,SOC2,FortiOS Heap Buffer Overflow via SSL VPN
+CVE-2025-0282,9.0,CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H,0.88,true,RCE,vpn-001,VPN Gateway,10.0.0.5,Critical,PCI-DSS,Ivanti Connect Secure Stack Buffer Overflow
+CVE-2023-34362,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.94,true,SQLi,srv-sftp-001,SFTP Server,10.0.4.20,Medium,ISO27001,MOVEit Transfer SQL Injection
+CVE-2025-21298,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.14,false,RCE,ws-user-001,User Workstation,10.0.5.100,Medium,RGPD,Windows OLE Remote Code Execution
+CVE-2023-20198,10.0,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H,0.96,true,Privilege Escalation,net-sw-001,Core Switch,10.0.0.10,High,SOC2,Cisco IOS XE Web UI Privilege Escalation
+CVE-2024-50623,8.8,CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H,0.44,false,RCE,srv-ftp-001,File Transfer Server,10.0.4.30,High,RGPD,Cleo Harmony Unrestricted File Upload
+CVE-2025-24813,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.33,false,RCE,srv-prod-001,Production Web Server,10.0.1.10,Critical,PCI-DSS,Apache Tomcat Partial PUT Remote Code Execution
+CVE-2024-12356,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.72,true,Command Injection,srv-remote-001,Remote Access Server,10.0.3.60,High,ISO27001,BeyondTrust RS Command Injection
+CVE-2023-4966,9.4,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L,0.87,true,Info Disclosure,srv-proxy-001,Reverse Proxy,10.0.0.3,High,PCI-DSS,Citrix NetScaler ADC Sensitive Information Disclosure
+CVE-2024-55591,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.56,true,Auth Bypass,net-fw-002,Secondary Firewall,10.0.0.2,High,SOC2,Fortinet FortiOS Authentication Bypass
+CVE-2025-1234,4.3,CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N,0.006,false,Info Disclosure,srv-wiki-001,Internal Wiki,10.0.2.70,Low,N/A,Confluence Server Information Disclosure
+CVE-2025-2345,6.1,CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N,0.03,false,XSS,srv-ecommerce-001,E-Commerce Server,10.0.1.40,High,PCI-DSS,Reflected Cross-Site Scripting in Search
+CVE-2024-7777,7.5,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H,0.11,false,DoS,srv-dns-001,DNS Server,10.0.0.8,Critical,SOC2,BIND Named Assertion Failure Denial of Service
+CVE-2025-3456,5.4,CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N,0.02,false,XSS,srv-itsm-001,ITSM Server,10.0.2.60,Medium,ISO27001,Stored XSS in Ticket Comments
+CVE-2024-6543,8.1,CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H,0.19,false,SSRF,srv-proxy-001,Reverse Proxy,10.0.0.3,High,RGPD,Server-Side Request Forgery in Webhook Handler
+CVE-2025-4567,2.4,CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N,0.001,false,Info Disclosure,printer-001,Network Printer,10.0.7.10,Low,N/A,HP LaserJet Physical Access Information Disclosure
+CVE-2023-38545,9.8,CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H,0.61,false,Buffer Overflow,srv-prod-002,Production DB Server,10.0.1.20,Critical,PCI-DSS,curl SOCKS5 Heap Buffer Overflow
+CVE-2025-5678,3.1,CVSS:3.1/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N,0.003,false,Info Disclosure,iot-sensor-001,IoT Temperature Sensor,10.0.8.50,Low,N/A,Bluetooth LE Information Leak in Sensor Firmware
