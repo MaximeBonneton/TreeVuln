@@ -104,7 +104,7 @@ interface TreeState {
 
   // Persistence
   loadTree: (treeId?: number) => Promise<void>;
-  saveTree: (comment?: string) => Promise<void>;
+  saveTree: (comment?: string, createVersion?: boolean) => Promise<void>;
   createNewTree: (name: string, description?: string) => Promise<void>;
 
   // Multi-tree actions
@@ -486,7 +486,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   },
 
   // Save the tree
-  saveTree: async (comment) => {
+  saveTree: async (comment, createVersion = true) => {
     const { treeId, treeName, treeDescription } = get();
     set({ isSaving: true, error: null });
 
@@ -499,7 +499,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           description: treeDescription,
           structure,
           version_comment: comment,
-        });
+        }, createVersion);
       } else {
         const newTree = await treeApi.createTree({
           name: treeName,

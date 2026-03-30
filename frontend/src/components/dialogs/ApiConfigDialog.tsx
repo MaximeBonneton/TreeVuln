@@ -7,7 +7,7 @@ interface ApiConfigDialogProps {
 }
 
 export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
-  const { treeName, treeDescription, apiEnabled, apiSlug, updateApiConfig, setTreeName, setTreeDescription } = useTreeStore();
+  const { treeName, treeDescription, apiEnabled, apiSlug, updateApiConfig, setTreeName, setTreeDescription, saveTree } = useTreeStore();
 
   const [name, setName] = useState(treeName);
   const [description, setDescription] = useState(treeDescription);
@@ -45,7 +45,7 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Le nom de l\'arbre est requis');
+      setError('Tree name is required');
       return;
     }
 
@@ -53,10 +53,17 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
     setError(null);
 
     try {
+      // Persist name/description to backend (no version for metadata-only changes)
+      setTreeName(trimmedName);
+      setTreeDescription(description);
+      await saveTree(undefined, false);
+
+      // Update API config (also refreshes sidebar tree list)
       await updateApiConfig({
         api_enabled: enabled,
         api_slug: enabled ? slug.trim() : null,
       });
+
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save error');
@@ -92,20 +99,16 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Nom de l'arbre */}
+          {/* Tree name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nom de l'arbre
+              Tree name
             </label>
             <input
               type="text"
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                const trimmed = e.target.value.trim();
-                if (trimmed) setTreeName(trimmed);
-              }}
-              placeholder="Mon arbre"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My tree"
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -117,11 +120,8 @@ export function ApiConfigDialog({ onClose }: ApiConfigDialogProps) {
             </label>
             <textarea
               value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                setTreeDescription(e.target.value);
-              }}
-              placeholder="Description de l'arbre..."
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tree description..."
               rows={2}
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />

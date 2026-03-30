@@ -39,6 +39,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
   const confirmSave = async () => {
     try {
       await saveTree(saveComment || undefined);
+      await useTreeStore.getState().loadTrees();
       setShowSaveDialog(false);
       setSaveComment('');
     } catch {
