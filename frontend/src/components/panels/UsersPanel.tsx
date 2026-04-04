@@ -184,10 +184,11 @@ export function UsersPanel({ onClose }: UsersPanelProps) {
                         {resetPasswordUserId === user.id ? (
                           <div className="flex items-center gap-2 justify-end">
                             <input
-                              type="text"
+                              type="password"
                               value={newPassword}
                               onChange={(e) => { setNewPassword(e.target.value); setResetError(null); }}
                               placeholder="New password (12+ chars)"
+                              autoComplete="new-password"
                               className="w-48 px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                               autoFocus
                               onKeyDown={(e) => {

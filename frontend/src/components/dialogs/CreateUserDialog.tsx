@@ -143,10 +143,11 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
             </label>
             <div className="flex gap-2">
               <input
-                type="text"
+                type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
                 placeholder="12 characters minimum"
+                autoComplete="new-password"
                 className="flex-1 px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
               />
               <button

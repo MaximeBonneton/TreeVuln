@@ -106,3 +106,25 @@ def validate_webhook_url(url: str) -> str:
         )
 
     return url
+
+
+def validate_resolved_ip(hostname: str) -> None:
+    """
+    Resolve a hostname via DNS and check the result against blocked networks.
+
+    Raises:
+        ValueError if any resolved address is in a blocked range.
+    """
+    import socket
+
+    try:
+        results = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return  # DNS failure will be handled by httpx at connect time
+
+    for family, _type, _proto, _canonname, sockaddr in results:
+        ip_str = sockaddr[0]
+        if _is_blocked_ip(ip_str):
+            raise ValueError(
+                f"Hostname '{hostname}' resolves to a private or reserved IP address ({ip_str})"
+            )

@@ -131,6 +131,22 @@ async def _send_single(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Send an HTTP request to a webhook."""
+    from urllib.parse import urlparse
+
+    from app.url_validation import validate_resolved_ip
+
+    # DNS rebinding protection: verify resolved IP at send time
+    hostname = urlparse(webhook.url).hostname
+    if hostname:
+        try:
+            validate_resolved_ip(hostname)
+        except ValueError as e:
+            return {
+                "success": False,
+                "error_message": f"SSRF blocked: {e}",
+                "duration_ms": 0,
+            }
+
     body = json.dumps(payload, default=str, ensure_ascii=False)
 
     # User headers first, then security headers (cannot be overridden)

@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # Session
     session_cookie_name: str = "treevuln_session"
     session_max_age: int = 86400  # 24h
+    secure_cookies: bool = False  # Set to True when serving over HTTPS
 
     # Enterprise license (leave empty for Community mode)
     treevuln_license_key: str | None = None

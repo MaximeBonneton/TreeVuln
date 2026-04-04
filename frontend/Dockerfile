@@ -31,4 +31,6 @@ RUN chmod +x /docker-entrypoint.sh && \
 
 EXPOSE 8080
 
+USER nginx-user
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
