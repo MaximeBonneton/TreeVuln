@@ -11,6 +11,16 @@ from typing import Any
 
 from app.schemas.evaluation import EvaluationResponse, EvaluationResult
 
+# Characters that trigger formula interpretation in spreadsheet applications
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(value: Any) -> Any:
+    """Prevent CSV formula injection by prefixing dangerous values with a single quote."""
+    if isinstance(value, str) and value and value[0] in _FORMULA_PREFIXES:
+        return f"'{value}"
+    return value
+
 
 def export_csv(results: list[EvaluationResult], include_path: bool = True) -> Generator[str, None, None]:
     """
@@ -55,10 +65,10 @@ def export_csv(results: list[EvaluationResult], include_path: bool = True) -> Ge
     # Data rows
     for result in results:
         row: list[Any] = [
-            result.vuln_id or "",
-            result.decision,
-            result.decision_color or "",
-            result.error or "",
+            _sanitize_cell(result.vuln_id or ""),
+            _sanitize_cell(result.decision),
+            _sanitize_cell(result.decision_color or ""),
+            _sanitize_cell(result.error or ""),
         ]
 
         if include_path:
@@ -67,18 +77,18 @@ def export_csv(results: list[EvaluationResult], include_path: bool = True) -> Ge
                 f"{s.node_label}[{s.condition_matched or 'END'}]"
                 for s in result.path
             )
-            row.append(path_summary)
+            row.append(_sanitize_cell(path_summary))
 
             # Detailed steps
             for i in range(max_steps):
                 if i < len(result.path):
                     step = result.path[i]
                     row.extend([
-                        step.node_label,
-                        step.node_type,
-                        step.field_evaluated or "",
-                        json.dumps(step.value_found) if step.value_found is not None else "",
-                        step.condition_matched or "",
+                        _sanitize_cell(step.node_label),
+                        _sanitize_cell(step.node_type),
+                        _sanitize_cell(step.field_evaluated or ""),
+                        _sanitize_cell(json.dumps(step.value_found) if step.value_found is not None else ""),
+                        _sanitize_cell(step.condition_matched or ""),
                     ])
                 else:
                     row.extend(["", "", "", "", ""])

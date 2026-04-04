@@ -10,8 +10,11 @@ from app.database import get_db
 from app.schemas.user import (
     AuthStatus, ChangePasswordRequest, LoginRequest, SetupRequest, UserInfo,
 )
-from app.services.user_service import UserService, verify_password
+from app.services.user_service import UserService, hash_password, verify_password
 from app.api.deps import RequireAuth
+
+# Pre-computed dummy hash to normalize timing when user is not found
+_DUMMY_HASH = hash_password("dummy-timing-normalization")
 
 SESSION_MAX_AGE = settings.session_max_age
 
@@ -111,7 +114,13 @@ async def login(data: LoginRequest, response: Response, db: AsyncSession = Depen
     service = UserService(db)
     user = await service.get_by_username(data.username)
 
-    if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+    # Always run bcrypt to prevent timing-based user enumeration
+    if not user or not user.is_active:
+        verify_password(data.password, _DUMMY_HASH)
+        _record_login_failure(data.username)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(data.password, user.password_hash):
         _record_login_failure(data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 

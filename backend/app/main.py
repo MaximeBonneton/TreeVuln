@@ -31,10 +31,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
 
     # Initialize encryption key
-    # Priority: SECRET_KEY env var > existing DB key > auto-generate (with warning)
+    # Priority: SECRET_KEY env var > existing DB key > auto-generate (dev only)
     if settings.secret_key:
         set_encryption_key(settings.secret_key)
         logger.info("Encryption key loaded from SECRET_KEY environment variable.")
+    elif not settings.debug:
+        raise RuntimeError(
+            "SECRET_KEY must be set in production (DEBUG=false). "
+            "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
     else:
         async with async_session_maker() as session:
             result = await session.execute(select(EncryptionKey).where(EncryptionKey.id == 1))

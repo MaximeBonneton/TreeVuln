@@ -10,7 +10,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
-from app.api.deps import AssetServiceDep
+from app.api.deps import AssetServiceDep, read_upload_with_limit
 from app.filename_validation import sanitize_filename
 from app.schemas.asset import (
     AssetBulkCreate,
@@ -187,7 +187,7 @@ async def preview_import(file: UploadFile):
             detail="Filename missing",
         )
 
-    content = await file.read()
+    content = await read_upload_with_limit(file)
     try:
         rows = _parse_upload_file(content, safe_name)
     except (ValueError, json.JSONDecodeError) as e:
@@ -249,7 +249,7 @@ async def import_assets(
             detail="File must be in CSV or JSON format",
         )
 
-    content = await file.read()
+    content = await read_upload_with_limit(file)
     try:
         rows = _parse_upload_file(content, safe_name)
     except (ValueError, json.JSONDecodeError) as e:

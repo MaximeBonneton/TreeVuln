@@ -39,12 +39,12 @@ class TestWebhookSchemas:
             name="SIEM Alert",
             url="https://siem.corp.com/api/webhook",
             secret="my-secret-key",
-            headers={"Authorization": "Bearer token123"},
+            headers={"X-Custom-Token": "my-token-123"},
             events=["on_act"],
             is_active=False,
         )
         assert data.secret == "my-secret-key"
-        assert data.headers == {"Authorization": "Bearer token123"}
+        assert data.headers == {"X-Custom-Token": "my-token-123"}
         assert data.is_active is False
 
     def test_create_invalid_url_no_protocol(self):

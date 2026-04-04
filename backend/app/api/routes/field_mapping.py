@@ -4,7 +4,7 @@ API routes for managing field mapping.
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.api.deps import TreeServiceDep, require_role
+from app.api.deps import TreeServiceDep, read_upload_with_limit, require_role
 from app.filename_validation import sanitize_filename
 from app.engine.cvss import get_cvss_field_definitions
 from app.schemas.field_mapping import (
@@ -111,8 +111,8 @@ async def import_mapping(
             detail=f"Tree {tree_id} not found",
         )
 
-    # Read the file
-    content = await file.read()
+    # Read the file (with size limit)
+    content = await read_upload_with_limit(file)
     try:
         import json
 
@@ -215,7 +215,7 @@ async def scan_file(
             detail="Filename required",
         )
 
-    content = await file.read()
+    content = await read_upload_with_limit(file)
     try:
         content_str = content.decode("utf-8")
     except UnicodeDecodeError:

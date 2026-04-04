@@ -12,6 +12,8 @@ VALID_EVENTS = {"on_act", "on_attend", "on_track_star", "on_track", "on_batch_co
 _FORBIDDEN_HEADERS = {
     "host", "content-length", "transfer-encoding",
     "content-type", "x-treevuln-event", "x-treevuln-signature",
+    "authorization", "cookie", "proxy-authorization",
+    "x-forwarded-for", "x-forwarded-host", "x-real-ip",
 }
 _HEADER_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-]*$")
 
