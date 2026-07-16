@@ -282,3 +282,49 @@ class TestE2SingleEdgeShortcut:
         result = engine.evaluate(vuln)
 
         assert result.decision == "Error"
+
+
+class TestE3RootSelection:
+    """E-3: un nœud totalement déconnecté (orphelin) ne doit jamais devenir racine."""
+
+    def test_orphan_output_placed_first_is_ignored(self):
+        """
+        Un OUTPUT orphelin (aucune edge) placé en tête de la liste des nœuds
+        ne doit pas devenir la racine : la vraie racine (input-cvss, qui a
+        une edge sortante) doit être utilisée pour l'évaluation.
+        """
+        nodes = [
+            NodeSchema(
+                id="orphan-output",
+                type=NodeType.OUTPUT,
+                label="Orphan",
+                config={"decision": "WRONG"},
+            ),
+            NodeSchema(
+                id="input-cvss",
+                type=NodeType.INPUT,
+                label="CVSS Score",
+                config={"field": "cvss_score"},
+                conditions=[
+                    NodeCondition(operator=ConditionOperator.GREATER_THAN_OR_EQUAL, value=9.0, label="Critical"),
+                ],
+            ),
+            NodeSchema(
+                id="output-act",
+                type=NodeType.OUTPUT,
+                label="Act",
+                config={"decision": "Act"},
+            ),
+        ]
+        edges = [
+            EdgeSchema(id="e1", source="input-cvss", target="output-act", label="Critical"),
+        ]
+        tree = TreeStructure(nodes=nodes, edges=edges)
+        engine = InferenceEngine(tree)
+
+        assert engine.root_node_id == "input-cvss"
+
+        vuln = VulnerabilityInput(id="v1", cvss_score=9.5)
+        result = engine.evaluate(vuln)
+
+        assert result.decision == "Act"

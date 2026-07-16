@@ -38,10 +38,16 @@ class InferenceEngine:
                 self.edges[edge.source] = []
             self.edges[edge.source].append(edge)
 
-        # Find the root node (the one not targeted by any edge)
+        # Find the root node (the one not targeted by any edge).
+        # E-3: un nœud totalement déconnecté (ni source, ni cible d'aucune
+        # edge) ne doit pas pouvoir être choisi comme racine : sinon un
+        # nœud orphelin (ex: copié puis jamais reconnecté) placé en tête du
+        # tableau `nodes` devient silencieusement la racine à la place du
+        # vrai point d'entrée de l'arbre.
         target_nodes = {e.target for e in self.tree_structure.edges}
+        source_nodes = set(self.edges.keys())
         for node_id in self.nodes:
-            if node_id not in target_nodes:
+            if node_id not in target_nodes and node_id in source_nodes:
                 self.root_node_id = node_id
                 break
 
