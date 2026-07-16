@@ -7,11 +7,15 @@ from passlib.context import CryptContext
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.user import User, UserSession
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SESSION_DURATION = timedelta(hours=24)
+# Durée d'une session serveur, dérivée de la même config que le max_age du
+# cookie (settings.session_max_age) pour éviter deux sources divergentes :
+# une expiration BDD et une expiration cookie qui pourraient différer.
+SESSION_DURATION = timedelta(seconds=settings.session_max_age)
 
 
 def hash_password(password: str) -> str:

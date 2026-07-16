@@ -103,7 +103,9 @@ async def ingest_vulnerabilities(
         from app.services.webhook_dispatch import schedule_webhook_dispatch
 
         summary_payload = {
-            "event": "on_ingest_complete",
+            # Cohérent avec l'événement réellement dispatché ci-dessous
+            # (on_batch_complete est la valeur reconnue par VALID_EVENTS).
+            "event": "on_batch_complete",
             "source": slug,
             "received": result.received,
             "evaluated": result.evaluated,
