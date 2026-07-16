@@ -89,7 +89,9 @@ CREATE TABLE IF NOT EXISTS webhooks (
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     url VARCHAR(2048) NOT NULL,
-    secret VARCHAR(255),
+    -- TEXT : valeur chiffrée "enc:..." dont la longueur dépasse 255 pour un
+    -- secret plaintext un peu long (cf. fix C-10 + revue 2026-07-16 #1)
+    secret TEXT,
     headers JSONB NOT NULL DEFAULT '{}',
     events TEXT[] NOT NULL DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -123,7 +125,8 @@ CREATE TABLE IF NOT EXISTS ingest_endpoints (
     tree_id INTEGER NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
-    api_key VARCHAR(255) NOT NULL,
+    -- TEXT : clé API chiffrée "enc:...", même contrainte que webhooks.secret
+    api_key TEXT NOT NULL,
     field_mapping JSONB NOT NULL DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     auto_evaluate BOOLEAN NOT NULL DEFAULT TRUE,

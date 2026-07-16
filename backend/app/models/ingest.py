@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,7 +23,10 @@ class IngestEndpoint(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    api_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Text (et non String(255)) : la valeur stockée est la clé API CHIFFRÉE
+    # (préfixe "enc:" + token Fernet), dont la longueur ≈ 4 + 1.37×(57+len(plaintext))
+    # peut dépasser 255 caractères — même piège de troncature que C-10.
+    api_key: Mapped[str] = mapped_column(Text, nullable=False)
     field_mapping: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     auto_evaluate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
