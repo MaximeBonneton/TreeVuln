@@ -20,6 +20,9 @@ dependencies = [
     # Moteur regex avec timeout réel (interruption du backtracking
     # catastrophique), cf. _safe_regex_match dans app/engine/nodes.py
     "regex>=2024.5.15",
+    # Signature OpenPGP des documents CSAF (Phase 1 CRA). python-gnupg
+    # pilote le binaire gpg ; choisi contre PGPy (peu maintenu).
+    "python-gnupg>=0.5.2",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +34,8 @@ dev = [
     # Base PostgreSQL éphémère pour les tests d'intégration (fixture db_engine).
     # Non embarqué dans l'image runtime (deps runtime = requirements.lock).
     "testcontainers>=4.0.0",
+    # Validation des documents CSAF générés contre le schéma JSON officiel
+    "jsonschema>=4.21",
 ]
 
 [build-system]
