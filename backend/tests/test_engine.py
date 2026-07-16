@@ -2,7 +2,8 @@
 Tests for the inference engine.
 """
 
-import re
+import concurrent.futures
+import logging
 import time
 
 import pytest
@@ -549,131 +550,83 @@ class TestRegexReDoSProtection:
     """
     Un utilisateur authentifié (y compris rôle operator) contrôle à la
     fois le pattern regex ET le texte testé via les endpoints
-    preview/diagnose. Une regex catastrophique ne doit pas laisser le
-    pool de threads partagé (taille 2) définitivement épuisé, sinon
-    toutes les regex suivantes -- même parfaitement légitimes -- expirent
-    silencieusement et retournent False (routage faux permanent).
+    preview/diagnose.
 
-    Note importante sur la méthode de test : le module standard `re` ne
-    libère JAMAIS le GIL pendant un match (contrairement à `time.sleep`
-    par ex.), donc `future.result(timeout=...)` ne peut concrètement lever
-    `TimeoutError` que si le thread worker n'a pas encore commencé à
-    s'exécuter -- une fois le calcul C démarré, l'appelant reste bloqué
-    jusqu'à ce qu'il se termine naturellement, quel que soit le timeout
-    demandé. Un vrai pattern catastrophique ne permet donc PAS de tester
-    de façon déterministe le chemin "timeout" de `_safe_regex_match`
-    (cf. commentaire détaillé dans `nodes.py`). On simule donc un calcul
-    lent avec un faux pattern dont `.search()` appelle `time.sleep()` --
-    qui, lui, libère bien le GIL -- pour exercer réellement le code de
-    gestion du timeout (log + régénération du pool), et on garde un test
-    séparé avec un vrai pattern catastrophique borné pour vérifier
-    l'absence de crash / d'exception.
+    Reprise revue 2026-07-16 (#2, #6, #8) : la protection repose désormais
+    sur le module tiers `regex` et son paramètre `timeout=`, qui interrompt
+    RÉELLEMENT un match catastrophique (sa boucle C vérifie l'horloge
+    périodiquement, contrairement au module standard `re` qui ne rend
+    jamais la main). Conséquences testées ici :
+    - plus de plafond de longueur de texte qui transformait silencieusement
+      un match en no-match (#2) ;
+    - plus de pool de threads partagé, donc plus de course au submit (#6)
+      ni de threads zombies à régénérer (#8).
     """
 
-    def test_text_too_long_is_rejected_without_dispatch(self):
-        """
-        Un texte dépassant la limite est refusé immédiatement, sans même
-        être soumis au pool de threads (protection contre les inputs
-        démesurés, indépendante du timeout).
-        """
-        huge_text = "a" * (nodes_module._MAX_REGEX_TEXT_LENGTH + 1)
+    def test_long_text_still_matches(self):
+        """#2 : un champ texte long (> 1000 caractères, ancien plafond) doit
+        continuer de matcher — l'ancien cap retournait silencieusement False
+        et faussait la décision SSVC."""
+        text = "x" * 1500 + " remote code execution risk"
+        assert _safe_regex_match("remote code execution", text) is True
 
-        start = time.monotonic()
-        result = _safe_regex_match("a+", huge_text)
-        elapsed = time.monotonic() - start
+    def test_long_text_without_match_returns_false(self):
+        assert _safe_regex_match("nonexistent-pattern", "x" * 5000) is False
+
+    # Pattern réellement catastrophique POUR LE MODULE `regex` (vérifié
+    # empiriquement) : celui-ci optimise les cas classiques comme (a+)+$
+    # (réponse en microsecondes), mais (a|aa)+$ force un backtracking
+    # exponentiel que seul le timeout peut interrompre.
+    _CATASTROPHIC_PATTERN = "(a|aa)+$"
+    _CATASTROPHIC_TEXT = "a" * 35 + "!"
+
+    def test_catastrophic_pattern_times_out_and_returns_false(
+        self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ):
+        """#8 : un vrai pattern à backtracking catastrophique est interrompu
+        par le timeout du module `regex` (pas de thread zombie), retourne
+        False et laisse une trace en log."""
+        monkeypatch.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.2)
+
+        with caplog.at_level(logging.WARNING, logger="app.engine.nodes"):
+            start = time.monotonic()
+            result = _safe_regex_match(self._CATASTROPHIC_PATTERN, self._CATASTROPHIC_TEXT)
+            elapsed = time.monotonic() - start
 
         assert result is False
-        assert elapsed < 0.2  # quasi instantané : pas de dispatch thread
+        # Le timeout a réellement interrompu le calcul (marge large pour CI)
+        assert elapsed < 1.5
+        assert any("timed out" in record.message for record in caplog.records)
 
-    def test_text_within_limit_is_still_evaluated(self):
-        """Un texte sous la limite continue d'être évalué normalement."""
-        text = "a" * (nodes_module._MAX_REGEX_TEXT_LENGTH - 1)
-        assert _safe_regex_match("a+$", text) is True
-        assert _safe_regex_match("b+$", text) is False
-
-    def test_bounded_catastrophic_pattern_does_not_raise(self):
-        """
-        Un vrai pattern à backtracking catastrophique -- mais avec un texte
-        volontairement court pour rester borné dans un test -- doit rendre
-        la main sans exception, quel que soit le mécanisme (résultat réel
-        ou timeout selon la fenêtre GIL). Sert de garde-fou de non-
-        régression fonctionnelle et de non-crash, indépendamment du test
-        déterministe du timeout ci-dessous.
-        """
-        # (a+)+$ est un cas classique de backtracking catastrophique ;
-        # n=20 reste borné (~50-150ms) pour ne pas ralentir la suite.
-        result = _safe_regex_match("(a+)+$", "a" * 20 + "!")
-        assert result is False
-
-    def test_timeout_path_resets_pool_and_returns_false(self, monkeypatch: pytest.MonkeyPatch):
-        """
-        Simule un match lent (via `time.sleep`, qui libère le GIL) pour
-        exercer déterministement le chemin `except TimeoutError` de
-        `_safe_regex_match` : le pool global doit être régénéré (S-13b)
-        au lieu de rester définitivement épuisé.
-        """
-
-        class _SlowPattern:
-            def search(self, text: str) -> None:
-                time.sleep(0.2)
-                return None
-
-        with monkeypatch.context() as m:
-            m.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.01)
-            m.setattr(re, "compile", lambda pattern: _SlowPattern())
-
-            pool_before = nodes_module._REGEX_EXECUTOR
-            result = _safe_regex_match("whatever", "some text")
-
-            assert result is False
-            assert nodes_module._REGEX_EXECUTOR is not pool_before
-
-    def test_normal_regex_still_works_after_a_timeout(self, monkeypatch: pytest.MonkeyPatch):
-        """
-        Cas central du bug S-13b : après qu'un match lent ait déclenché un
-        timeout, une regex NORMALE soumise ensuite doit toujours retourner
-        le bon résultat (le pool n'est pas mort), au lieu d'un False
-        silencieux permanent.
-        """
-
-        class _SlowPattern:
-            def search(self, text: str) -> None:
-                time.sleep(0.2)
-                return None
-
-        with monkeypatch.context() as m:
-            m.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.01)
-            m.setattr(re, "compile", lambda pattern: _SlowPattern())
-            assert _safe_regex_match("whatever", "some text") is False
-
-        # Hors du contexte : re.compile et le timeout sont restaurés à
-        # leurs valeurs réelles (comportement sain après incident).
+    def test_normal_regex_still_works_after_a_timeout(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Après un timeout, les évaluations suivantes restent correctes
+        (plus d'état partagé à réparer : chaque appel est indépendant)."""
+        monkeypatch.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.2)
+        assert _safe_regex_match(self._CATASTROPHIC_PATTERN, self._CATASTROPHIC_TEXT) is False
         assert _safe_regex_match(r"^CVE-\d{4}-\d+$", "CVE-2024-1234") is True
         assert _safe_regex_match(r"^CVE-\d{4}-\d+$", "not-a-cve") is False
 
-    def test_two_consecutive_timeouts_do_not_break_pool_permanently(
+    def test_concurrent_mixed_patterns_do_not_raise(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """
-        Le pool a 2 workers par défaut : le bug original nécessitait
-        exactement 2 regex pathologiques pour l'épuiser durablement. Ce
-        test reproduit ce scénario (2 timeouts consécutifs) et vérifie
-        que le pool reste utilisable ensuite.
-        """
+        """#6 : des évaluations concurrentes mêlant patterns valides et
+        catastrophiques ne doivent ni lever d'exception (l'ancien code
+        pouvait lever RuntimeError sur un pool shutdown par un timeout
+        concurrent) ni fausser les résultats des patterns valides."""
+        monkeypatch.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.2)
 
-        class _SlowPattern:
-            def search(self, text: str) -> None:
-                time.sleep(0.2)
-                return None
+        def run(i: int) -> bool:
+            if i % 2:
+                return _safe_regex_match(self._CATASTROPHIC_PATTERN, self._CATASTROPHIC_TEXT)
+            return _safe_regex_match(r"^\d+$", "12345")
 
-        with monkeypatch.context() as m:
-            m.setattr(nodes_module, "_REGEX_TIMEOUT_SECONDS", 0.01)
-            m.setattr(re, "compile", lambda pattern: _SlowPattern())
-            assert _safe_regex_match("whatever", "some text") is False
-            assert _safe_regex_match("whatever-2", "some text") is False
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(run, range(16)))
 
-        assert _safe_regex_match(r"^\d+$", "12345") is True
-        assert _safe_regex_match(r"^\d+$", "abc") is False
+        assert all(results[i] is True for i in range(0, 16, 2))
+        assert all(results[i] is False for i in range(1, 16, 2))
 
     def test_invalid_pattern_returns_false(self):
         """Un pattern regex syntaxiquement invalide reste géré sans exception."""

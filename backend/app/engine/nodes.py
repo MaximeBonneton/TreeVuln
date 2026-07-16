@@ -2,12 +2,11 @@
 Definition of node types and their evaluation logic.
 """
 
-import concurrent.futures
 import logging
-import re
-import threading
 from abc import ABC, abstractmethod
 from typing import Any
+
+import regex
 
 from app.schemas.tree import (
     ConditionOperator,
@@ -26,51 +25,12 @@ class NodeEvaluationError(Exception):
 
 logger = logging.getLogger(__name__)
 
-# ReDoS protection: length limit and timeout for user-provided regex.
+# ReDoS protection (S-13b, repris par la revue 2026-07-16 #2/#6/#8).
 # Le pattern ET le texte testé sont tous deux contrôlables par un
 # utilisateur authentifié (y compris rôle operator) via les endpoints
-# preview/diagnose (S-13b).
-_REGEX_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-# Verrou protégeant le remplacement de _REGEX_EXECUTOR (cf. _reset_regex_executor).
-_REGEX_EXECUTOR_LOCK = threading.Lock()
+# preview/diagnose.
 _MAX_REGEX_PATTERN_LENGTH = 200
-# S-13b : le texte testé est plafonné fortement. Les champs métier
-# légitimes (CVE ID, hostname, IP, courtes descriptions) sont très
-# largement sous ce seuil ; cela borne le pire cas d'un pattern lent en
-# évitant qu'un champ texte démesurément long n'aggrave encore le temps
-# de calcul d'un match déjà coûteux.
-_MAX_REGEX_TEXT_LENGTH = 1000
 _REGEX_TIMEOUT_SECONDS = 1.0
-
-
-def _reset_regex_executor(stale_executor: concurrent.futures.ThreadPoolExecutor) -> None:
-    """
-    Régénère le pool de threads regex après un timeout (S-13b).
-
-    `future.result(timeout=...)` n'annule PAS le thread sous-jacent : un
-    pattern catastrophique continue de consommer du CPU indéfiniment. Avec
-    un pool de seulement 2 workers, il suffisait de 2 regex pathologiques
-    pour épuiser TOUS les workers de façon permanente, ce qui faisait
-    échouer silencieusement (False) toutes les évaluations regex
-    suivantes -- y compris des patterns parfaitement légitimes -- jusqu'au
-    redémarrage du process (routage faux permanent).
-
-    En recréant le pool à chaque timeout, les évaluations SUIVANTES
-    obtiennent immédiatement un worker frais au lieu de rester bloquées
-    derrière des threads zombies.
-
-    On vérifie que l'executor global est toujours celui qui a expiré
-    (comparaison d'identité) avant de le remplacer, pour éviter des
-    recréations en cascade inutiles si plusieurs appels timeout en même
-    temps.
-    """
-    global _REGEX_EXECUTOR
-    with _REGEX_EXECUTOR_LOCK:
-        if _REGEX_EXECUTOR is stale_executor:
-            # wait=False : ne pas bloquer sur les threads existants,
-            # potentiellement encore occupés par le calcul fautif.
-            _REGEX_EXECUTOR.shutdown(wait=False)
-            _REGEX_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 
 def _to_bool_or_none(value: Any) -> bool | None:
@@ -137,61 +97,38 @@ def _values_equal(value: Any, cond_value: Any) -> bool:
 
 def _safe_regex_match(pattern: str, text: str) -> bool:
     """
-    Exécute un match regex avec limite de longueur et timeout (S-13b).
+    Exécute un match regex avec limite de longueur de pattern et timeout
+    réel (S-13b, repris par la revue 2026-07-16 #2/#6/#8).
 
-    LIMITE FONDAMENTALE CONNUE (à documenter pour toute évolution future) :
-    le module standard `re` de CPython ne libère JAMAIS le GIL pendant un
-    match (il n'y a pas de `Py_BEGIN_ALLOW_THREADS` dans `_sre`, et sa
-    boucle de backtracking en C n'est pas préemptible par l'interpréteur
-    tant qu'elle ne rend pas la main). Concrètement, `future.result(timeout=...)`
-    ne peut lever `TimeoutError` que si le thread worker n'a pas encore
-    commencé à exécuter le C profond du match ; une fois démarré, le thread
-    appelant reste bloqué jusqu'à la fin RÉELLE du calcul, quelle que soit
-    la valeur de timeout demandée (vérifié empiriquement : un pattern
-    catastrophique de quelques dizaines de secondes fait attendre l'appelant
-    la durée complète, sans jamais lever `TimeoutError`). Un pattern+texte
-    volontairement court (~25-30 caractères) suffit à geler tout le
-    process (GIL global) pendant un temps arbitrairement long.
-
-    Cette fonction ne peut donc PAS garantir un temps de réponse strictement
-    borné pour un pattern réellement catastrophique tant qu'on reste sur
-    `re` + threads. Elle apporte tout de même une défense en profondeur :
-    - la charge est bornée en amont (longueur du pattern ET du texte), ce
-      qui limite (sans l'éliminer) le risque pour les patterns non conçus
-      délibérément pour être catastrophiques ;
-    - pour les cas où le timeout PEUT effectivement se déclencher (thread
-      pas encore démarré, ou calcul lent mais qui libère le GIL), le pool
-      de threads ne reste pas cassé indéfiniment (cf. `_reset_regex_executor`) :
-      les évaluations SUIVANTES obtiennent un résultat correct au lieu d'un
-      `False` silencieux permanent.
-    Pour une protection robuste contre un pattern véritablement
-    adversarial, la bibliothèque tierce `regex` (paramètre `timeout=`,
-    qui libère le GIL périodiquement dans sa boucle C) ou l'exécution en
-    sous-processus (avec `SIGKILL` réel) seraient nécessaires -- non
-    utilisées ici car absentes des dépendances du projet.
+    Le module tiers `regex` (et non le `re` standard) est utilisé pour son
+    paramètre `timeout=` : sa boucle de matching en C vérifie l'horloge
+    périodiquement et lève TimeoutError en interrompant RÉELLEMENT le
+    calcul, là où `re` ne rend jamais la main une fois le backtracking
+    démarré. L'ancienne implémentation (pool de threads + régénération sur
+    timeout) laissait des threads zombies à 100 % CPU (#8), pouvait lever
+    RuntimeError sur un submit concurrent à un reset (#6), et plafonnait la
+    longueur du texte à 1000 caractères en retournant silencieusement False
+    au-delà — faussant la décision SSVC (#2). Le timeout réel rend tout
+    cela inutile : chaque appel est indépendant, sans état partagé ni
+    limite de texte.
     """
     if len(pattern) > _MAX_REGEX_PATTERN_LENGTH:
         return False
-    if len(text) > _MAX_REGEX_TEXT_LENGTH:
-        return False
     try:
-        compiled = re.compile(pattern)
-    except re.error:
+        compiled = regex.compile(pattern)
+    except regex.error:
         return False
 
-    executor = _REGEX_EXECUTOR
-    future = executor.submit(compiled.search, text)
     try:
-        return bool(future.result(timeout=_REGEX_TIMEOUT_SECONDS))
-    except concurrent.futures.TimeoutError:
+        return bool(compiled.search(text, timeout=_REGEX_TIMEOUT_SECONDS))
+    except TimeoutError:
         logger.warning(
             "Regex evaluation timed out after %.1fs (pattern_len=%d, text_len=%d); "
-            "resetting regex thread pool to avoid permanent starvation",
+            "treating condition as not matched",
             _REGEX_TIMEOUT_SECONDS,
             len(pattern),
             len(text),
         )
-        _reset_regex_executor(executor)
         return False
     except Exception:
         logger.exception("Unexpected error while evaluating regex condition")
