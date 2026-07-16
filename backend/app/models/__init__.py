@@ -1,5 +1,6 @@
 from app.models.asset import Asset
 from app.models.ingest import IngestEndpoint, IngestLog
+from app.models.settings import AppSetting
 from app.models.tree import Tree
 from app.models.tree_version import TreeVersion
 from app.models.user import EncryptionKey, User, UserSession
@@ -10,4 +11,5 @@ __all__ = [
     "Webhook", "WebhookLog",
     "IngestEndpoint", "IngestLog",
     "User", "UserSession", "EncryptionKey",
+    "AppSetting",
 ]

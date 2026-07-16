@@ -9,6 +9,7 @@ et base legacy stampée) est vérifiée manuellement via docker compose,
 cf. plan 2026-07-16-ws3r-review-fixes.md.
 """
 
+import re
 from pathlib import Path
 
 from alembic.config import Config
@@ -45,14 +46,21 @@ class TestBaselineCoversAllModels:
     rien sur une base réelle.
     """
 
-    def test_every_model_table_is_created_by_baseline(self):
-        source = BASELINE_PATH.read_text(encoding="utf-8")
+    def test_every_model_table_is_created_by_a_migration(self):
+        # Une table peut naître après la baseline (ex: app_settings en 0004) :
+        # on scanne l'ensemble des migrations, pas seulement 0001.
+        versions_dir = BACKEND_DIR / "alembic" / "versions"
+        sources = "\n".join(
+            p.read_text(encoding="utf-8") for p in sorted(versions_dir.glob("*.py"))
+        )
         missing = [
             table_name
             for table_name in Base.metadata.tables
-            if f"create_table('{table_name}'" not in source
+            if not re.search(
+                rf"create_table\(\s*['\"]{re.escape(table_name)}['\"]", sources
+            )
         ]
-        assert not missing, f"Tables absentes de la baseline Alembic : {missing}"
+        assert not missing, f"Tables absentes des migrations Alembic : {missing}"
 
     def test_partial_unique_index_on_default_tree(self):
         # C-5 : l'index unique partiel sur trees.is_default doit être dans la
