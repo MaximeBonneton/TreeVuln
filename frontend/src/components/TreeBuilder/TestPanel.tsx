@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Upload, Download, FileSpreadsheet, ChevronRight, ChevronDown, AlertTriangle, AlertCircle } from 'lucide-react';
-import { evaluateApi } from '@/api';
+import { X, Play, Upload, Download, FileSpreadsheet, FileBadge, ChevronRight, ChevronDown, AlertTriangle, AlertCircle } from 'lucide-react';
+import { evaluateApi, settingsApi, type CsafSettings } from '@/api';
 import { useTreeStore } from '@/stores/treeStore';
 import { DECISION_COLORS } from '@/constants/decisions';
 import type { VulnerabilityInput, EvaluationResult, EvaluationResponse, DecisionPath, DiagnosticResult, DiagnosticItem } from '@/types';
@@ -247,6 +247,12 @@ function BatchTestTab() {
   const [exporting, setExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const [csafSettings, setCsafSettings] = useState<CsafSettings | null>(null);
+
+  // L'état des settings CSAF pilote l'activation du bouton d'export CSAF
+  useEffect(() => {
+    settingsApi.getCsafSettings().then(setCsafSettings).catch(() => null);
+  }, []);
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -276,6 +282,33 @@ function BatchTestTab() {
       URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCsaf = async () => {
+    if (!file) return;
+    setExporting(true);
+    setShowExportMenu(false);
+
+    try {
+      const structure = toApiStructure();
+      // On signe si une clé est configurée, sinon export non signé
+      const { blob, filename } = await evaluateApi.exportPreviewCsaf(
+        file,
+        structure,
+        treeId,
+        csafSettings?.has_signing_key ?? false,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'CSAF export failed');
     } finally {
       setExporting(false);
     }
@@ -375,6 +408,21 @@ function BatchTestTab() {
                     >
                       <Download size={14} />
                       Export JSON
+                    </button>
+                    <button
+                      onClick={handleExportCsaf}
+                      disabled={!csafSettings?.publisher}
+                      title={
+                        csafSettings?.publisher
+                          ? csafSettings.has_signing_key
+                            ? 'Signed CSAF 2.0 VEX bundle'
+                            : 'Unsigned CSAF 2.0 VEX bundle (no signing key configured)'
+                          : 'Configure the CSAF publisher first (admin > CSAF configuration)'
+                      }
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FileBadge size={14} />
+                      Export CSAF (ZIP)
                     </button>
                   </div>
                 )}

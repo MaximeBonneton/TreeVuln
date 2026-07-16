@@ -137,6 +137,41 @@ export const evaluateApi = {
     return response.blob();
   },
 
+  exportPreviewCsaf: async (
+    file: File,
+    structure: TreeStructure,
+    treeId: number | null | undefined,
+    signed: boolean,
+  ): Promise<{ blob: Blob; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('structure', JSON.stringify(structure));
+    formData.append('format', 'csaf');
+    formData.append('signed', String(signed));
+    if (treeId) formData.append('tree_id', String(treeId));
+
+    const response = await fetch('/api/v1/evaluate/preview/export/csv', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(
+        typeof error.detail === 'string' ? error.detail : 'Export failed'
+      );
+    }
+
+    // Nom de fichier {tracking_id}.zip fourni par le Content-Disposition
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    return {
+      blob: await response.blob(),
+      filename: match?.[1] ?? 'csaf_export.zip',
+    };
+  },
+
   // Diagnostic
   diagnoseTree: (structure: TreeStructure) =>
     api.post<DiagnosticResult>('/tree/diagnose', { structure }),
