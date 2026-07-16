@@ -75,6 +75,8 @@ export interface LookupNodeConfig {
 export interface OutputNodeConfig {
   decision: string;
   color: string;
+  vex_status?: string;
+  vex_justification?: string;
 }
 
 export interface ValueMapEntry {
