@@ -4,6 +4,8 @@ import { treeApi } from '@/api';
 import { useState } from 'react';
 import { toPng, toSvg } from 'html-to-image';
 import type { TreeExportFile } from '@/types';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface ToolbarProps {
   onTest?: () => void;
@@ -26,9 +28,25 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
   } = useTreeStore();
 
   const isAdminUser = useTreeStore((s) => s.isAdmin);
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const [saveComment, setSaveComment] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+  // F-1 : recharge l'arbre COURANT (loadTree() sans argument charge l'arbre
+  // par défaut) et demande confirmation si des changements seraient perdus.
+  const handleReload = async () => {
+    const { treeId } = useTreeStore.getState();
+    if (hasUnsavedChanges) {
+      const ok = await confirm(
+        'Reload tree',
+        'You have unsaved changes. Reloading will discard them. Continue?',
+        'warning'
+      );
+      if (!ok) return;
+    }
+    await loadTree(treeId ?? undefined);
+  };
 
   const handleSave = async () => {
     if (hasUnsavedChanges) {
@@ -147,7 +165,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => loadTree()}
+            onClick={handleReload}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
             title="Reload"
           >
@@ -294,6 +312,8 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog {...confirmDialogProps} />
     </>
   );
 }
