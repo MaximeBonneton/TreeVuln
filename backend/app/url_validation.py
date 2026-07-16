@@ -46,7 +46,12 @@ def _is_blocked_ip(hostname: str) -> bool:
 
 
 def _is_obfuscated_ip(hostname: str) -> bool:
-    """Detect obfuscated IP representations (hex, octal, large decimal)."""
+    """Detect obfuscated IP representations (hex, octal, decimal)."""
+    # Hostname mono-label entièrement numérique (ex: 167772161 = 10.0.0.1) :
+    # getaddrinfo l'interprète comme une IPv4 via inet_aton quelle que soit
+    # sa longueur — aucun domaine réel n'est purement numérique, on rejette.
+    if hostname.isdigit():
+        return True
     # Check the whole hostname (e.g. 0x7f000001)
     if _OBFUSCATED_IP_RE.match(hostname):
         return True
