@@ -6,10 +6,15 @@ CSV/JSON export support for results.
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import AssetServiceDep, TreeServiceDep, read_upload_with_limit
+from app.api.deps import (
+    AssetServiceDep,
+    SettingsServiceDep,
+    TreeServiceDep,
+    read_upload_with_limit,
+)
 from app.filename_validation import sanitize_filename
 from app.config import settings
 from app.engine import BatchProcessor, InferenceEngine
@@ -24,6 +29,11 @@ from app.schemas.evaluation import (
     SingleEvaluationRequest,
 )
 from app.schemas.tree import TreeStructure
+from app.services.csaf_export import (
+    CsafExportConfigError,
+    CsafSigningKeyMissingError,
+    build_csaf_export,
+)
 from app.services.webhook_dispatch import schedule_webhook_dispatch
 
 router = APIRouter()
@@ -342,9 +352,11 @@ async def evaluate_preview_csv(
 async def export_preview_csv(
     file: UploadFile,
     asset_service: AssetServiceDep,
+    settings_service: SettingsServiceDep,
     structure: str = Form(...),
     format: str = Form("csv"),
     tree_id: int | None = Form(None),
+    signed: bool = Form(True),
 ):
     """
     Export preview evaluation results as CSV or JSON.
@@ -393,6 +405,12 @@ async def export_preview_csv(
 
     response = await processor.process_batch(rows, lookups, True)
 
+    if format == "csaf":
+        return await _build_csaf_response(
+            response, rows, tree_structure, tree_id,
+            asset_service, settings_service, signed,
+        )
+
     return _build_export_response(response, format)
 
 
@@ -427,11 +445,52 @@ def _build_export_response(
         )
 
 
+async def _build_csaf_response(
+    response: EvaluationResponse,
+    raw_rows: list[dict[str, Any]],
+    structure: TreeStructure,
+    tree_id: int | None,
+    asset_service,
+    settings_service,
+    signed: bool,
+) -> Response:
+    """Construit la réponse ZIP CSAF (mappe les erreurs métier en 422/409)."""
+    # Le générateur a besoin des noms d'assets même si l'arbre n'utilise pas
+    # de nœud lookup : on charge le cache inconditionnellement.
+    asset_cache: dict[str, dict[str, Any]] = {}
+    if tree_id is not None:
+        asset_ids = [str(r["asset_id"]) for r in raw_rows if r.get("asset_id")]
+        asset_cache = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+
+    try:
+        zip_bytes, filename = await build_csaf_export(
+            results=response.results,
+            raw_rows=raw_rows,
+            structure=structure,
+            asset_cache=asset_cache,
+            settings_service=settings_service,
+            signed=signed,
+        )
+    except CsafExportConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        )
+    except CsafSigningKeyMissingError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/export")
 async def export_batch(
     request: ExportRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    settings_service: SettingsServiceDep,
 ):
     """
     Evaluate a batch of vulnerabilities and return a downloadable CSV or JSON file.
@@ -462,6 +521,17 @@ async def export_batch(
         lookups,
         True,  # always include path for exports
     )
+
+    if request.format == "csaf":
+        return await _build_csaf_response(
+            response,
+            request.vulnerabilities,
+            structure,
+            tree.id,
+            asset_service,
+            settings_service,
+            request.signed,
+        )
 
     return _build_export_response(response, request.format, tree.name)
 

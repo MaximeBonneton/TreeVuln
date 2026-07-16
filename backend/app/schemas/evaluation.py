@@ -101,7 +101,11 @@ class PreviewEvaluationRequest(BaseModel):
 class ExportRequest(EvaluationRequest):
     """Request to evaluate and export a batch."""
 
-    format: Literal["csv", "json"] = Field(
+    format: Literal["csv", "json", "csaf"] = Field(
         default="csv",
-        description="Export format: csv or json",
+        description="Export format: csv, json ou csaf (bundle ZIP CSAF 2.0 VEX)",
+    )
+    signed: bool = Field(
+        default=True,
+        description="Signer le document CSAF (format csaf uniquement)",
     )
