@@ -101,13 +101,4 @@ export const api = {
     request<T>(endpoint, { method: 'DELETE' }),
 };
 
-/**
- * Retourne les headers d'authentification pour les appels fetch directs
- * (uploads de fichiers, exports blob, etc.).
- * L'authentification est gérée par cookies HttpOnly (credentials: same-origin).
- */
-export function getAuthHeaders(): Record<string, string> {
-  return {};
-}
-
 export { ApiError };
