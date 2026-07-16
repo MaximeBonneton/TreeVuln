@@ -445,3 +445,63 @@ class TestFormulaRealisticSSVC:
             {"cvss_score": 8.5, "epss_score": 0.9},
         )
         assert result == 10.0
+
+
+# ======================================================================
+# S-13a — bornage de l'opérateur puissance (DoS via entiers gigantesques)
+# ======================================================================
+
+
+class TestFormulaSecurityPowerBound:
+    """
+    Un utilisateur authentifié (y compris rôle operator) contrôle la
+    formule d'un arbre via les endpoints preview/diagnose. Sans bornage,
+    une formule comme `9**9**9**9` (associativité à droite : 9**(9**(9**9)))
+    produit un entier de plusieurs milliards de chiffres et gèle/OOM le
+    worker sur une seule requête.
+    """
+
+    def test_reject_chained_power_dos(self):
+        """Le cas emblématique du DoS doit être rejeté AVANT tout calcul géant."""
+        with pytest.raises(FormulaError):
+            evaluate_formula("9**9**9**9", {})
+
+    def test_reject_large_literal_exponent(self):
+        with pytest.raises(FormulaError, match="Exponent"):
+            evaluate_formula("2 ** 100", {})
+
+    def test_reject_large_variable_exponent(self):
+        """La base et l'exposant peuvent être des variables : le bornage
+        doit s'appliquer aux VALEURS au moment de l'évaluation, pas
+        seulement à l'AST statique."""
+        with pytest.raises(FormulaError, match="Exponent"):
+            evaluate_formula("x ** y", {"x": 2, "y": 999999})
+
+    def test_reject_large_variable_base(self):
+        with pytest.raises(FormulaError, match="Base"):
+            evaluate_formula("x ** 2", {"x": 10_000_000})
+
+    def test_reject_large_base_literal(self):
+        with pytest.raises(FormulaError, match="Base"):
+            evaluate_formula("10000000 ** 2", {})
+
+    def test_small_power_still_works(self):
+        """Les formules métier légitimes (score^2, score^3) restent valides."""
+        assert evaluate_formula("x ** 2", {"x": 5}) == 25.0
+        assert evaluate_formula("x ** 3", {"x": 2}) == 8.0
+
+    def test_negative_exponent_within_bound(self):
+        assert evaluate_formula("x ** -1", {"x": 4}) == 0.25
+
+    def test_power_at_exponent_threshold(self):
+        """Exposant exactement à la limite autorisée : doit passer."""
+        assert evaluate_formula("2 ** 8", {}) == 256.0
+
+    def test_power_just_above_threshold_rejected(self):
+        with pytest.raises(FormulaError, match="Exponent"):
+            evaluate_formula("2 ** 9", {})
+
+    def test_nested_power_within_bounds(self):
+        """Puissance imbriquée mais dont chaque étage reste sous les seuils."""
+        # 2**2 = 4, puis 4**2 = 16 : chaque étage est individuellement borné.
+        assert evaluate_formula("(2 ** 2) ** 2", {}) == 16.0

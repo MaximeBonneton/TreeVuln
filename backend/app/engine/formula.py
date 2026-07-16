@@ -21,6 +21,19 @@ class FormulaError(Exception):
 # Allowed functions in formulas
 _ALLOWED_FUNCTIONS = {"min", "max", "abs", "round"}
 
+# S-13a : bornage de l'opérateur puissance (**) pour éviter un DoS.
+# Une formule comme "9**9**9**9" est évaluée de droite à gauche par Python
+# (9**(9**(9**9))) et produit un entier de plusieurs milliards de chiffres :
+# calcul qui gèle le worker (CPU) et peut faire OOM le process, pour une
+# seule requête d'un utilisateur authentifié (même rôle operator, via les
+# endpoints preview/diagnose qui contrôlent la formule ET les variables).
+# Les formules métier légitimes (scores de risque : cvss*poids, epss*100,
+# score^2, score^3...) n'utilisent que des exposants petits (<= 8) et des
+# bases raisonnables (<= 1_000_000) : ces seuils sont donc très larges pour
+# l'usage réel tout en empêchant la construction de grands entiers.
+_MAX_POWER_EXPONENT = 8
+_MAX_POWER_BASE = 1_000_000
+
 # Regex to convert C-style ternary syntax to Python
 # condition ? val_true : val_false  ->  (val_true if condition else val_false)
 _TERNARY_RE = re.compile(
@@ -68,6 +81,53 @@ def _preprocess_formula(formula: str) -> str:
     result = _TERNARY_SIMPLE_RE.sub(replace_simple_ternary, result)
 
     return result
+
+
+def _safe_pow(base: float, exponent: float) -> float:
+    """
+    Calcule `base ** exponent` en bornant les deux opérandes (S-13a).
+
+    Une whitelist statique sur l'AST (cf. `_validate_node`) ne suffit pas :
+    la base et l'exposant peuvent être des variables dont la valeur n'est
+    connue qu'à l'exécution (ex: `x ** y` avec y=999999 fourni en entrée).
+    Le bornage doit donc s'appliquer aux VALEURS, au moment du calcul.
+
+    Raises:
+        FormulaError: si l'exposant ou la base dépassent les seuils
+            autorisés (empêche la construction d'entiers gigantesques).
+    """
+    if abs(exponent) > _MAX_POWER_EXPONENT:
+        raise FormulaError(
+            f"Exponent too large ({exponent}): must not exceed "
+            f"{_MAX_POWER_EXPONENT} in absolute value"
+        )
+    if abs(base) > _MAX_POWER_BASE:
+        raise FormulaError(
+            f"Base too large ({base}): must not exceed {_MAX_POWER_BASE} in absolute value"
+        )
+    return base**exponent
+
+
+class _PowerBoundTransformer(ast.NodeTransformer):
+    """
+    Remplace chaque opération `**` de l'AST par un appel à `_safe_pow`
+    (S-13a), afin que la borne soit appliquée à l'exécution, y compris
+    pour les puissances imbriquées (ex: `9**9**9**9`), qui sont visitées
+    et donc bornées de l'intérieur vers l'extérieur (l'étage le plus
+    profond est calculé -- et potentiellement rejeté -- en premier, avant
+    même que Python n'essaie de calculer l'étage suivant).
+    """
+
+    def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Pow):
+            call = ast.Call(
+                func=ast.Name(id="_safe_pow", ctx=ast.Load()),
+                args=[node.left, node.right],
+                keywords=[],
+            )
+            return ast.copy_location(call, node)
+        return node
 
 
 def _validate_node(node: ast.AST) -> None:
@@ -252,6 +312,14 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
 
     _validate_node(tree)
 
+    # S-13a : transforme `**` en appel borné `_safe_pow` avant compilation.
+    # Appliqué APRÈS la validation statique (qui rejette déjà tout appel
+    # explicite à `_safe_pow` car hors de `_ALLOWED_FUNCTIONS`), donc un
+    # utilisateur ne peut pas contourner le bornage en appelant la fonction
+    # lui-même.
+    tree = _PowerBoundTransformer().visit(tree)
+    ast.fix_missing_locations(tree)
+
     # Prepare variables: coerce booleans to float, reject None
     safe_vars: dict[str, float] = {}
     for name, value in variables.items():
@@ -284,6 +352,7 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
     safe_globals["round"] = round
     safe_globals["True"] = True
     safe_globals["False"] = False
+    safe_globals["_safe_pow"] = _safe_pow
 
     compiled = compile(tree, "<formula>", "eval")
 
