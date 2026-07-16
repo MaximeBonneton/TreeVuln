@@ -235,8 +235,14 @@ class InferenceEngine:
         if not edges:
             return None, None
 
-        # Si une seule edge, on la prend
-        if len(edges) == 1:
+        # Si une seule edge ET qu'on ne connaît pas l'index de la condition
+        # matchée (routage par défaut sans conditions, ex: LookupNode sans
+        # clé trouvée), on peut la suivre sans risque. En revanche, si une
+        # condition a été matchée (condition_index connu), ce raccourci ne
+        # doit PAS être appliqué aveuglément : il faut vérifier que l'unique
+        # edge correspond bien au bon handle, sinon aucune branche ne
+        # correspond réellement (E-2).
+        if len(edges) == 1 and condition_index is None:
             return edges[0].target, edges[0].target_handle
 
         # Build the expected source_handle based on input_count

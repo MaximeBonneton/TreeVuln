@@ -5,7 +5,14 @@ Tests for the inference engine.
 import pytest
 
 from app.engine.inference import InferenceEngine
-from app.schemas.tree import TreeStructure
+from app.schemas.tree import (
+    ConditionOperator,
+    EdgeSchema,
+    NodeCondition,
+    NodeSchema,
+    NodeType,
+    TreeStructure,
+)
 from app.schemas.vulnerability import VulnerabilityInput
 
 
@@ -232,3 +239,46 @@ class TestInferenceEngineEdgeCases:
         tables = engine.get_lookup_tables()
 
         assert "assets" in tables
+
+
+class TestE2SingleEdgeShortcut:
+    """E-2: le raccourci "une seule edge" ne doit pas ignorer la condition matchée."""
+
+    def test_single_edge_does_not_override_condition_match(self):
+        """
+        Arbre INPUT à 2 conditions (<9 -> handle-0, >=9 -> handle-1) avec une
+        seule edge connectée sur handle-1 (vers Act). Une vuln qui matche la
+        condition 0 (handle-0) ne doit PAS suivre l'unique edge disponible :
+        aucune branche ne correspond, donc decision == "Error".
+        """
+        nodes = [
+            NodeSchema(
+                id="input-cvss",
+                type=NodeType.INPUT,
+                label="CVSS Score",
+                config={"field": "cvss_score"},
+                conditions=[
+                    NodeCondition(operator=ConditionOperator.LESS_THAN, value=9.0, label="Low"),
+                    NodeCondition(operator=ConditionOperator.GREATER_THAN_OR_EQUAL, value=9.0, label="Critical"),
+                ],
+            ),
+            NodeSchema(
+                id="output-act",
+                type=NodeType.OUTPUT,
+                label="Act",
+                config={"decision": "Act"},
+            ),
+        ]
+        edges = [
+            EdgeSchema(
+                id="e1", source="input-cvss", target="output-act",
+                source_handle="handle-1", label="Critical",
+            ),
+        ]
+        tree = TreeStructure(nodes=nodes, edges=edges)
+        engine = InferenceEngine(tree)
+        vuln = VulnerabilityInput(id="v1", cvss_score=5.0)  # matche "Low" (handle-0)
+
+        result = engine.evaluate(vuln)
+
+        assert result.decision == "Error"
