@@ -182,6 +182,122 @@ describe('selectNode', () => {
   });
 });
 
+describe('applyNodeConditions', () => {
+  it('remaps edge sourceHandle when conditions are permuted (reorder)', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 200, y: 0 });
+    store.addNode('output', { x: 200, y: 100 });
+
+    const nodes = useTreeStore.getState().nodes;
+    const nodeId = nodes[0].id;
+    const outputA = nodes[1].id;
+    const outputB = nodes[2].id;
+
+    const originalConditions = [
+      { operator: 'gte' as const, value: 9, label: '>= 9' },
+      { operator: 'lt' as const, value: 9, label: '< 9' },
+    ];
+    store.updateNodeData(nodeId, { conditions: originalConditions });
+
+    store.setEdges([
+      { id: 'e-a', source: nodeId, target: outputA, sourceHandle: 'handle-0', type: 'colored' },
+      { id: 'e-b', source: nodeId, target: outputB, sourceHandle: 'handle-1', type: 'colored' },
+    ]);
+
+    // Permute: old index 0 -> new index 1, old index 1 -> new index 0
+    const permuted = [originalConditions[1], originalConditions[0]];
+    store.applyNodeConditions(nodeId, permuted, new Map([[0, 1], [1, 0]]));
+
+    const state = useTreeStore.getState();
+    const node = state.nodes.find((n) => n.id === nodeId)!;
+    expect(node.data.conditions).toEqual(permuted);
+
+    const edgeA = state.edges.find((e) => e.id === 'e-a')!;
+    const edgeB = state.edges.find((e) => e.id === 'e-b')!;
+    expect(edgeA.sourceHandle).toBe('handle-1');
+    expect(edgeB.sourceHandle).toBe('handle-0');
+  });
+
+  it('removes edges whose condition index maps to null (deletion)', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 200, y: 0 });
+    store.addNode('output', { x: 200, y: 100 });
+
+    const nodes = useTreeStore.getState().nodes;
+    const nodeId = nodes[0].id;
+    const outputA = nodes[1].id;
+    const outputB = nodes[2].id;
+
+    const originalConditions = [
+      { operator: 'eq' as const, value: 'a', label: 'A' },
+      { operator: 'eq' as const, value: 'b', label: 'B' },
+    ];
+    store.updateNodeData(nodeId, { conditions: originalConditions });
+
+    store.setEdges([
+      { id: 'e-keep', source: nodeId, target: outputA, sourceHandle: 'handle-0', type: 'colored' },
+      { id: 'e-removed', source: nodeId, target: outputB, sourceHandle: 'handle-1', type: 'colored' },
+    ]);
+
+    // Condition at old index 1 is removed
+    const remaining = [originalConditions[0]];
+    store.applyNodeConditions(nodeId, remaining, new Map([[0, 0], [1, null]]));
+
+    const state = useTreeStore.getState();
+    const node = state.nodes.find((n) => n.id === nodeId)!;
+    expect(node.data.conditions).toEqual(remaining);
+
+    expect(state.edges.find((e) => e.id === 'e-removed')).toBeUndefined();
+    const keptEdge = state.edges.find((e) => e.id === 'e-keep')!;
+    expect(keptEdge.sourceHandle).toBe('handle-0');
+  });
+
+  it('preserves the input index for multi-input nodes', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 200, y: 0 });
+
+    const nodes = useTreeStore.getState().nodes;
+    const nodeId = nodes[0].id;
+    const outputId = nodes[1].id;
+
+    const originalConditions = [
+      { operator: 'eq' as const, value: 'x', label: 'X' },
+      { operator: 'eq' as const, value: 'y', label: 'Y' },
+    ];
+    store.updateNodeData(nodeId, { conditions: originalConditions });
+
+    store.setEdges([
+      { id: 'e-multi', source: nodeId, target: outputId, sourceHandle: 'handle-2-1', type: 'colored' },
+    ]);
+
+    store.applyNodeConditions(nodeId, [originalConditions[1]], new Map([[1, 0]]));
+
+    const state = useTreeStore.getState();
+    const edge = state.edges.find((e) => e.id === 'e-multi')!;
+    expect(edge.sourceHandle).toBe('handle-2-0');
+  });
+
+  it('pushes an undo state so the change can be reverted', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    const nodeId = useTreeStore.getState().nodes[0].id;
+
+    const conditionsBefore = [{ operator: 'eq' as const, value: 'a', label: 'A' }];
+    store.updateNodeData(nodeId, { conditions: conditionsBefore });
+
+    const undoLengthBefore = useTreeStore.getState().undoStack.length;
+    store.applyNodeConditions(nodeId, [], new Map([[0, null]]));
+    expect(useTreeStore.getState().undoStack.length).toBe(undoLengthBefore + 1);
+
+    store.undo();
+    const restoredNode = useTreeStore.getState().nodes.find((n) => n.id === nodeId)!;
+    expect(restoredNode.data.conditions).toEqual(conditionsBefore);
+  });
+});
+
 describe('toApiStructure / fromApiStructure', () => {
   it('converts nodes and edges to API format', () => {
     const store = useTreeStore.getState();

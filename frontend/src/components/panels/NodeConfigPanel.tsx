@@ -26,6 +26,7 @@ interface NodeConfigPanelProps {
 
 export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
   const updateNodeData = useTreeStore((state) => state.updateNodeData);
+  const applyNodeConditions = useTreeStore((state) => state.applyNodeConditions);
   const deleteNode = useTreeStore((state) => state.deleteNode);
   const duplicateNode = useTreeStore((state) => state.duplicateNode);
   const fieldMapping = useTreeStore((state) => state.fieldMapping);
@@ -77,17 +78,42 @@ export function NodeConfigPanel({ node, onClose }: NodeConfigPanelProps) {
     setConditions(newConditions);
   };
 
+  // Suppression d'une condition : les conditions situees apres l'index
+  // supprime decalent d'un cran, il faut donc remapper les sourceHandle
+  // des edges existants (E-1) au lieu de simplement muter le tableau local.
   const removeCondition = (index: number) => {
-    setConditions(conditions.filter((_, i) => i !== index));
+    const newConditions = conditions.filter((_, i) => i !== index);
+    const indexMap = new Map<number, number | null>();
+    conditions.forEach((_, i) => {
+      if (i === index) {
+        indexMap.set(i, null);
+      } else if (i < index) {
+        indexMap.set(i, i);
+      } else {
+        indexMap.set(i, i - 1);
+      }
+    });
+
+    setConditions(newConditions);
+    applyNodeConditions(node.id, newConditions, indexMap);
   };
 
+  // Reordonnancement (fleches haut/bas) : les deux conditions echangees
+  // doivent voir leurs edges respectifs suivre le meme index (E-1).
   const moveCondition = (index: number, direction: 'up' | 'down') => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= conditions.length) return;
 
     const newConditions = [...conditions];
     [newConditions[index], newConditions[newIndex]] = [newConditions[newIndex], newConditions[index]];
+
+    const indexMap = new Map<number, number | null>([
+      [index, newIndex],
+      [newIndex, index],
+    ]);
+
     setConditions(newConditions);
+    applyNodeConditions(node.id, newConditions, indexMap);
   };
 
   return (

@@ -91,6 +91,11 @@ interface TreeState {
   addNode: (type: NodeType, position: { x: number; y: number }) => void;
   duplicateNode: (nodeId: string) => void;
   updateNodeData: (nodeId: string, data: Partial<TreeNodeData>) => void;
+  applyNodeConditions: (
+    nodeId: string,
+    newConditions: TreeNodeData['conditions'],
+    indexMap: Map<number, number | null>
+  ) => void;
   deleteNode: (nodeId: string) => void;
   deleteEdge: (edgeId: string) => void;
   selectNode: (nodeId: string | null) => void;
@@ -367,6 +372,54 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       ),
       hasUnsavedChanges: true,
     }));
+  },
+
+  // Update a node's conditions and remap the sourceHandle of its outgoing
+  // edges accordingly (E-1 fix: reordering/removing conditions must not
+  // silently invert the branches routed by the edges).
+  applyNodeConditions: (nodeId, newConditions, indexMap) => {
+    get().pushUndoState();
+
+    const handleRegex = /^handle-(?:(\d+)-)?(\d+)$/;
+
+    set((state) => {
+      const edges: TreeEdge[] = [];
+      for (const edge of state.edges) {
+        if (edge.source !== nodeId || !edge.sourceHandle) {
+          edges.push(edge);
+          continue;
+        }
+        const match = edge.sourceHandle.match(handleRegex);
+        if (!match) {
+          edges.push(edge);
+          continue;
+        }
+        const inputIdx = match[1];
+        const condIdx = parseInt(match[2], 10);
+        if (!indexMap.has(condIdx)) {
+          edges.push(edge);
+          continue;
+        }
+        const newCondIdx = indexMap.get(condIdx);
+        if (newCondIdx === null || newCondIdx === undefined) {
+          // Condition removed: drop the edge that depended on it
+          continue;
+        }
+        const newHandle =
+          inputIdx !== undefined ? `handle-${inputIdx}-${newCondIdx}` : `handle-${newCondIdx}`;
+        edges.push({ ...edge, sourceHandle: newHandle });
+      }
+
+      return {
+        nodes: state.nodes.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, conditions: newConditions } }
+            : node
+        ),
+        edges,
+        hasUnsavedChanges: true,
+      };
+    });
   },
 
   // Delete a node and its associated edges
