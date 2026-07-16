@@ -433,8 +433,13 @@ function BatchTestTab() {
   );
 }
 
+// F-7 : au-delà de ce seuil, la table est paginée pour borner le nombre de
+// nœuds DOM (jusqu'à 10 000 résultats batch → sinon l'UI se fige).
+const RESULTS_PAGE_SIZE = 100;
+
 function ResultsTable({ results }: { results: EvaluationResult[] }) {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(0);
 
   const toggleRow = (index: number) => {
     const newExpanded = new Set(expandedRows);
@@ -446,6 +451,12 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
     setExpandedRows(newExpanded);
   };
 
+  const pageCount = Math.ceil(results.length / RESULTS_PAGE_SIZE);
+  // Borne la page courante si la liste rétrécit (nouveau batch plus petit)
+  const currentPage = Math.min(page, Math.max(0, pageCount - 1));
+  const start = currentPage * RESULTS_PAGE_SIZE;
+  const pageResults = results.slice(start, start + RESULTS_PAGE_SIZE);
+
   return (
     <div className="text-sm">
       {/* Header */}
@@ -456,8 +467,10 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
         <div className="col-span-4">Status</div>
       </div>
 
-      {/* Rows */}
-      {results.map((result, index) => (
+      {/* Rows (page courante ; index absolu conservé pour l'expansion) */}
+      {pageResults.map((result, i) => {
+        const index = start + i;
+        return (
         <div key={index} className="border-b">
           <div
             className="grid grid-cols-12 gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
@@ -514,7 +527,36 @@ function ResultsTable({ results }: { results: EvaluationResult[] }) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
+
+      {/* Pagination (F-7) */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t sticky bottom-0 text-xs text-gray-600">
+          <span>
+            {start + 1}–{Math.min(start + RESULTS_PAGE_SIZE, results.length)} of {results.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="px-2 py-1 rounded border bg-white disabled:opacity-40 hover:bg-gray-100"
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentPage + 1} / {pageCount}
+            </span>
+            <button
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= pageCount - 1}
+              className="px-2 py-1 rounded border bg-white disabled:opacity-40 hover:bg-gray-100"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
