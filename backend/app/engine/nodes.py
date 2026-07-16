@@ -276,15 +276,19 @@ class BaseNode(ABC):
         if op == ConditionOperator.REGEX:
             return _safe_regex_match(str(cond_value), str(value))
 
-        # Membership operators
+        # Membership operators. Pour une valeur texte "a, b, c", on retire
+        # les espaces autour de chaque élément : sans strip, "Medium, Low"
+        # produit " Low" qui ne matcherait jamais "Low".
         if op == ConditionOperator.IN:
             if isinstance(cond_value, list):
                 return value in cond_value
-            return str(value) in str(cond_value).split(",")
+            items = [item.strip() for item in str(cond_value).split(",")]
+            return str(value) in items
         if op == ConditionOperator.NOT_IN:
             if isinstance(cond_value, list):
                 return value not in cond_value
-            return str(value) not in str(cond_value).split(",")
+            items = [item.strip() for item in str(cond_value).split(",")]
+            return str(value) not in items
 
         return False
 
@@ -408,9 +412,14 @@ class LookupNode(BaseNode):
                 f"Node {self.id}: incomplete lookup configuration"
             )
 
-        # Retrieve lookup key from the vulnerability
+        # Retrieve lookup key from the vulnerability. On teste la PRÉSENCE
+        # (is None) et non la véracité : un `or` retomberait sur `extra` pour
+        # une valeur falsy pourtant présente (chaîne vide, 0), masquant la
+        # vraie valeur du champ principal.
         vuln_data = context.get("vulnerability", {})
-        key_value = vuln_data.get(lookup_key) or vuln_data.get("extra", {}).get(lookup_key)
+        key_value = vuln_data.get(lookup_key)
+        if key_value is None:
+            key_value = vuln_data.get("extra", {}).get(lookup_key)
 
         if key_value is None:
             # No key, use the default branch if configured

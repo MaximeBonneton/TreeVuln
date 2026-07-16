@@ -431,6 +431,35 @@ class TestE4TypeCoercion:
         assert node._evaluate_simple("9.9", ConditionOperator.NOT_EQUALS, 9.8) is True
 
 
+class TestInNotInWhitespace:
+    """WS6 : IN/NOT_IN sur une liste texte doit ignorer les espaces autour
+    de chaque élément ("Medium, Low" -> {"Medium", "Low"})."""
+
+    def _make_node(self) -> InputNode:
+        schema = NodeSchema(
+            id="input-x",
+            type=NodeType.INPUT,
+            label="X",
+            config={"field": "x"},
+            conditions=[NodeCondition(operator=ConditionOperator.IN, value="a", label="l")],
+        )
+        return InputNode(schema)
+
+    def test_in_trims_whitespace(self):
+        node = self._make_node()
+        assert node._evaluate_simple("Low", ConditionOperator.IN, "Medium, Low") is True
+        assert node._evaluate_simple("Medium", ConditionOperator.IN, "Medium, Low") is True
+
+    def test_not_in_trims_whitespace(self):
+        node = self._make_node()
+        assert node._evaluate_simple("Low", ConditionOperator.NOT_IN, "Medium, Low") is False
+        assert node._evaluate_simple("High", ConditionOperator.NOT_IN, "Medium, Low") is True
+
+    def test_in_list_value_unchanged(self):
+        node = self._make_node()
+        assert node._evaluate_simple("Low", ConditionOperator.IN, ["Medium", "Low"]) is True
+
+
 class TestE4RestrictCoercionToCrossType:
     """E-4 (correctif de régression) : _values_equal ne doit coercer en
     float QUE lorsque les deux opérandes ont des types Python différents
