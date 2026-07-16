@@ -32,7 +32,9 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
   const [fields, setFields] = useState<FieldDefinition[]>(
     fieldMapping?.fields || []
   );
-  const [expandedField, setExpandedField] = useState<string | null>(null);
+  // F-4 : suivi de la ligne dépliée par index (et non par field.name, qui
+  // change pendant l'édition du nom et repliait la ligne en cours de frappe).
+  const [expandedField, setExpandedField] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +85,8 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
       required: false,
     };
     setFields([...fields, newField]);
-    setExpandedField(newField.name);
+    // Déplie la nouvelle ligne (dernier index)
+    setExpandedField(fields.length);
   };
 
   const updateField = (index: number, updates: Partial<FieldDefinition>) => {
@@ -226,13 +229,15 @@ export function FieldMappingPanel({ onClose }: FieldMappingPanelProps) {
             <div className="space-y-2">
               {fields.map((field, index) => (
                 <FieldEditor
-                  key={`${field.name}-${index}`}
+                  // F-4 : key basée sur l'index seul (stable). Inclure
+                  // field.name la faisait changer à chaque frappe dans le
+                  // champ « Technical name » -> remontage de l'input et
+                  // perte du focus après chaque caractère.
+                  key={index}
                   field={field}
-                  isExpanded={expandedField === field.name}
+                  isExpanded={expandedField === index}
                   onToggle={() =>
-                    setExpandedField(
-                      expandedField === field.name ? null : field.name
-                    )
+                    setExpandedField(expandedField === index ? null : index)
                   }
                   onChange={(updates) => updateField(index, updates)}
                   onRemove={() => removeField(index)}
