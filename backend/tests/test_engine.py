@@ -5,7 +5,7 @@ Tests for the inference engine.
 import pytest
 
 from app.engine.inference import InferenceEngine
-from app.engine.nodes import InputNode
+from app.engine.nodes import InputNode, _values_equal
 from app.schemas.tree import (
     ConditionOperator,
     EdgeSchema,
@@ -424,6 +424,45 @@ class TestE4TypeCoercion:
         node = self._make_node()
         assert node._evaluate_simple("9.8", ConditionOperator.NOT_EQUALS, 9.8) is False
         assert node._evaluate_simple("9.9", ConditionOperator.NOT_EQUALS, 9.8) is True
+
+
+class TestE4RestrictCoercionToCrossType:
+    """E-4 (correctif de régression) : _values_equal ne doit coercer en
+    float QUE lorsque les deux opérandes ont des types Python différents
+    (str vs int/float/bool). Si les DEUX sont des chaînes, la comparaison
+    doit rester une comparaison de texte stricte, sinon "01" matche "1"
+    et "nan" ne matche plus lui-même (float('nan') != float('nan'))."""
+
+    def test_two_distinct_strings_that_look_numeric_do_not_match(self):
+        """"1" et "01" sont deux textes distincts : ne doivent pas matcher."""
+        assert _values_equal("1", "01") is False
+
+    def test_two_distinct_strings_with_different_float_repr_do_not_match(self):
+        """"1.0" et "1" sont deux textes distincts : ne doivent pas matcher."""
+        assert _values_equal("1.0", "1") is False
+
+    def test_identical_nan_strings_match_as_text(self):
+        """"nan" == "nan" doit matcher en tant que texte (pas de coercition
+        float, qui casserait l'égalité car float('nan') != float('nan'))."""
+        assert _values_equal("nan", "nan") is True
+
+    def test_cross_type_string_number_still_coerces(self):
+        """Intention d'origine de E-4 préservée : "9.8" (str, ex. issu d'un
+        CSV) doit toujours matcher 9.8 (float, valeur de condition)."""
+        assert _values_equal("9.8", 9.8) is True
+
+    def test_cross_type_string_bool_still_coerces(self):
+        """Intention d'origine de E-4 préservée : "true" (str) doit
+        toujours matcher True (bool)."""
+        assert _values_equal("true", True) is True
+
+    def test_two_strings_equal_still_match(self):
+        """Comparaison texte/texte classique toujours fonctionnelle."""
+        assert _values_equal("High", "High") is True
+
+    def test_two_numbers_equal_still_match(self):
+        """Comparaison numérique/numérique classique toujours fonctionnelle."""
+        assert _values_equal(9.8, 9.8) is True
 
 
 class TestB12ExceptionGuards:

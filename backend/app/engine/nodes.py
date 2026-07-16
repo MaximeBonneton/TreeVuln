@@ -55,12 +55,28 @@ def _values_equal(value: Any, cond_value: Any) -> bool:
     silencieusement toutes les conditions numériques sur des champs
     texte/CSV.
 
-    Stratégie, dans l'ordre :
-    1. Si les deux valeurs sont convertibles en float, comparer en float.
-    2. Sinon, si les deux valeurs représentent un booléen (bool natif ou
-       "true"/"false" insensible à la casse), comparer en booléen.
-    3. Sinon, comparaison texte (str(value) == str(cond_value)).
+    Correctif de régression : la coercition ne doit s'appliquer QUE
+    lorsque les deux opérandes sont de types Python différents (l'un str,
+    l'autre int/float/bool). Si les DEUX sont des chaînes, on compare le
+    texte strictement, sans passer par float() :
+    - `_values_equal("1", "01")` doit être False (deux textes distincts),
+      alors qu'un cast float aveugle les rendrait égaux (1.0 == 1.0).
+    - `_values_equal("nan", "nan")` doit être True (même texte), alors
+      qu'un cast float les rendrait "différents" car float('nan') !=
+      float('nan').
+
+    Stratégie :
+    1. Si `value` et `cond_value` sont tous deux des `str` -> comparaison
+       texte stricte.
+    2. Sinon (types différents, typiquement str vs int/float/bool) :
+       a. Si les deux valeurs sont convertibles en float, comparer en float.
+       b. Sinon, si les deux valeurs représentent un booléen (bool natif ou
+          "true"/"false" insensible à la casse), comparer en booléen.
+       c. Sinon, comparaison texte (str(value) == str(cond_value)).
     """
+    if isinstance(value, str) and isinstance(cond_value, str):
+        return value == cond_value
+
     try:
         return float(value) == float(cond_value)
     except (TypeError, ValueError):
