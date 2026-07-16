@@ -152,6 +152,23 @@ class AssetService:
         await self.db.commit()
         return True
 
+    @staticmethod
+    def _deduplicate_assets(assets: list[AssetCreate]) -> list[AssetCreate]:
+        """
+        Déduplique une liste d'assets par asset_id (dernier gagnant).
+
+        Nécessaire car un INSERT ... ON CONFLICT DO UPDATE en un seul batch
+        VALUES ne peut pas affecter deux fois la même ligne cible : si le
+        fichier importé contient deux fois le même (tree_id, asset_id),
+        PostgreSQL lève CardinalityViolation ("ON CONFLICT DO UPDATE command
+        cannot affect row a second time"). Or les CSV d'inventaire contiennent
+        très souvent des doublons (ex: agrégation multi-scan).
+        """
+        deduped: dict[str, AssetCreate] = {}
+        for asset in assets:
+            deduped[asset.asset_id] = asset
+        return list(deduped.values())
+
     async def bulk_upsert(
         self,
         assets: list[AssetCreate],
@@ -172,8 +189,12 @@ class AssetService:
 
         resolved_tree_id = await self._resolve_tree_id(tree_id)
 
-        # Count existing assets before upsert
-        asset_ids = [a.asset_id for a in assets]
+        # Dédupliquer par asset_id AVANT l'INSERT (dernier gagnant) pour
+        # éviter CardinalityViolation en cas de doublons dans le batch importé
+        deduped_assets = self._deduplicate_assets(assets)
+
+        # Count existing assets before upsert (sur la liste dédupliquée)
+        asset_ids = [a.asset_id for a in deduped_assets]
         existing_count_result = await self.db.execute(
             select(func.count()).where(
                 Asset.tree_id == resolved_tree_id,
@@ -192,7 +213,7 @@ class AssetService:
                 "tags": a.tags,
                 "extra_data": a.extra_data,
             }
-            for a in assets
+            for a in deduped_assets
         ])
 
         stmt = stmt.on_conflict_do_update(
@@ -208,7 +229,9 @@ class AssetService:
         await self.db.execute(stmt)
         await self.db.commit()
 
-        created = len(assets) - existing_before
+        # Compteurs cohérents avec la liste dédupliquée (nombre réel de lignes
+        # affectées par l'upsert, pas le nombre brut d'entrées du fichier)
+        created = len(deduped_assets) - existing_before
         updated = existing_before
         return created, updated
 
