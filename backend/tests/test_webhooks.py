@@ -5,6 +5,7 @@ Tests for outbound webhooks.
 - Payload construction
 - Non-blocking dispatch (errors captured)
 - Fire-and-forget task reference retention (C-6)
+- Tree ownership verification before mutation (C-7)
 """
 
 import asyncio
@@ -14,6 +15,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from app.schemas.webhook import WebhookCreate, WebhookUpdate, WebhookTestResult
 
@@ -350,3 +352,92 @@ class TestScheduleWebhookDispatchTaskRetention:
             assert isinstance(task, asyncio.Task)
             await task
 
+
+# --- C-7: tree ownership must be verified before mutation ---
+
+
+class TestWebhookUpdateOwnership:
+    """PUT /tree/{tree_id}/webhooks/{webhook_id} must verify that the webhook
+    belongs to tree_id BEFORE calling update_webhook (which commits), just
+    like delete_webhook and test_webhook already do."""
+
+    @pytest.mark.asyncio
+    async def test_update_wrong_tree_returns_404_without_persisting(self):
+        from app.api.deps import get_webhook_service, require_auth
+        from app.main import app
+
+        # Le webhook existe mais appartient à l'arbre B (tree_id=2)
+        webhook = MagicMock()
+        webhook.id = 42
+        webhook.tree_id = 2
+
+        mock_service = AsyncMock()
+        mock_service.get_webhook = AsyncMock(return_value=webhook)
+        mock_service.update_webhook = AsyncMock()
+
+        fake_user = MagicMock()
+        fake_user.role = "admin"
+        fake_user.must_change_pwd = False
+
+        app.dependency_overrides[get_webhook_service] = lambda: mock_service
+        app.dependency_overrides[require_auth] = lambda: fake_user
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                # Tentative de modification via l'arbre A (tree_id=1)
+                response = await client.put(
+                    "/api/v1/tree/1/webhooks/42",
+                    json={"name": "Hacked"},
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 404
+        # update_webhook (qui COMMIT) ne doit jamais être appelé
+        mock_service.update_webhook.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_correct_tree_succeeds(self):
+        from app.api.deps import get_webhook_service, require_auth
+        from app.main import app
+
+        from datetime import datetime, timezone
+
+        webhook = MagicMock()
+        webhook.id = 42
+        webhook.tree_id = 1
+        webhook.name = "Updated"
+        webhook.url = "https://example.com/hook"
+        webhook.secret = None
+        webhook.headers = {}
+        webhook.events = ["on_act"]
+        webhook.is_active = True
+        webhook.created_at = datetime.now(timezone.utc)
+        webhook.updated_at = datetime.now(timezone.utc)
+
+        mock_service = AsyncMock()
+        mock_service.get_webhook = AsyncMock(return_value=webhook)
+        mock_service.update_webhook = AsyncMock(return_value=webhook)
+
+        fake_user = MagicMock()
+        fake_user.role = "admin"
+        fake_user.must_change_pwd = False
+
+        app.dependency_overrides[get_webhook_service] = lambda: mock_service
+        app.dependency_overrides[require_auth] = lambda: fake_user
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.put(
+                    "/api/v1/tree/1/webhooks/42",
+                    json={"name": "Updated"},
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        mock_service.update_webhook.assert_awaited_once()

@@ -70,12 +70,14 @@ async def update_webhook(
     _=require_role("admin"),
 ):
     """Update a webhook."""
-    webhook = await webhook_service.update_webhook(webhook_id, data)
+    # Verify tree ownership BEFORE mutating (update_webhook commits)
+    webhook = await webhook_service.get_webhook(webhook_id)
     if not webhook or webhook.tree_id != tree_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Webhook not found",
         )
+    webhook = await webhook_service.update_webhook(webhook_id, data)
     return _to_response(webhook)
 
 
