@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Trees } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface CreateTreeDialogProps {
   onClose: () => void;
@@ -8,6 +10,7 @@ interface CreateTreeDialogProps {
 
 export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
   const { createNewTree, saveTree, loadTrees } = useTreeStore();
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -18,6 +21,17 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
     if (!name.trim()) {
       setError('Name is required');
       return;
+    }
+
+    // F-3 : créer un arbre écrase le canvas courant — confirmer si des
+    // changements non sauvegardés seraient perdus.
+    if (useTreeStore.getState().hasUnsavedChanges) {
+      const ok = await confirm(
+        'Unsaved changes',
+        'The current tree has unsaved changes that will be lost. Continue?',
+        'warning'
+      );
+      if (!ok) return;
     }
 
     setCreating(true);
@@ -122,6 +136,8 @@ export function CreateTreeDialog({ onClose }: CreateTreeDialogProps) {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

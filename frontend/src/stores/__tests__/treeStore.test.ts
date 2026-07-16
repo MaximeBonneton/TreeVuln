@@ -437,3 +437,22 @@ describe('toApiStructure / fromApiStructure', () => {
     expect(edge.label).toBe('Active');
   });
 });
+
+describe('createNewTree', () => {
+  it('clears undo/redo history (F-3)', async () => {
+    // Simule un historique hérité de l'arbre précédent
+    useTreeStore.setState({
+      undoStack: [{ nodes: [], edges: [] }],
+      redoStack: [{ nodes: [], edges: [] }],
+    });
+
+    await useTreeStore.getState().createNewTree('New tree');
+
+    const state = useTreeStore.getState();
+    expect(state.undoStack).toHaveLength(0);
+    expect(state.redoStack).toHaveLength(0);
+    expect(state.treeId).toBeNull();
+    expect(state.treeName).toBe('New tree');
+    expect(state.hasUnsavedChanges).toBe(true);
+  });
+});

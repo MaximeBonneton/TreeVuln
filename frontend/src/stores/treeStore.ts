@@ -586,6 +586,11 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       fieldMapping: null,
       selectedNodeId: null,
       hasUnsavedChanges: true,
+      // F-3 : repartir d'un historique vierge — sans ce reset, un undo
+      // après création rejouait des états de l'arbre PRÉCÉDENT sur le
+      // nouveau canvas.
+      undoStack: [],
+      redoStack: [],
       error: null,
     });
   },
