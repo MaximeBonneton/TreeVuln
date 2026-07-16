@@ -6,7 +6,7 @@ Multi-tree support with isolated contexts.
 from copy import deepcopy
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -87,15 +87,13 @@ class TreeService:
             data: Creation data
             set_as_default: If True, sets this new tree as default
         """
-        # If setting as default, remove the flag from other trees
+        # Si ce nouvel arbre doit devenir le défaut, on retire d'abord le flag
+        # des autres arbres via un UPDATE atomique (verrouille les lignes concernées
+        # jusqu'au commit, ce qui sérialise les appels concurrents).
         if set_as_default:
             await self.db.execute(
-                select(Tree).where(Tree.is_default == True).with_for_update()
+                update(Tree).where(Tree.is_default == True).values(is_default=False)
             )
-            # Update all existing trees
-            result = await self.db.execute(select(Tree).where(Tree.is_default == True))
-            for existing in result.scalars().all():
-                existing.is_default = False
 
         tree = Tree(
             name=data.name,
@@ -219,19 +217,27 @@ class TreeService:
         """
         Set a tree as the default tree.
         Removes the flag from other trees.
+
+        Opération atomique en deux UPDATE dans la même transaction :
+        1) on retire le flag par défaut de tous les arbres qui l'ont actuellement,
+        2) on le pose sur l'arbre ciblé.
+        Les verrous de lignes pris par ces UPDATE sérialisent les appels concurrents
+        (un deuxième appel bloque jusqu'au commit/rollback du premier), et l'index
+        unique partiel en base garantit l'unicité même en cas de bug applicatif.
         """
         tree = await self.get_tree(tree_id)
         if not tree:
             return None
 
-        # Remove the flag from other trees
-        result = await self.db.execute(
-            select(Tree).where(Tree.is_default == True, Tree.id != tree_id)
+        # Étape 1 : retire le flag par défaut de tous les arbres actuellement par défaut
+        await self.db.execute(
+            update(Tree).where(Tree.is_default == True).values(is_default=False)
         )
-        for other in result.scalars().all():
-            other.is_default = False
+        # Étape 2 : positionne le nouvel arbre par défaut
+        await self.db.execute(
+            update(Tree).where(Tree.id == tree_id).values(is_default=True)
+        )
 
-        tree.is_default = True
         await self.db.commit()
         await self.db.refresh(tree)
         return tree

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, DateTime, Index, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,6 +19,16 @@ class Tree(Base):
     """
 
     __tablename__ = "trees"
+    __table_args__ = (
+        # Index unique partiel : garantit qu'un seul arbre peut avoir is_default=True
+        # au niveau BDD (protège contre les races entre deux set_default_tree concurrents).
+        Index(
+            "idx_trees_default",
+            "is_default",
+            unique=True,
+            postgresql_where=text("is_default = true"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="Main Tree")
