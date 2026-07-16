@@ -10,7 +10,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
-from app.api.deps import AssetServiceDep, read_upload_with_limit
+from app.api.deps import AssetServiceDep, read_upload_with_limit, require_role
 from app.filename_validation import sanitize_filename
 from app.schemas.asset import (
     AssetBulkCreate,
@@ -78,6 +78,9 @@ async def create_asset(
         default=None,
         description="Tree ID. If not provided, uses the default tree or data.tree_id.",
     ),
+    # S-15 : le référentiel d'assets pilote les décisions (criticité) —
+    # écriture réservée aux admins, lecture ouverte aux operators.
+    _=require_role("admin"),
 ):
     """
     Create a new asset in the context of a tree.
@@ -104,6 +107,7 @@ async def update_asset(
         default=None,
         description="Tree ID. If not provided, uses the default tree.",
     ),
+    _=require_role("admin"),
 ):
     """Update an existing asset in the context of a tree."""
     asset = await asset_service.update_asset(asset_id, data, tree_id)
@@ -123,6 +127,7 @@ async def delete_asset(
         default=None,
         description="Tree ID. If not provided, uses the default tree.",
     ),
+    _=require_role("admin"),
 ):
     """Delete an asset in the context of a tree."""
     deleted = await asset_service.delete_asset(asset_id, tree_id)
@@ -141,6 +146,7 @@ async def bulk_create_assets(
         default=None,
         description="Tree ID. If not provided, uses the default tree or data.tree_id.",
     ),
+    _=require_role("admin"),
 ):
     """
     Bulk import of assets (upsert) in the context of a tree.
@@ -175,7 +181,7 @@ def _parse_upload_file(content: bytes, filename: str) -> list[dict]:
 
 
 @router.post("/import/preview")
-async def preview_import(file: UploadFile):
+async def preview_import(file: UploadFile, _=require_role("admin")):
     """
     Scan a CSV/JSON file and return detected columns.
     Useful for configuring mapping before import.
@@ -229,6 +235,7 @@ async def import_assets(
         default=None,
         description="Column name for criticality",
     ),
+    _=require_role("admin"),
 ):
     """
     Import assets from a CSV or JSON file.
