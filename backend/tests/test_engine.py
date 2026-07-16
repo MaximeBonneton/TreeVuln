@@ -328,3 +328,51 @@ class TestE3RootSelection:
         result = engine.evaluate(vuln)
 
         assert result.decision == "Act"
+
+
+class TestE5ConditionIndexRouting:
+    """E-5: le routing doit utiliser l'index de condition, pas une recherche par label."""
+
+    def test_duplicate_labels_route_by_index_not_label(self):
+        """
+        Deux conditions portent le même label ("Match"), chacune reliée à un
+        OUTPUT différent via un source_handle distinct (handle-0 / handle-1).
+        Une vuln matchant la 2e condition doit atteindre le 2e OUTPUT, pas le
+        premier (ce qui arriverait si le routing re-dérivait l'index en
+        recherchant le premier label correspondant).
+        """
+        nodes = [
+            NodeSchema(
+                id="input-cvss",
+                type=NodeType.INPUT,
+                label="CVSS Score",
+                config={"field": "cvss_score"},
+                conditions=[
+                    NodeCondition(operator=ConditionOperator.LESS_THAN, value=5.0, label="Match"),
+                    NodeCondition(operator=ConditionOperator.GREATER_THAN_OR_EQUAL, value=5.0, label="Match"),
+                ],
+            ),
+            NodeSchema(
+                id="output-first",
+                type=NodeType.OUTPUT,
+                label="First",
+                config={"decision": "First"},
+            ),
+            NodeSchema(
+                id="output-second",
+                type=NodeType.OUTPUT,
+                label="Second",
+                config={"decision": "Second"},
+            ),
+        ]
+        edges = [
+            EdgeSchema(id="e1", source="input-cvss", target="output-first", source_handle="handle-0", label="Match"),
+            EdgeSchema(id="e2", source="input-cvss", target="output-second", source_handle="handle-1", label="Match"),
+        ]
+        tree = TreeStructure(nodes=nodes, edges=edges)
+        engine = InferenceEngine(tree)
+        vuln = VulnerabilityInput(id="v1", cvss_score=9.0)  # matche la condition d'index 1
+
+        result = engine.evaluate(vuln)
+
+        assert result.decision == "Second"

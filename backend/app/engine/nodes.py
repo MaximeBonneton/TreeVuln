@@ -54,7 +54,7 @@ class BaseNode(ABC):
         self.conditions = schema.conditions
 
     @abstractmethod
-    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, int | None, str | None]:
         """
         Evaluate the node with the given context.
 
@@ -63,8 +63,11 @@ class BaseNode(ABC):
                      and lookup results.
 
         Returns:
-            Tuple (evaluated_value, matched_condition_label)
-            For an OUTPUT node, returns (decision, None)
+            Tuple (evaluated_value, matched_condition_index, matched_condition_label).
+            E-5: condition_index is returned directly by the node so the
+            inference engine never needs to re-derive it by searching for a
+            matching label (which breaks when two conditions share a label).
+            For an OUTPUT node, returns (decision, None, None).
         """
         pass
 
@@ -250,7 +253,7 @@ class InputNode(BaseNode):
     from the cvss_vector field on demand.
     """
 
-    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, int | None, str | None]:
         field = self.config.get("field")
         if not field:
             raise NodeEvaluationError(f"Node {self.id}: field 'field' not configured")
@@ -264,12 +267,15 @@ class InputNode(BaseNode):
             # No matching condition, continue with default if configured
             default_idx = self.config.get("default_branch")
             if default_idx is not None and default_idx < len(self.conditions):
-                return value, self.conditions[default_idx].label
+                return value, default_idx, self.conditions[default_idx].label
             raise NodeEvaluationError(
                 f"Node {self.id}: no condition matches value '{value}'"
             )
 
-        return value, match[1]
+        # E-5: on renvoie l'index de la condition matchée tel que trouvé par
+        # match_condition, pour que l'engine route sans avoir à re-dériver
+        # cet index en recherchant le label (ambigu si labels dupliqués).
+        return value, match[0], match[1]
 
 
 class LookupNode(BaseNode):
@@ -284,7 +290,7 @@ class LookupNode(BaseNode):
     }
     """
 
-    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, int | None, str | None]:
         lookup_table = self.config.get("lookup_table")
         lookup_key = self.config.get("lookup_key")
         lookup_field = self.config.get("lookup_field")
@@ -302,7 +308,9 @@ class LookupNode(BaseNode):
             # No key, use the default branch if configured
             default_idx = self.config.get("default_branch")
             if default_idx is not None:
-                return None, self.conditions[default_idx].label if self.conditions else None
+                condition_index = default_idx if self.conditions else None
+                label = self.conditions[default_idx].label if self.conditions else None
+                return None, condition_index, label
             raise NodeEvaluationError(
                 f"Node {self.id}: lookup key '{lookup_key}' not found"
             )
@@ -314,7 +322,9 @@ class LookupNode(BaseNode):
         if lookup_result is None:
             default_idx = self.config.get("default_branch")
             if default_idx is not None:
-                return None, self.conditions[default_idx].label if self.conditions else None
+                condition_index = default_idx if self.conditions else None
+                label = self.conditions[default_idx].label if self.conditions else None
+                return None, condition_index, label
             raise NodeEvaluationError(
                 f"Node {self.id}: asset '{key_value}' not found in {lookup_table}"
             )
@@ -329,7 +339,7 @@ class LookupNode(BaseNode):
                 f"Node {self.id}: no condition matches '{value}'"
             )
 
-        return value, match[1]
+        return value, match[0], match[1]
 
 
 class EquationNode(BaseNode):
@@ -379,7 +389,7 @@ class EquationNode(BaseNode):
 
         return variables
 
-    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, int | None, str | None]:
         from app.engine.formula import FormulaError, evaluate_formula
 
         formula = self.config.get("formula")
@@ -410,12 +420,12 @@ class EquationNode(BaseNode):
         if match is None:
             default_idx = self.config.get("default_branch")
             if default_idx is not None and default_idx < len(self.conditions):
-                return score, self.conditions[default_idx].label
+                return score, default_idx, self.conditions[default_idx].label
             raise NodeEvaluationError(
                 f"Node {self.id}: no condition matches score {score}"
             )
 
-        return score, match[1]
+        return score, match[0], match[1]
 
 
 class OutputNode(BaseNode):
@@ -424,9 +434,9 @@ class OutputNode(BaseNode):
     Expected config: {"decision": "Act", "color": "#ff0000"}
     """
 
-    def evaluate(self, context: dict[str, Any]) -> tuple[Any, str | None]:
+    def evaluate(self, context: dict[str, Any]) -> tuple[Any, int | None, str | None]:
         decision = self.config.get("decision", "Unknown")
-        return decision, None
+        return decision, None, None
 
 
 def create_node(schema: NodeSchema) -> BaseNode:

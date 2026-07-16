@@ -112,7 +112,11 @@ class InferenceEngine:
                 )
 
             try:
-                value, condition_label = node.evaluate(context)
+                # E-5: le nœud renvoie directement l'index de la condition
+                # matchée ; on ne le re-dérive plus jamais en recherchant le
+                # label (ce qui était ambigu quand deux conditions partagent
+                # le même label, ou un label vide).
+                value, condition_index, condition_label = node.evaluate(context)
             except NodeEvaluationError as e:
                 return EvaluationResult(
                     vuln_id=vuln_id,
@@ -149,14 +153,6 @@ class InferenceEngine:
                     decision_color=node.config.get("color"),
                     path=path if include_path else [],
                 )
-
-            # Find the index of the matched condition
-            condition_index = None
-            if condition_label and hasattr(node, "conditions"):
-                for idx, cond in enumerate(node.conditions):
-                    if cond.label == condition_label:
-                        condition_index = idx
-                        break
 
             # Check if this is a multi-input node
             input_count = node.config.get("input_count", 1) if hasattr(node, "config") else 1
