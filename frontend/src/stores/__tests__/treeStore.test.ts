@@ -296,6 +296,55 @@ describe('applyNodeConditions', () => {
     const restoredNode = useTreeStore.getState().nodes.find((n) => n.id === nodeId)!;
     expect(restoredNode.data.conditions).toEqual(conditionsBefore);
   });
+
+  it('shifts trailing condition indices down when a middle condition is deleted', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 200, y: 0 });
+    store.addNode('output', { x: 200, y: 100 });
+    store.addNode('output', { x: 200, y: 200 });
+
+    const nodes = useTreeStore.getState().nodes;
+    const nodeId = nodes[0].id;
+    const outputA = nodes[1].id;
+    const outputB = nodes[2].id;
+    const outputC = nodes[3].id;
+
+    const originalConditions = [
+      { operator: 'eq' as const, value: 'a', label: 'A' },
+      { operator: 'eq' as const, value: 'b', label: 'B' },
+      { operator: 'eq' as const, value: 'c', label: 'C' },
+    ];
+    store.updateNodeData(nodeId, { conditions: originalConditions });
+
+    store.setEdges([
+      { id: 'e-a', source: nodeId, target: outputA, sourceHandle: 'handle-0', type: 'colored' },
+      { id: 'e-b', source: nodeId, target: outputB, sourceHandle: 'handle-1', type: 'colored' },
+      { id: 'e-c', source: nodeId, target: outputC, sourceHandle: 'handle-2', type: 'colored' },
+    ]);
+
+    // Condition at old index 1 (middle) is removed: 0 unchanged, 1 removed, 2 shifts to 1
+    const remaining = [originalConditions[0], originalConditions[2]];
+    store.applyNodeConditions(
+      nodeId,
+      remaining,
+      new Map([
+        [0, 0],
+        [1, null],
+        [2, 1],
+      ])
+    );
+
+    const state = useTreeStore.getState();
+    const node = state.nodes.find((n) => n.id === nodeId)!;
+    expect(node.data.conditions).toEqual(remaining);
+
+    expect(state.edges.find((e) => e.id === 'e-b')).toBeUndefined();
+    const edgeA = state.edges.find((e) => e.id === 'e-a')!;
+    const edgeC = state.edges.find((e) => e.id === 'e-c')!;
+    expect(edgeA.sourceHandle).toBe('handle-0');
+    expect(edgeC.sourceHandle).toBe('handle-1');
+  });
 });
 
 describe('toApiStructure / fromApiStructure', () => {
