@@ -14,8 +14,28 @@ from app.schemas.webhook import (
     WebhookTestResult,
     WebhookUpdate,
 )
+from app.services.webhook_service import WebhookService
 
 router = APIRouter()
+
+
+async def _get_owned_webhook(
+    webhook_service: WebhookService, tree_id: int, webhook_id: int
+) -> Webhook:
+    """
+    Charge le webhook et vérifie son appartenance à l'arbre (404 sinon).
+
+    Contrôle de sécurité commun à toutes les routes scopées par tree_id :
+    centralisé ici pour qu'aucune route ne puisse l'oublier (C-7 existait
+    précisément parce qu'un site d'appel avait omis ce contrôle).
+    """
+    webhook = await webhook_service.get_webhook(webhook_id)
+    if not webhook or webhook.tree_id != tree_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Webhook not found",
+        )
+    return webhook
 
 
 def _to_response(w: Webhook) -> WebhookResponse:
@@ -70,14 +90,15 @@ async def update_webhook(
     _=require_role("admin"),
 ):
     """Update a webhook."""
-    # Verify tree ownership BEFORE mutating (update_webhook commits)
-    webhook = await webhook_service.get_webhook(webhook_id)
-    if not webhook or webhook.tree_id != tree_id:
+    # Vérifie l'appartenance AVANT de muter (update_webhook committe)
+    await _get_owned_webhook(webhook_service, tree_id, webhook_id)
+    webhook = await webhook_service.update_webhook(webhook_id, data)
+    if webhook is None:
+        # TOCTOU (revue 2026-07-16 #7) : supprimé entre le contrôle et l'update
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Webhook not found",
         )
-    webhook = await webhook_service.update_webhook(webhook_id, data)
     return _to_response(webhook)
 
 
@@ -92,13 +113,7 @@ async def delete_webhook(
     _=require_role("admin"),
 ):
     """Delete a webhook."""
-    # Verify tree ownership
-    webhook = await webhook_service.get_webhook(webhook_id)
-    if not webhook or webhook.tree_id != tree_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Webhook not found",
-        )
+    await _get_owned_webhook(webhook_service, tree_id, webhook_id)
     await webhook_service.delete_webhook(webhook_id)
 
 
@@ -113,13 +128,7 @@ async def test_webhook(
     _=require_role("admin"),
 ):
     """Send a test payload to the webhook."""
-    # Verify tree ownership
-    webhook = await webhook_service.get_webhook(webhook_id)
-    if not webhook or webhook.tree_id != tree_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Webhook not found",
-        )
+    await _get_owned_webhook(webhook_service, tree_id, webhook_id)
     return await webhook_service.test_webhook(webhook_id)
 
 
@@ -135,11 +144,5 @@ async def get_webhook_logs(
     limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Retrieve the send history of a webhook."""
-    # Verify tree ownership
-    webhook = await webhook_service.get_webhook(webhook_id)
-    if not webhook or webhook.tree_id != tree_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Webhook not found",
-        )
+    await _get_owned_webhook(webhook_service, tree_id, webhook_id)
     return await webhook_service.get_logs(webhook_id, limit)

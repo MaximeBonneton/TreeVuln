@@ -399,6 +399,46 @@ class TestWebhookUpdateOwnership:
         mock_service.update_webhook.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_update_returns_404_when_webhook_deleted_concurrently(self):
+        """Revue 2026-07-16 #7 (TOCTOU) : le webhook passe le contrôle
+        d'appartenance puis est supprimé (par un autre admin ou une cascade
+        de suppression d'arbre) avant update_webhook, qui retourne None.
+        La route doit répondre 404 — pas un 500 via _to_response(None)."""
+        from app.api.deps import get_webhook_service, require_auth
+        from app.main import app
+
+        # Le contrôle d'appartenance passe (bon tree_id)...
+        webhook = MagicMock()
+        webhook.id = 42
+        webhook.tree_id = 1
+
+        mock_service = AsyncMock()
+        mock_service.get_webhook = AsyncMock(return_value=webhook)
+        # ... mais le webhook a disparu au moment de l'update
+        mock_service.update_webhook = AsyncMock(return_value=None)
+
+        fake_user = MagicMock()
+        fake_user.role = "admin"
+        fake_user.must_change_pwd = False
+
+        app.dependency_overrides[get_webhook_service] = lambda: mock_service
+        app.dependency_overrides[require_auth] = lambda: fake_user
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.put(
+                    "/api/v1/tree/1/webhooks/42",
+                    json={"name": "Renamed"},
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_update_correct_tree_succeeds(self):
         from app.api.deps import get_webhook_service, require_auth
         from app.main import app
