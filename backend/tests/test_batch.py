@@ -153,6 +153,13 @@ class TestBatchProcessor:
         assert response.total == 5
         # 5 items / chunk_size=2 -> 3 chunks, donc 3 appels à to_thread
         assert len(calls) == 3
+        # L'ordre des résultats doit correspondre à l'ordre d'entrée, même si
+        # chaque chunk est traité séparément via asyncio.to_thread : on
+        # attend chaque chunk avant de passer au suivant, donc results.extend()
+        # les concatène dans l'ordre. Cette assertion échouerait si les
+        # chunks étaient traités en parallèle (asyncio.gather) puis
+        # réassemblés dans un ordre non déterministe.
+        assert [r.vuln_id for r in response.results] == ["v0", "v1", "v2", "v3", "v4"]
 
 
 class TestBatchProcessorDataLoading:
