@@ -4,6 +4,7 @@ import { Login } from './components/Login';
 import SetupScreen from './components/SetupScreen';
 import ChangePasswordDialog from './components/ChangePasswordDialog';
 import { authApi, AuthStatus } from './api/auth';
+import { AUTH_UNAUTHORIZED_EVENT } from './api/client';
 import { useTreeStore } from './stores/treeStore';
 import { useEnterpriseStore } from './enterprise/enterpriseStore';
 
@@ -34,6 +35,16 @@ function App() {
   };
 
   useEffect(() => { checkAuth(); }, []);
+
+  // F-5 : un 401 sur n'importe quel appel API ramène au login sans reload.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setState('unauthenticated');
+      setCurrentUser(null);
+    };
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+  }, [setCurrentUser]);
 
   if (state === 'loading') {
     return (
