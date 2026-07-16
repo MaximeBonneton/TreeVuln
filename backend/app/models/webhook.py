@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,7 +26,10 @@ class Webhook(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Text (et non String(255)) : la valeur stockée est le secret CHIFFRÉ
+    # (préfixe "enc:" + token Fernet), dont la longueur ≈ 4 + 1.37×(57+len(plaintext))
+    # dépasse largement 255 caractères pour un secret plaintext un peu long.
+    secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     headers: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     events: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
