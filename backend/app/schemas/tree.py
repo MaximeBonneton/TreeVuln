@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.csaf import CsafVexJustification, CsafVexStatus
 from app.schemas.field_mapping import FieldMapping
 
 
@@ -137,6 +138,46 @@ class NodeSchema(BaseModel):
         default_factory=list,
         description="Conditions for each outgoing branch",
     )
+
+    @model_validator(mode="after")
+    def validate_output_vex_config(self) -> "NodeSchema":
+        """Valide les champs VEX/CSAF optionnels des nœuds Output.
+
+        Règle (spec CSAF VEX) : vex_justification est obligatoire si
+        vex_status = not_affected, et interdite dans tous les autres cas.
+        Les arbres existants sans ces champs restent valides.
+        """
+        if self.type != NodeType.OUTPUT:
+            return self
+
+        status = self.config.get("vex_status")
+        justification = self.config.get("vex_justification")
+
+        valid_statuses = {s.value for s in CsafVexStatus}
+        valid_justifications = {j.value for j in CsafVexJustification}
+
+        if status is not None and status not in valid_statuses:
+            raise ValueError(
+                f"vex_status invalide : '{status}'. "
+                f"Valeurs autorisées : {sorted(valid_statuses)}"
+            )
+
+        if status == CsafVexStatus.NOT_AFFECTED.value:
+            if justification is None:
+                raise ValueError(
+                    "vex_justification est obligatoire quand vex_status = 'not_affected'"
+                )
+            if justification not in valid_justifications:
+                raise ValueError(
+                    f"vex_justification invalide : '{justification}'. "
+                    f"Valeurs autorisées : {sorted(valid_justifications)}"
+                )
+        elif justification is not None:
+            raise ValueError(
+                "vex_justification n'est autorisée que si vex_status = 'not_affected'"
+            )
+
+        return self
 
 
 class EdgeSchema(BaseModel):
