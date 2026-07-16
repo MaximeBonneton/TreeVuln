@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models.user import User
 from app.services.asset_service import AssetService
 from app.services.ingest_service import IngestService
+from app.services.settings_service import SettingsService
 from app.services.tree_service import TreeService
 from app.services.user_service import UserService
 from app.services.webhook_service import WebhookService
@@ -83,10 +84,16 @@ async def get_ingest_service(db: DBSession) -> AsyncGenerator[IngestService, Non
     yield IngestService(db)
 
 
+async def get_settings_service(db: DBSession) -> AsyncGenerator[SettingsService, None]:
+    """Provide a Settings service instance."""
+    yield SettingsService(db)
+
+
 TreeServiceDep = Annotated[TreeService, Depends(get_tree_service)]
 AssetServiceDep = Annotated[AssetService, Depends(get_asset_service)]
 WebhookServiceDep = Annotated[WebhookService, Depends(get_webhook_service)]
 IngestServiceDep = Annotated[IngestService, Depends(get_ingest_service)]
+SettingsServiceDep = Annotated[SettingsService, Depends(get_settings_service)]
 
 
 # --- Upload helpers ---

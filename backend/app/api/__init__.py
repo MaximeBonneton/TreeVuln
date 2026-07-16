@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
 from app.api.routes import assets, auth, evaluate, field_mapping, ingest, license, tree, users, webhooks
+from app.api.routes import settings as settings_routes
 from app.enterprise.license import is_enterprise
 
 RequireAuth = [Depends(require_auth)]
@@ -20,6 +21,9 @@ api_router.include_router(field_mapping.global_router, prefix="/mapping", tags=[
 api_router.include_router(evaluate.router, prefix="/evaluate", tags=["Evaluate"], dependencies=RequireAuth)
 api_router.include_router(webhooks.router, tags=["Webhooks"], dependencies=RequireAuth)
 api_router.include_router(ingest.admin_router, tags=["Ingest"], dependencies=RequireAuth)
+api_router.include_router(
+    settings_routes.router, prefix="/settings", tags=["Settings"], dependencies=RequireAuth
+)
 
 # --- User management (admin via per-route checks) ---
 api_router.include_router(users.router, tags=["Users"], dependencies=RequireAuth)

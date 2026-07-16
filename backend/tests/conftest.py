@@ -61,6 +61,36 @@ def _encryption_key():
     yield
 
 
+TEST_PASSPHRASE = "test-passphrase"
+
+
+@pytest.fixture(scope="session")
+def test_pgp_key() -> str:
+    """Clé privée OpenPGP ed25519 de test (armored), passphrase TEST_PASSPHRASE.
+
+    Générée une fois par session dans un homedir gnupg temporaire. Utilisée
+    par les tests de signature CSAF et les tests d'API settings/export.
+    """
+    import tempfile
+
+    import gnupg
+
+    with tempfile.TemporaryDirectory() as home:
+        gpg = gnupg.GPG(gnupghome=home)
+        key_input = gpg.gen_key_input(
+            key_type="EDDSA",
+            key_curve="ed25519",
+            name_real="TreeVuln Test",
+            name_email="test@treevuln.local",
+            passphrase=TEST_PASSPHRASE,
+        )
+        key = gpg.gen_key(key_input)
+        assert key.fingerprint, f"Échec de génération de la clé de test : {key.stderr}"
+        armored = gpg.export_keys(key.fingerprint, secret=True, passphrase=TEST_PASSPHRASE)
+        assert "PRIVATE KEY" in armored
+        return armored
+
+
 def _to_async_url(sync_url: str) -> str:
     """Convertit l'URL testcontainers (psycopg2) en URL asyncpg."""
     return sync_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://").replace(
