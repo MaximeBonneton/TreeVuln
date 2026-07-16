@@ -57,11 +57,14 @@ class Tree(Base):
     )
 
     # Relations
+    # lazy="noload" : les assets ne sont PAS chargés automatiquement à chaque
+    # select(Tree) (évaluation, listing, ingest...). Utiliser selectinload(Tree.assets)
+    # explicitement là où c'est réellement nécessaire (ex: duplicate_tree).
     assets: Mapped[list["Asset"]] = relationship(
         "Asset",
         back_populates="tree",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="noload",
     )
     webhooks: Mapped[list["Webhook"]] = relationship(
         "Webhook",
