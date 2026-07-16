@@ -5,6 +5,7 @@ Tests for the inference engine.
 import pytest
 
 from app.engine.inference import InferenceEngine
+from app.engine.nodes import InputNode
 from app.schemas.tree import (
     ConditionOperator,
     EdgeSchema,
@@ -376,3 +377,50 @@ class TestE5ConditionIndexRouting:
         result = engine.evaluate(vuln)
 
         assert result.decision == "Second"
+
+
+class TestE4TypeCoercion:
+    """E-4: _evaluate_simple doit coercer les types avant de comparer eq/neq.
+
+    Sans coercition, une valeur texte issue d'un CSV ("9.8") ne matche
+    jamais une condition numérique (9.8), ce qui fausse silencieusement
+    la décision.
+    """
+
+    def _make_node(self) -> InputNode:
+        """Construit un InputNode minimal pour tester _evaluate_simple directement."""
+        schema = NodeSchema(
+            id="input-x",
+            type=NodeType.INPUT,
+            label="X",
+            config={"field": "x"},
+            conditions=[NodeCondition(operator=ConditionOperator.EQUALS, value="x", label="l")],
+        )
+        return InputNode(schema)
+
+    def test_string_number_equals_float(self):
+        """"9.8" == 9.8 doit matcher (coercition float)."""
+        node = self._make_node()
+        assert node._evaluate_simple("9.8", ConditionOperator.EQUALS, 9.8) is True
+
+    def test_string_bool_equals_bool(self):
+        """"true" == True doit matcher (coercition booléenne)."""
+        node = self._make_node()
+        assert node._evaluate_simple("true", ConditionOperator.EQUALS, True) is True
+
+    def test_string_bool_case_insensitive(self):
+        """"FALSE" == False doit matcher, insensible à la casse."""
+        node = self._make_node()
+        assert node._evaluate_simple("FALSE", ConditionOperator.EQUALS, False) is True
+
+    def test_string_equals_string_still_works(self):
+        """Le cas texte/texte classique reste inchangé."""
+        node = self._make_node()
+        assert node._evaluate_simple("High", ConditionOperator.EQUALS, "High") is True
+        assert node._evaluate_simple("High", ConditionOperator.EQUALS, "Low") is False
+
+    def test_not_equals_with_coercion(self):
+        """NOT_EQUALS doit bénéficier de la même coercition."""
+        node = self._make_node()
+        assert node._evaluate_simple("9.8", ConditionOperator.NOT_EQUALS, 9.8) is False
+        assert node._evaluate_simple("9.9", ConditionOperator.NOT_EQUALS, 9.8) is True

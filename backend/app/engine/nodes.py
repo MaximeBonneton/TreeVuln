@@ -28,6 +28,52 @@ _MAX_REGEX_PATTERN_LENGTH = 200
 _REGEX_TIMEOUT_SECONDS = 1.0
 
 
+def _to_bool_or_none(value: Any) -> bool | None:
+    """
+    Convertit une valeur en booléen si elle représente sans ambiguïté un
+    booléen (bool natif ou chaîne "true"/"false" insensible à la casse).
+    Retourne None si la conversion n'est pas pertinente.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+    return None
+
+
+def _values_equal(value: Any, cond_value: Any) -> bool:
+    """
+    Compare deux valeurs pour égalité en coerçant les types (E-4).
+
+    Sans coercition, une valeur texte issue d'un CSV ("9.8") ne matche
+    jamais une condition numérique (9.8) car "9.8" == 9.8 est False en
+    Python (types différents = pas égaux), ce qui fait échouer
+    silencieusement toutes les conditions numériques sur des champs
+    texte/CSV.
+
+    Stratégie, dans l'ordre :
+    1. Si les deux valeurs sont convertibles en float, comparer en float.
+    2. Sinon, si les deux valeurs représentent un booléen (bool natif ou
+       "true"/"false" insensible à la casse), comparer en booléen.
+    3. Sinon, comparaison texte (str(value) == str(cond_value)).
+    """
+    try:
+        return float(value) == float(cond_value)
+    except (TypeError, ValueError):
+        pass
+
+    bool_value = _to_bool_or_none(value)
+    bool_cond = _to_bool_or_none(cond_value)
+    if bool_value is not None and bool_cond is not None:
+        return bool_value == bool_cond
+
+    return str(value) == str(cond_value)
+
+
 def _safe_regex_match(pattern: str, text: str) -> bool:
     """Execute a regex match with length limit and timeout (prevents ReDoS)."""
     if len(pattern) > _MAX_REGEX_PATTERN_LENGTH:
@@ -146,11 +192,11 @@ class BaseNode(ABC):
         if value is None:
             return False
 
-        # Comparison operators
+        # Comparison operators (E-4: coercition de types via _values_equal)
         if op == ConditionOperator.EQUALS:
-            return value == cond_value
+            return _values_equal(value, cond_value)
         if op == ConditionOperator.NOT_EQUALS:
-            return value != cond_value
+            return not _values_equal(value, cond_value)
         if op == ConditionOperator.GREATER_THAN:
             return float(value) > float(cond_value)
         if op == ConditionOperator.GREATER_THAN_OR_EQUAL:
