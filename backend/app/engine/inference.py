@@ -5,7 +5,7 @@ Inference engine for vulnerability evaluation.
 import logging
 from typing import Any
 
-from app.engine.nodes import BaseNode, NodeEvaluationError, OutputNode, create_node
+from app.engine.nodes import BaseNode, OutputNode, create_node
 
 logger = logging.getLogger(__name__)
 from app.schemas.evaluation import DecisionPath, EvaluationResult
@@ -117,7 +117,11 @@ class InferenceEngine:
                 # label (ce qui était ambigu quand deux conditions partagent
                 # le même label, ou un label vide).
                 value, condition_index, condition_label = node.evaluate(context)
-            except NodeEvaluationError as e:
+            except Exception as e:
+                # B-12(c): toute exception inattendue (pas seulement
+                # NodeEvaluationError) doit être convertie en résultat
+                # d'erreur métier, jamais remonter en 500 non géré.
+                logger.warning("Node %s evaluation failed: %s", current_node_id, e)
                 return EvaluationResult(
                     vuln_id=vuln_id,
                     decision="Error",

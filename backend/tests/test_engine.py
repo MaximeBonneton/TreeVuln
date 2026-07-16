@@ -424,3 +424,74 @@ class TestE4TypeCoercion:
         node = self._make_node()
         assert node._evaluate_simple("9.8", ConditionOperator.NOT_EQUALS, 9.8) is False
         assert node._evaluate_simple("9.9", ConditionOperator.NOT_EQUALS, 9.8) is True
+
+
+class TestB12ExceptionGuards:
+    """B-12: les exceptions natives (ValueError/IndexError) ne doivent jamais
+    remonter comme des erreurs non gérées (500) mais être converties en
+    decision == "Error"."""
+
+    def test_gt_on_non_numeric_value_returns_error_not_exception(self):
+        """Une condition gt sur un champ texte ne doit pas lever ValueError."""
+        nodes = [
+            NodeSchema(
+                id="input-x",
+                type=NodeType.INPUT,
+                label="X",
+                config={"field": "x"},
+                conditions=[
+                    NodeCondition(operator=ConditionOperator.GREATER_THAN, value=9, label="High"),
+                ],
+            ),
+            NodeSchema(
+                id="output-act",
+                type=NodeType.OUTPUT,
+                label="Act",
+                config={"decision": "Act"},
+            ),
+        ]
+        edges = [
+            EdgeSchema(id="e1", source="input-x", target="output-act", label="High"),
+        ]
+        tree = TreeStructure(nodes=nodes, edges=edges)
+        engine = InferenceEngine(tree)
+        vuln = VulnerabilityInput(id="v1", extra={"x": "haute"})
+
+        result = engine.evaluate(vuln)
+
+        assert result.decision == "Error"
+
+    def test_lookup_default_branch_out_of_range_does_not_crash(self):
+        """Un default_branch hors bornes sur un LookupNode ne doit pas lever IndexError."""
+        nodes = [
+            NodeSchema(
+                id="lookup-asset",
+                type=NodeType.LOOKUP,
+                label="Asset",
+                config={
+                    "lookup_table": "assets",
+                    "lookup_key": "asset_id",
+                    "lookup_field": "criticality",
+                    "default_branch": 5,
+                },
+                conditions=[
+                    NodeCondition(operator=ConditionOperator.EQUALS, value="Critical", label="Critical"),
+                ],
+            ),
+            NodeSchema(
+                id="output-act",
+                type=NodeType.OUTPUT,
+                label="Act",
+                config={"decision": "Act"},
+            ),
+        ]
+        edges = [
+            EdgeSchema(id="e1", source="lookup-asset", target="output-act", label="Critical"),
+        ]
+        tree = TreeStructure(nodes=nodes, edges=edges)
+        engine = InferenceEngine(tree)
+        vuln = VulnerabilityInput(id="v1", asset_id="unknown-asset")
+
+        result = engine.evaluate(vuln)  # pas de lookups fournis -> asset introuvable
+
+        assert result.decision == "Error"

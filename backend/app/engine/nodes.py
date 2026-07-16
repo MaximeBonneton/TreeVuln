@@ -197,14 +197,30 @@ class BaseNode(ABC):
             return _values_equal(value, cond_value)
         if op == ConditionOperator.NOT_EQUALS:
             return not _values_equal(value, cond_value)
+        # B-12(a): float() lève ValueError/TypeError sur une valeur non
+        # numérique (ex: "haute" > 9). On l'attrape pour que la condition
+        # soit simplement considérée comme non satisfaite, au lieu de
+        # remonter une exception non gérée (500) jusqu'à l'appelant.
         if op == ConditionOperator.GREATER_THAN:
-            return float(value) > float(cond_value)
+            try:
+                return float(value) > float(cond_value)
+            except (ValueError, TypeError):
+                return False
         if op == ConditionOperator.GREATER_THAN_OR_EQUAL:
-            return float(value) >= float(cond_value)
+            try:
+                return float(value) >= float(cond_value)
+            except (ValueError, TypeError):
+                return False
         if op == ConditionOperator.LESS_THAN:
-            return float(value) < float(cond_value)
+            try:
+                return float(value) < float(cond_value)
+            except (ValueError, TypeError):
+                return False
         if op == ConditionOperator.LESS_THAN_OR_EQUAL:
-            return float(value) <= float(cond_value)
+            try:
+                return float(value) <= float(cond_value)
+            except (ValueError, TypeError):
+                return False
 
         # String operators
         if op == ConditionOperator.CONTAINS:
@@ -352,11 +368,12 @@ class LookupNode(BaseNode):
 
         if key_value is None:
             # No key, use the default branch if configured
+            # B-12(b): comme InputNode, on borne l'accès à self.conditions
+            # pour éviter un IndexError si default_branch pointe hors des
+            # conditions définies.
             default_idx = self.config.get("default_branch")
-            if default_idx is not None:
-                condition_index = default_idx if self.conditions else None
-                label = self.conditions[default_idx].label if self.conditions else None
-                return None, condition_index, label
+            if default_idx is not None and default_idx < len(self.conditions):
+                return None, default_idx, self.conditions[default_idx].label
             raise NodeEvaluationError(
                 f"Node {self.id}: lookup key '{lookup_key}' not found"
             )
@@ -366,11 +383,10 @@ class LookupNode(BaseNode):
         lookup_result = lookup_cache.get(str(key_value))
 
         if lookup_result is None:
+            # B-12(b): même borne que ci-dessus.
             default_idx = self.config.get("default_branch")
-            if default_idx is not None:
-                condition_index = default_idx if self.conditions else None
-                label = self.conditions[default_idx].label if self.conditions else None
-                return None, condition_index, label
+            if default_idx is not None and default_idx < len(self.conditions):
+                return None, default_idx, self.conditions[default_idx].label
             raise NodeEvaluationError(
                 f"Node {self.id}: asset '{key_value}' not found in {lookup_table}"
             )
