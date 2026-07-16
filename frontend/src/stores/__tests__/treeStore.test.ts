@@ -12,6 +12,8 @@ beforeEach(() => {
     hasUnsavedChanges: false,
     hoveredNodeId: null,
     hoveredInputIndex: null,
+    undoStack: [],
+    redoStack: [],
   });
 });
 
@@ -494,5 +496,41 @@ describe('createNewTree', () => {
     expect(state.treeId).toBeNull();
     expect(state.treeName).toBe('New tree');
     expect(state.hasUnsavedChanges).toBe(true);
+  });
+});
+
+describe('undo / redo', () => {
+  it('reverts and reapplies a node addition', () => {
+    const store = useTreeStore.getState();
+    expect(useTreeStore.getState().nodes).toHaveLength(0);
+
+    store.addNode('input', { x: 0, y: 0 });
+    expect(useTreeStore.getState().nodes).toHaveLength(1);
+
+    useTreeStore.getState().undo();
+    expect(useTreeStore.getState().nodes).toHaveLength(0);
+
+    useTreeStore.getState().redo();
+    expect(useTreeStore.getState().nodes).toHaveLength(1);
+  });
+
+  it('no-ops when there is nothing to undo/redo', () => {
+    const store = useTreeStore.getState();
+    store.undo();
+    store.redo();
+    expect(useTreeStore.getState().nodes).toHaveLength(0);
+    expect(useTreeStore.getState().canUndo()).toBe(false);
+    expect(useTreeStore.getState().canRedo()).toBe(false);
+  });
+
+  it('a new change clears the redo stack', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    useTreeStore.getState().undo();
+    expect(useTreeStore.getState().canRedo()).toBe(true);
+
+    // Une nouvelle action doit invalider le redo (nouvelle branche d'historique)
+    useTreeStore.getState().addNode('output', { x: 100, y: 0 });
+    expect(useTreeStore.getState().canRedo()).toBe(false);
   });
 });
