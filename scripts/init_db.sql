@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS tree_versions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tree_versions_tree_id ON tree_versions(tree_id);
+-- Unicité du numéro de version au sein d'un arbre (cf. migration 0003)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tree_versions_tree_version ON tree_versions(tree_id, version_number);
 
 -- Create assets table
 CREATE TABLE IF NOT EXISTS assets (
@@ -80,8 +82,8 @@ CREATE TABLE IF NOT EXISTS assets (
     CONSTRAINT assets_tree_asset_unique UNIQUE (tree_id, asset_id)
 );
 
--- Index for asset lookup by tree and asset_id
-CREATE INDEX IF NOT EXISTS idx_assets_tree_asset_id ON assets(tree_id, asset_id);
+-- Pas d'index séparé sur (tree_id, asset_id) : l'index unique de la
+-- contrainte assets_tree_asset_unique sert déjà ces recherches.
 
 -- Create webhooks table
 CREATE TABLE IF NOT EXISTS webhooks (
@@ -99,7 +101,8 @@ CREATE TABLE IF NOT EXISTS webhooks (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_webhooks_tree_id ON webhooks(tree_id);
+-- Index composite (tree_id, is_active) ; son préfixe gauche couvre déjà les
+-- recherches par tree_id seul, donc pas d'index séparé idx_webhooks_tree_id.
 CREATE INDEX IF NOT EXISTS idx_webhooks_tree_active ON webhooks(tree_id, is_active);
 
 -- Create webhook_logs table

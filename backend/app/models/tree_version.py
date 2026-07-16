@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +15,17 @@ class TreeVersion(Base):
     """
 
     __tablename__ = "tree_versions"
+    __table_args__ = (
+        # Unicité du numéro de version au sein d'un arbre : évite deux versions
+        # portant le même numéro en cas d'écritures concurrentes (version_number
+        # est calculé par max+1, non atomique).
+        Index(
+            "uq_tree_versions_tree_version",
+            "tree_id",
+            "version_number",
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     tree_id: Mapped[int] = mapped_column(

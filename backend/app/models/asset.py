@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,10 +20,10 @@ class Asset(Base):
 
     __tablename__ = "assets"
     __table_args__ = (
-        # Unique constraint on (tree_id, asset_id)
+        # Contrainte d'unicité sur (tree_id, asset_id). L'index unique qu'elle
+        # crée sert déjà les recherches par (tree_id, asset_id) : pas besoin
+        # d'un index séparé idx_assets_tree_asset_id (redondant, retiré).
         UniqueConstraint("tree_id", "asset_id", name="assets_tree_asset_unique"),
-        # Index for searching by tree and asset_id
-        Index("idx_assets_tree_asset_id", "tree_id", "asset_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
