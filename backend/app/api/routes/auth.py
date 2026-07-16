@@ -1,6 +1,5 @@
 """Authentication routes: setup, login, logout, check, change-password."""
 import time
-from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,16 +19,52 @@ SESSION_MAX_AGE = settings.session_max_age
 
 router = APIRouter()
 
-# --- Login brute force protection ---
-# In-memory tracker: {username: (fail_count, last_fail_timestamp)}
-_login_failures: dict[str, tuple[int, float]] = defaultdict(lambda: (0, 0.0))
+# --- Login brute force protection (S-14) ---
+# Suivi en mémoire par (ip, username) : {(ip, username): (fail_count, last_fail)}.
+# Limites connues et assumées (documentées par l'audit S-14) :
+# - état par worker (uvicorn --workers N => N compteurs indépendants : le
+#   verrouillage effectif est jusqu'à N fois plus lâche) ; un stockage en
+#   base serait nécessaire pour un verrou global strict ;
+# - derrière le nginx du docker-compose, request.client.host est l'adresse
+#   du proxy : la clé devient de fait (proxy, username), équivalente au
+#   verrou par username d'origine. X-Forwarded-For n'est volontairement
+#   PAS utilisé : une valeur forgée par requête contournerait tout le
+#   verrouillage en cas d'exposition directe du backend.
+_login_failures: dict[tuple[str, str], tuple[int, float]] = {}
 _MAX_FAILURES = 5
 _LOCKOUT_SECONDS = 300  # 5 minutes
+# Borne dure du nombre d'entrées suivies : combinée à la purge des entrées
+# expirées, elle garantit une mémoire bornée même sous un flot de
+# usernames/IP aléatoires.
+_MAX_TRACKED_KEYS = 10_000
 
 
-def _check_login_rate(username: str) -> None:
-    """Raise 429 if the account is temporarily locked after too many failures."""
-    fail_count, last_fail = _login_failures[username]
+def _client_ip(request: Request) -> str:
+    """Adresse IP du client TCP (le proxy nginx en déploiement standard)."""
+    return request.client.host if request.client else "unknown"
+
+
+def _purge_expired(now: float) -> None:
+    """Supprime les entrées dont le dernier échec est plus vieux que le lockout."""
+    expired = [
+        key
+        for key, (_, last_fail) in _login_failures.items()
+        if now - last_fail >= _LOCKOUT_SECONDS
+    ]
+    for key in expired:
+        del _login_failures[key]
+
+
+def _check_login_rate(ip: str, username: str) -> None:
+    """Raise 429 if (ip, username) is temporarily locked after too many failures.
+
+    Consultation pure : ne crée jamais d'entrée (l'ancien defaultdict
+    créait une entrée par username testé, mémoire non bornée).
+    """
+    entry = _login_failures.get((ip, username))
+    if entry is None:
+        return
+    fail_count, last_fail = entry
     if fail_count >= _MAX_FAILURES:
         elapsed = time.monotonic() - last_fail
         if elapsed < _LOCKOUT_SECONDS:
@@ -38,17 +73,25 @@ def _check_login_rate(username: str) -> None:
                 status_code=429,
                 detail=f"Too many failed attempts. Try again in {remaining}s.",
             )
-        # Lockout expired, reset
-        _login_failures[username] = (0, 0.0)
+        # Lockout expiré : l'entrée ne sert plus à rien
+        del _login_failures[(ip, username)]
 
 
-def _record_login_failure(username: str) -> None:
-    fail_count, _ = _login_failures[username]
-    _login_failures[username] = (fail_count + 1, time.monotonic())
+def _record_login_failure(ip: str, username: str) -> None:
+    now = time.monotonic()
+    _purge_expired(now)
+    key = (ip, username)
+    if key not in _login_failures and len(_login_failures) >= _MAX_TRACKED_KEYS:
+        # Borne dure atteinte avec des entrées toutes actives : éjecte la
+        # plus ancienne (la plus proche de l'expiration).
+        oldest = min(_login_failures, key=lambda k: _login_failures[k][1])
+        del _login_failures[oldest]
+    fail_count = _login_failures.get(key, (0, 0.0))[0]
+    _login_failures[key] = (fail_count + 1, now)
 
 
-def _clear_login_failures(username: str) -> None:
-    _login_failures.pop(username, None)
+def _clear_login_failures(ip: str, username: str) -> None:
+    _login_failures.pop((ip, username), None)
 
 
 # --- Helpers ---
@@ -108,8 +151,14 @@ async def setup(data: SetupRequest, response: Response, db: AsyncSession = Depen
 
 
 @router.post("/login")
-async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    _check_login_rate(data.username)
+async def login(
+    data: LoginRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    ip = _client_ip(request)
+    _check_login_rate(ip, data.username)
 
     service = UserService(db)
     user = await service.get_by_username(data.username)
@@ -117,14 +166,14 @@ async def login(data: LoginRequest, response: Response, db: AsyncSession = Depen
     # Always run bcrypt to prevent timing-based user enumeration
     if not user or not user.is_active:
         verify_password(data.password, _DUMMY_HASH)
-        _record_login_failure(data.username)
+        _record_login_failure(ip, data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not verify_password(data.password, user.password_hash):
-        _record_login_failure(data.username)
+        _record_login_failure(ip, data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    _clear_login_failures(data.username)
+    _clear_login_failures(ip, data.username)
     token = await service.create_session(user)
     await db.commit()
     _set_session_cookie(response, token)
