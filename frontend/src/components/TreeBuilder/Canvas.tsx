@@ -36,6 +36,8 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
     setHoveredNode,
   } = useTreeStore();
 
+  const isAdminUser = useTreeStore((s) => s.isAdmin());
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onInit = useCallback((instance: any) => {
     reactFlowInstance.current = instance;
@@ -153,6 +155,15 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
         fitView
         snapToGrid
         snapGrid={[15, 15]}
+        // F-2 : la suppression clavier native de React Flow contournait le
+        // raccourci custom (undo state) et restait active pour les operators.
+        // Delete/Backspace est géré exclusivement par useKeyboardShortcuts.
+        deleteKeyCode={null}
+        // F-2 : l'édition du canvas est réservée aux admins ; les operators
+        // gardent la navigation (pan/zoom), le survol et les panneaux de test.
+        nodesDraggable={isAdminUser}
+        nodesConnectable={isAdminUser}
+        elementsSelectable={isAdminUser}
         defaultEdgeOptions={{
           type: 'colored',
           animated: false,
