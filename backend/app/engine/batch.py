@@ -2,6 +2,7 @@
 Traitement batch avec Polars pour les gros volumes.
 """
 
+import asyncio
 from collections import Counter
 from typing import Any
 
@@ -78,7 +79,13 @@ class BatchProcessor:
         # Process in chunks to avoid memory issues
         for i in range(0, len(vulnerabilities), self.chunk_size):
             chunk = vulnerabilities[i : i + self.chunk_size]
-            chunk_results = self._process_chunk_sync(chunk, lookups, include_path)
+            # B-13: le traitement CPU-bound est exécuté dans un thread dédié
+            # pour ne pas bloquer l'event loop (ex: /health qui timeout sous
+            # forte charge). L'ordre des chunks est préservé car on attend
+            # chaque chunk avant de passer au suivant.
+            chunk_results = await asyncio.to_thread(
+                self._process_chunk_sync, chunk, lookups, include_path
+            )
             results.extend(chunk_results)
 
         # Count errors and decisions

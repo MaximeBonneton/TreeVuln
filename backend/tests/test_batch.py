@@ -2,6 +2,7 @@
 Tests for batch processing.
 """
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -127,6 +128,31 @@ class TestBatchProcessor:
         assert response.results[1].error is not None
         assert response.results[2].vuln_id == "v3"
         assert response.results[2].error is not None
+
+    @pytest.mark.asyncio
+    async def test_process_batch_uses_to_thread(
+        self, simple_tree_structure: TreeStructure, monkeypatch
+    ):
+        """B-13: le traitement CPU-bound doit passer par asyncio.to_thread (hors event loop)."""
+        import app.engine.batch as batch_module
+
+        processor = BatchProcessor(simple_tree_structure, chunk_size=2)
+        vulns = [VulnerabilityInput(id=f"v{i}", cvss_score=5.0) for i in range(5)]
+
+        calls: list[Any] = []
+        real_to_thread = asyncio.to_thread
+
+        async def spy_to_thread(func, *args, **kwargs):
+            calls.append(func)
+            return await real_to_thread(func, *args, **kwargs)
+
+        monkeypatch.setattr(batch_module.asyncio, "to_thread", spy_to_thread)
+
+        response = await processor.process_batch(vulns)
+
+        assert response.total == 5
+        # 5 items / chunk_size=2 -> 3 chunks, donc 3 appels à to_thread
+        assert len(calls) == 3
 
 
 class TestBatchProcessorDataLoading:

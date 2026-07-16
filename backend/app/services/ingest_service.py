@@ -2,6 +2,7 @@
 Service for managing incoming webhooks (ingestion endpoints).
 """
 
+import asyncio
 import logging
 import secrets
 import time
@@ -168,29 +169,18 @@ class IngestService:
             Ingestion result
         """
         start = time.monotonic()
-        results: list[dict[str, Any]] = []
-        success_count = 0
-        error_count = 0
 
-        for entry in payload:
-            try:
-                # Apply field mapping
-                mapped = transform_payload(entry, endpoint.field_mapping)
-
-                if endpoint.auto_evaluate:
-                    vuln = _build_vulnerability(mapped)
-                    eval_result = engine.evaluate(vuln, lookups, include_path=True)
-                    results.append(eval_result.model_dump())
-                    if not eval_result.error:
-                        success_count += 1
-                    else:
-                        error_count += 1
-                else:
-                    success_count += 1
-                    results.append({"status": "received", "data": mapped})
-            except Exception as e:
-                error_count += 1
-                results.append({"status": "error", "error": str(e)})
+        # B-13: la boucle de mapping + évaluation est CPU-bound (potentiellement
+        # des milliers d'entrées) ; on l'exécute dans un thread dédié pour ne
+        # pas bloquer l'event loop pendant l'ingestion (ex: /health qui timeout).
+        results, success_count, error_count = await asyncio.to_thread(
+            _ingest_entries_sync,
+            payload,
+            endpoint.field_mapping,
+            endpoint.auto_evaluate,
+            engine,
+            lookups,
+        )
 
         duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -213,6 +203,51 @@ class IngestService:
             errors=error_count,
             results=results,
         )
+
+
+def _ingest_entries_sync(
+    payload: list[dict[str, Any]],
+    field_mapping: dict[str, str] | None,
+    auto_evaluate: bool,
+    engine: InferenceEngine,
+    lookups: dict[str, dict[str, dict[str, Any]]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """
+    Traite les entrées d'ingestion de façon synchrone (CPU-bound).
+
+    Exécutée hors de l'event loop via asyncio.to_thread (B-13). L'isolation
+    d'erreur par entrée (mapping ou vulnérabilité invalide) est déjà assurée
+    par le try/except ci-dessous : une entrée fautive ne fait pas échouer
+    le reste du batch d'ingestion.
+
+    Returns:
+        Tuple (results, success_count, error_count)
+    """
+    results: list[dict[str, Any]] = []
+    success_count = 0
+    error_count = 0
+
+    for entry in payload:
+        try:
+            # Apply field mapping
+            mapped = transform_payload(entry, field_mapping)
+
+            if auto_evaluate:
+                vuln = _build_vulnerability(mapped)
+                eval_result = engine.evaluate(vuln, lookups, include_path=True)
+                results.append(eval_result.model_dump())
+                if not eval_result.error:
+                    success_count += 1
+                else:
+                    error_count += 1
+            else:
+                success_count += 1
+                results.append({"status": "received", "data": mapped})
+        except Exception as e:
+            error_count += 1
+            results.append({"status": "error", "error": str(e)})
+
+    return results, success_count, error_count
 
 
 def generate_api_key() -> str:
