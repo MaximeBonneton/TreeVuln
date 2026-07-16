@@ -29,6 +29,7 @@ export function TreeBuilder() {
   const [showIngestConfig, setShowIngestConfig] = useState(false);
 
   const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName, error: storeError } = useTreeStore();
+  const treeWarnings = useTreeStore((state) => state.treeWarnings);
 
   const saveTree = useTreeStore((state) => state.saveTree);
   const deleteNode = useTreeStore((state) => state.deleteNode);
@@ -172,6 +173,26 @@ export function TreeBuilder() {
             <button
               onClick={() => useTreeStore.setState({ error: null })}
               className="text-red-500 hover:text-red-700 font-medium ml-4"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Validation warnings banner (F-8, non-blocking) */}
+        {treeWarnings.length > 0 && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-800 flex items-start justify-between">
+            <div>
+              <span className="font-medium">Tree saved with warnings:</span>
+              <ul className="list-disc list-inside mt-1">
+                {treeWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => useTreeStore.setState({ treeWarnings: [] })}
+              className="text-amber-600 hover:text-amber-800 font-medium ml-4 shrink-0"
             >
               Dismiss
             </button>

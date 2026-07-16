@@ -81,6 +81,46 @@ describe('updateNodeData', () => {
     const node = useTreeStore.getState().nodes[0];
     expect(node.data.config).toEqual({ field: 'cvss_score' });
   });
+
+  it('prunes orphan edges when input_count is reduced (F-8)', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 300, y: 0 });
+    const [inputNode, outputNode] = useTreeStore.getState().nodes;
+
+    // input à 2 entrées, avec des edges rattachés à l'entrée 1
+    store.updateNodeData(inputNode.id, { config: { field: 'kev', input_count: 2 } });
+    store.setEdges([
+      // sortie de l'entrée 0 -> conservée
+      { id: 'e0', source: inputNode.id, target: outputNode.id, sourceHandle: 'handle-0-0', type: 'colored' },
+      // sortie de l'entrée 1 -> orpheline après réduction
+      { id: 'e1', source: inputNode.id, target: outputNode.id, sourceHandle: 'handle-1-0', type: 'colored' },
+      // arrivée sur l'entrée 1 -> orpheline après réduction
+      { id: 'e2', source: outputNode.id, target: inputNode.id, sourceHandle: 'handle-0', targetHandle: 'input-1', type: 'colored' },
+    ]);
+
+    // Réduction à 1 entrée
+    store.updateNodeData(inputNode.id, { config: { field: 'kev', input_count: 1 } });
+
+    const edgeIds = useTreeStore.getState().edges.map((e) => e.id);
+    expect(edgeIds).toEqual(['e0']);
+  });
+
+  it('keeps edges when input_count is increased', () => {
+    const store = useTreeStore.getState();
+    store.addNode('input', { x: 0, y: 0 });
+    store.addNode('output', { x: 300, y: 0 });
+    const [inputNode, outputNode] = useTreeStore.getState().nodes;
+
+    store.updateNodeData(inputNode.id, { config: { field: 'kev', input_count: 1 } });
+    store.setEdges([
+      { id: 'e0', source: inputNode.id, target: outputNode.id, sourceHandle: 'handle-0-0', type: 'colored' },
+    ]);
+
+    store.updateNodeData(inputNode.id, { config: { field: 'kev', input_count: 2 } });
+
+    expect(useTreeStore.getState().edges.map((e) => e.id)).toEqual(['e0']);
+  });
 });
 
 describe('deleteNode', () => {

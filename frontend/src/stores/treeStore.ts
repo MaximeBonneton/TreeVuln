@@ -21,6 +21,7 @@ import type {
   TreeListItem,
   TreeApiConfig,
   TreeDuplicateRequest,
+  TreeResponse,
 } from '@/types';
 import { treeApi, fieldMappingApi } from '@/api';
 import { getLayoutedNodes } from '@/utils/autoLayout';
@@ -61,6 +62,8 @@ interface TreeState {
   isSaving: boolean;
   hasUnsavedChanges: boolean;
   error: string | null;
+  // Avertissements de validation renvoyés par le backend au dernier save (F-8)
+  treeWarnings: string[];
   sidebarOpen: boolean;
 
   // Undo/Redo
@@ -187,6 +190,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   hoveredInputIndex: null,
   isLoading: false,
   isSaving: false,
+  treeWarnings: [],
   hasUnsavedChanges: false,
   error: null,
   sidebarOpen: false,
@@ -364,14 +368,41 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   // Update node data
   updateNodeData: (nodeId, data) => {
     get().pushUndoState();
-    set((state) => ({
-      nodes: state.nodes.map((node) =>
+    set((state) => {
+      const nodes = state.nodes.map((node) =>
         node.id === nodeId
           ? { ...node, data: { ...node.data, ...data } }
           : node
-      ),
-      hasUnsavedChanges: true,
-    }));
+      );
+
+      // F-8 : à la réduction d'input_count, supprimer les edges rattachés
+      // aux entrées disparues (sortie handle-{i}-* et arrivée input-{i}
+      // pour i >= nouveau count), sinon elles pointent vers des handles
+      // inexistants (edges orphelines invisibles mais présentes en base).
+      let edges = state.edges;
+      const prevNode = state.nodes.find((n) => n.id === nodeId);
+      const prevCount =
+        (prevNode?.data.config as { input_count?: number } | undefined)?.input_count ?? 1;
+      const nextCount =
+        (data.config as { input_count?: number } | undefined)?.input_count ?? prevCount;
+      if (data.config && nextCount < prevCount) {
+        const sourceRe = /^handle-(\d+)-\d+$/;
+        const targetRe = /^input-(\d+)$/;
+        edges = state.edges.filter((edge) => {
+          if (edge.source === nodeId && edge.sourceHandle) {
+            const m = edge.sourceHandle.match(sourceRe);
+            if (m && parseInt(m[1], 10) >= nextCount) return false;
+          }
+          if (edge.target === nodeId && edge.targetHandle) {
+            const m = edge.targetHandle.match(targetRe);
+            if (m && parseInt(m[1], 10) >= nextCount) return false;
+          }
+          return true;
+        });
+      }
+
+      return { nodes, edges, hasUnsavedChanges: true };
+    });
   },
 
   // Update a node's conditions and remap the sourceHandle of its outgoing
@@ -547,23 +578,25 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     try {
       const structure = get().toApiStructure();
 
+      let saved: TreeResponse;
       if (treeId) {
-        await treeApi.updateTree(treeId, {
+        saved = await treeApi.updateTree(treeId, {
           name: treeName,
           description: treeDescription,
           structure,
           version_comment: comment,
         }, createVersion);
       } else {
-        const newTree = await treeApi.createTree({
+        saved = await treeApi.createTree({
           name: treeName,
           description: treeDescription,
           structure,
         });
-        set({ treeId: newTree.id });
+        set({ treeId: saved.id });
       }
 
-      set({ hasUnsavedChanges: false });
+      // F-8 : remonter les avertissements de validation (non bloquants)
+      set({ hasUnsavedChanges: false, treeWarnings: saved.warnings ?? [] });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Save error' });
       throw err;

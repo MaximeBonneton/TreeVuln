@@ -148,6 +148,9 @@ export interface TreeResponse {
   api_slug: string | null;
   created_at: string;
   updated_at: string;
+  // Avertissements de validation de structure (non bloquants) renvoyés par
+  // le backend à la sauvegarde : cycles, handles orphelins, etc. (F-8)
+  warnings?: string[];
 }
 
 // Tree summary for the list (sidebar)
