@@ -23,6 +23,37 @@ from app.models.user import EncryptionKey
 logger = logging.getLogger(__name__)
 
 
+def _log_db_encryption_key_notice() -> None:
+    """
+    Signale l'absence de SECRET_KEY (S-18) : la clé de chiffrement vit
+    alors en base, à côté des données qu'elle protège.
+
+    En production (DEBUG=false), c'est une erreur de configuration : un
+    dump de la base suffit à déchiffrer tous les secrets stockés (secrets
+    webhooks, clés API d'ingestion). Le démarrage n'est pas bloqué
+    (décision d154bfc : ne pas casser les déploiements d'évaluation),
+    mais l'erreur doit être explicite dans les logs.
+    """
+    generate_hint = (
+        "Generate one with: python3 -c "
+        '"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+    )
+    if settings.debug:
+        logger.warning(
+            "⚠ SECRET_KEY is not set — encryption key is stored in the database. "
+            "This is acceptable for development only. %s",
+            generate_hint,
+        )
+    else:
+        logger.error(
+            "✖ SECRET_KEY is not set while DEBUG=false: the encryption key is "
+            "stored in the database NEXT TO the data it protects — a database "
+            "dump exposes every webhook secret and ingest API key. Set "
+            "SECRET_KEY in your .env file for production. %s",
+            generate_hint,
+        )
+
+
 async def run_migrations() -> None:
     """
     Applique les migrations Alembic au démarrage (B-14, remplace create_all).
@@ -83,11 +114,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 await session.commit()
                 set_encryption_key(key_value)
 
-            logger.warning(
-                "⚠ SECRET_KEY is not set — encryption key is stored in the database. "
-                "This is fine for evaluation, but for production set SECRET_KEY in your .env file. "
-                "Generate one with: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
-            )
+            _log_db_encryption_key_notice()
 
     # Enterprise initialization (license detection + modules)
     from app.enterprise import init_enterprise
