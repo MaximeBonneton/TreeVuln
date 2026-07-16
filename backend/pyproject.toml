@@ -28,6 +28,9 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "httpx>=0.26.0",
     "ruff>=0.1.0",
+    # Base PostgreSQL éphémère pour les tests d'intégration (fixture db_engine).
+    # Non embarqué dans l'image runtime (deps runtime = requirements.lock).
+    "testcontainers>=4.0.0",
 ]
 
 [build-system]

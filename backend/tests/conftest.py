@@ -2,9 +2,23 @@
 Pytest test configuration.
 """
 
-import pytest
+import os
 
-from app.schemas.tree import (
+# DATABASE_URL doit être défini AVANT tout import de `app` : app.database crée
+# l'engine à l'import (settings.database_url est validé non-vide). En tests
+# d'intégration, l'engine réel est fourni par la fixture `db_engine`
+# (testcontainers) et get_db est surchargé ; ce placeholder ne sert qu'à la
+# validation à l'import et ne se connecte jamais.
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://placeholder:placeholder@localhost:5432/placeholder",
+)
+
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+
+from app.schemas.tree import (  # noqa: E402
     ConditionOperator,
     EdgeSchema,
     NodeCondition,
@@ -13,6 +27,137 @@ from app.schemas.tree import (
     SimpleConditionCriteria,
     TreeStructure,
 )
+
+# ----------------------------------------------------------------------
+# Fixture base de données éphémère (T-3) : PostgreSQL réel via testcontainers.
+# Débloque les tests d'intégration API (T-1/T-2). Skip gracieux si Docker ou
+# testcontainers ne sont pas disponibles, pour que la suite unitaire tourne
+# partout.
+# ----------------------------------------------------------------------
+
+try:
+    from testcontainers.postgres import PostgresContainer
+
+    _HAS_TESTCONTAINERS = True
+except ImportError:  # pragma: no cover - dépend de l'environnement
+    _HAS_TESTCONTAINERS = False
+
+
+def _to_async_url(sync_url: str) -> str:
+    """Convertit l'URL testcontainers (psycopg2) en URL asyncpg."""
+    return sync_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://").replace(
+        "postgresql://", "postgresql+asyncpg://"
+    )
+
+
+@pytest.fixture(scope="session")
+def pg_url() -> str:
+    """Démarre un PostgreSQL éphémère et y crée le schéma (une fois par session)."""
+    if not _HAS_TESTCONTAINERS:
+        pytest.skip("testcontainers indisponible")
+
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    import app.models  # noqa: F401  (peuple Base.metadata)
+    from app.database import Base
+
+    try:
+        container = PostgresContainer("postgres:15-alpine")
+        container.start()
+    except Exception as exc:  # pragma: no cover - Docker absent
+        pytest.skip(f"Impossible de démarrer PostgreSQL (Docker requis) : {exc}")
+
+    url = _to_async_url(container.get_connection_url())
+
+    async def _create_schema() -> None:
+        engine = create_async_engine(url)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    asyncio.run(_create_schema())
+
+    try:
+        yield url
+    finally:
+        container.stop()
+
+
+async def _truncate_all(engine) -> None:
+    """Vide toutes les tables (isolation entre tests)."""
+    import app.models  # noqa: F401
+    from app.database import Base
+
+    tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+    if not tables:
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
+
+
+@pytest_asyncio.fixture
+async def db_engine(pg_url: str):
+    """Engine async lié au conteneur, recréé par test (isolation de boucle)."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine(pg_url)
+    await _truncate_all(engine)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def db_session(db_engine):
+    """Session ORM directe sur la base de test (tests de services)."""
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    maker = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    async with maker() as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def client(db_engine):
+    """
+    Client HTTP d'intégration : app FastAPI réelle avec get_db surchargé vers
+    la base de test. Le lifespan (migrations) n'est PAS déclenché par
+    ASGITransport — le schéma est déjà créé par la fixture pg_url.
+    """
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.database import get_db
+    from app.main import app
+
+    maker = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def _get_db_override():
+        async with maker() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = _get_db_override
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as http_client:
+            yield http_client
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def admin_client(client):
+    """Client authentifié en tant qu'admin (setup initial + session cookie)."""
+    resp = await client.post(
+        "/api/v1/auth/setup",
+        json={"username": "admin", "password": "AdminPass123!"},
+    )
+    assert resp.status_code == 200, resp.text
+    return client
 
 
 @pytest.fixture
