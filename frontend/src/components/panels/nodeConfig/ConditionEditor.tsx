@@ -2,6 +2,8 @@ import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { NodeCondition, SimpleConditionCriteria, ConditionOperator } from '@/types';
 import { OPERATORS, NUMERIC_OPERATORS, ValueEditor } from './ValueEditor';
 import { CriterionEditor } from './CriterionEditor';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 function isCompoundCondition(condition: NodeCondition): boolean {
   return condition.logic !== undefined && condition.criteria !== undefined;
@@ -48,13 +50,28 @@ export function ConditionEditor({
   numericOnly?: boolean;
 }) {
   const isCompound = isCompoundCondition(condition);
+  const { confirm, confirmDialogProps } = useConfirm();
 
-  const toggleMode = () => {
-    if (isCompound) {
-      onReplace(index, toSimpleCondition(condition));
-    } else {
-      onReplace(index, toCompoundCondition(condition));
+  // F-6 : chaque bouton ne bascule que s'il change réellement de mode
+  // (l'ancien `toggleMode` partagé inversait le mode même en cliquant sur
+  // le bouton déjà actif). Le passage composé -> simple ne conserve que le
+  // 1er critère : on confirme s'il y en a plusieurs à perdre.
+  const switchToSimple = async () => {
+    if (!isCompound) return;
+    if ((condition.criteria?.length ?? 0) > 1) {
+      const ok = await confirm(
+        'Switch to simple mode',
+        'Simple mode keeps only the first criterion. The other criteria will be lost. Continue?',
+        'warning'
+      );
+      if (!ok) return;
     }
+    onReplace(index, toSimpleCondition(condition));
+  };
+
+  const switchToCompound = () => {
+    if (isCompound) return;
+    onReplace(index, toCompoundCondition(condition));
   };
 
   const updateCriterion = (
@@ -129,13 +146,13 @@ export function ConditionEditor({
       {/* Toggle simple/compound mode */}
       <div className="flex items-center gap-2 text-xs">
         <button
-          onClick={toggleMode}
+          onClick={switchToSimple}
           className={`px-2 py-1 rounded ${!isCompound ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
         >
           Simple
         </button>
         <button
-          onClick={toggleMode}
+          onClick={switchToCompound}
           className={`px-2 py-1 rounded ${isCompound ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
         >
           Compound
@@ -210,6 +227,8 @@ export function ConditionEditor({
           </button>
         </div>
       )}
+
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }
