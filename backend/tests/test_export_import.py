@@ -226,3 +226,44 @@ def test_export_no_field_mapping_duplication(simple_tree_structure):
     # Verify: field_mapping in tree.field_mapping, NOT in structure.metadata
     assert export_file.tree.field_mapping is not None
     assert "field_mapping" not in export_file.tree.structure.metadata
+
+
+# ======================================================================
+# S-17 — neutralisation de l'injection de formule CSV à l'export
+# ======================================================================
+
+
+class TestCsvFormulaInjectionNeutralized:
+    """
+    S-17 (Task 3.12) : les résultats d'évaluation contiennent des valeurs
+    contrôlées par les sources externes (vuln_id d'un CSV importé, valeurs
+    de champs). À l'export CSV, toute cellule commençant par un caractère
+    de formule tableur (= + - @, tab, CR) doit être préfixée d'une
+    apostrophe pour neutraliser l'interprétation par Excel/LibreOffice.
+    """
+
+    @staticmethod
+    def _export(vuln_id: str) -> str:
+        from app.engine.export import export_csv
+        from app.schemas.evaluation import EvaluationResult
+
+        result = EvaluationResult(vuln_id=vuln_id, decision="Track")
+        return "".join(export_csv([result], include_path=False))
+
+    def test_hyperlink_formula_is_neutralized(self):
+        csv_out = self._export('=HYPERLINK("http://evil.example","CVE")')
+        assert "'=HYPERLINK" in csv_out
+        # La formule brute ne doit jamais apparaître en début de cellule
+        assert '"=HYPERLINK' not in csv_out.replace("\"'=HYPERLINK", "")
+
+    def test_all_formula_prefixes_are_neutralized(self):
+        for prefix in ("=", "+", "-", "@", "\t", "\r"):
+            csv_out = self._export(f"{prefix}cmd")
+            assert f"'{prefix}cmd" in csv_out, (
+                f"Le préfixe {prefix!r} doit être neutralisé par une apostrophe"
+            )
+
+    def test_normal_values_are_untouched(self):
+        csv_out = self._export("CVE-2024-1234")
+        assert "CVE-2024-1234" in csv_out
+        assert "'CVE-2024-1234" not in csv_out
