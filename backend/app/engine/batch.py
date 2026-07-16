@@ -190,8 +190,12 @@ class BatchProcessor:
             csv_content = csv_content.encode("utf-8")
         try:
             return pl.read_csv(csv_content)
-        except Exception as exc:  # polars.exceptions.* (NoDataError, ComputeError, ...)
-            raise ValueError(f"Malformed CSV file: {exc}") from exc
+        except pl.exceptions.PolarsError as exc:
+            # Message générique : on ne fuite pas le détail brut de
+            # l'exception Polars au client (celui-ci peut exposer des
+            # informations internes de parsing). L'exception d'origine
+            # reste disponible via `__cause__` pour le débogage/logs.
+            raise ValueError("CSV file could not be parsed") from exc
 
     @classmethod
     def from_json_list(cls, json_data: list[dict[str, Any]]) -> pl.DataFrame:

@@ -250,12 +250,13 @@ class TestEvaluateBatchErrorIsolation:
 
     @pytest.mark.asyncio
     async def test_evaluate_csv_malformed_returns_400(self, client: AsyncClient):
-        """CSV totalement illisible -> 400 (pas 500)."""
+        """CSV totalement illisible -> 400 (pas 500), message générique (pas de fuite Polars)."""
         response = await client.post(
             "/api/v1/evaluate/csv",
             files={"file": ("test.csv", b"", "text/csv")},
         )
         assert response.status_code == 400
+        assert response.json()["detail"] == "CSV file could not be parsed"
 
 
 class TestEvaluateNoTree:

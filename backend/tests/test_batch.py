@@ -5,6 +5,7 @@ Tests for batch processing.
 import asyncio
 from typing import Any
 
+import polars as pl
 import pytest
 
 from app.engine.batch import BatchProcessor
@@ -193,5 +194,11 @@ v3,4.0,CVE-2024-0003"""
 
     def test_from_csv_malformed_raises_value_error(self):
         """B-12: un CSV totalement illisible lève ValueError (et non une exception Polars brute)."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as exc_info:
             BatchProcessor.from_csv(b"")
+
+        # Le message doit rester générique : pas de fuite du détail brut de
+        # l'exception Polars sous-jacente (finding minor de l'audit).
+        assert str(exc_info.value) == "CSV file could not be parsed"
+        # L'exception Polars d'origine reste chaînée pour le débogage/logs.
+        assert isinstance(exc_info.value.__cause__, pl.exceptions.PolarsError)
