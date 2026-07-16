@@ -83,7 +83,11 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      # 127.0.0.1 et non localhost : dans le conteneur localhost résout en ::1
+      # (IPv6) alors que nginx n'écoute qu'en IPv4 (listen 8080) — le spider
+      # sur localhost échouerait (connection refused) et marquerait à tort le
+      # conteneur unhealthy, alors que le service répond bien.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
