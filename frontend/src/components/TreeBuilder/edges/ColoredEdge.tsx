@@ -2,6 +2,7 @@ import { memo } from 'react';
 import {
   type Edge,
   type EdgeProps,
+  EdgeLabelRenderer,
   Position,
 } from '@xyflow/react';
 
@@ -82,6 +83,14 @@ const getControlPointOffset = (edgeId: string): number => {
   return ((hash % 50) - 25);
 };
 
+// Result of the custom bezier path builder: the SVG path plus the point
+// at t=0.5 on the curve, used to position the edge label.
+interface CustomBezierPathResult {
+  path: string;
+  labelX: number;
+  labelY: number;
+}
+
 // Generate a custom Bezier path with offset on control points only
 const getCustomBezierPath = (
   sourceX: number,
@@ -91,7 +100,7 @@ const getCustomBezierPath = (
   sourcePosition: Position,
   targetPosition: Position,
   controlOffset: number
-): string => {
+): CustomBezierPathResult => {
   // Horizontal distance for control points
   const deltaX = Math.abs(targetX - sourceX);
   const controlDistance = Math.max(deltaX * 0.4, 50);
@@ -119,7 +128,16 @@ const getCustomBezierPath = (
     cp2y = targetY + controlOffset * 0.5;
   }
 
-  return `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
+  const path = `M ${sourceX} ${sourceY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${targetX} ${targetY}`;
+
+  // Point at t=0.5 on the cubic bezier curve (De Casteljau at the midpoint),
+  // used as the label anchor so it follows the actual rendered curve.
+  const labelX =
+    0.125 * sourceX + 0.375 * cp1x + 0.375 * cp2x + 0.125 * targetX;
+  const labelY =
+    0.125 * sourceY + 0.375 * cp1y + 0.375 * cp2y + 0.125 * targetY;
+
+  return { path, labelX, labelY };
 };
 
 // Type for custom edge data
@@ -143,12 +161,13 @@ function ColoredEdgeComponent({
   sourceHandleId,
   selected,
   data,
+  label,
 }: EdgeProps<ColoredEdge>) {
   // Calculate offset for control points (not endpoints)
   const controlOffset = getControlPointOffset(id);
 
   // Generate the path with endpoints aligned to handles
-  const edgePath = getCustomBezierPath(
+  const { path: edgePath, labelX, labelY } = getCustomBezierPath(
     sourceX,
     sourceY,
     targetX,
@@ -204,6 +223,20 @@ function ColoredEdgeComponent({
           transition: 'stroke-opacity 0.2s ease, stroke-width 0.2s ease',
         }}
       />
+      {/* Edge label, rendered above the SVG canvas via a portal */}
+      {label ? (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan absolute rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-700 shadow-sm"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
     </>
   );
 }
