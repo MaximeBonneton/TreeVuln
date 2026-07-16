@@ -477,13 +477,15 @@ class TestFormulaSecurityPowerBound:
         with pytest.raises(FormulaError, match="Exponent"):
             evaluate_formula("x ** y", {"x": 2, "y": 999999})
 
-    def test_reject_large_variable_base(self):
-        with pytest.raises(FormulaError, match="Base"):
-            evaluate_formula("x ** 2", {"x": 10_000_000})
+    def test_reject_when_result_magnitude_too_large(self):
+        """Revue 2026-07-16 #3 : la borne porte sur la magnitude estimée du
+        résultat (|exp| × log10(|base|)), pas sur la base seule."""
+        with pytest.raises(FormulaError, match="result"):
+            evaluate_formula("x ** 8", {"x": 1e50})
 
-    def test_reject_large_base_literal(self):
-        with pytest.raises(FormulaError, match="Base"):
-            evaluate_formula("10000000 ** 2", {})
+    def test_reject_large_literal_result(self):
+        with pytest.raises(FormulaError, match="result"):
+            evaluate_formula("1e50 ** 8", {})
 
     def test_small_power_still_works(self):
         """Les formules métier légitimes (score^2, score^3) restent valides."""
@@ -505,3 +507,85 @@ class TestFormulaSecurityPowerBound:
         """Puissance imbriquée mais dont chaque étage reste sous les seuils."""
         # 2**2 = 4, puis 4**2 = 16 : chaque étage est individuellement borné.
         assert evaluate_formula("(2 ** 2) ** 2", {}) == 16.0
+
+
+# ======================================================================
+# Revue 2026-07-16 (WS3-R Task 3) — reprises S-13a
+# ======================================================================
+
+
+class TestPowerBoundLargeBaseNonRegression:
+    """
+    Revue #3 : l'ancienne borne rejetait |base| > 1_000_000 quel que soit
+    l'exposant, cassant des formules métier légitimes sur des champs à
+    grande valeur (timestamp epoch, compteurs) alors qu'aucune explosion
+    n'est possible pour un petit exposant.
+    """
+
+    def test_epoch_timestamp_squared_is_allowed(self):
+        assert evaluate_formula("x ** 2", {"x": 1_700_000_000}) == pytest.approx(
+            2.89e18, rel=1e-6
+        )
+
+    def test_large_base_exponent_one_is_allowed(self):
+        assert evaluate_formula("x ** 1", {"x": 1_700_000_000}) == 1_700_000_000.0
+
+    def test_large_base_exponent_zero_is_allowed(self):
+        assert evaluate_formula("x ** 0", {"x": 1e300}) == 1.0
+
+
+class TestPowerBoundAtSaveTime:
+    """
+    Revue #4 : validate_formula est appelée à la sauvegarde de l'arbre
+    (tree_validation.py) mais ignorait les bornes de `**` : un arbre se
+    sauvegardait sans avertissement puis échouait à CHAQUE évaluation.
+    Les opérandes constantes doivent être bornées dès la validation.
+    """
+
+    def test_validate_rejects_large_constant_exponent(self):
+        with pytest.raises(FormulaError, match="Exponent"):
+            validate_formula("2 ** 999")
+
+    def test_validate_rejects_negative_large_exponent(self):
+        with pytest.raises(FormulaError, match="Exponent"):
+            validate_formula("2 ** -999")
+
+    def test_validate_rejects_chained_power_dos(self):
+        with pytest.raises(FormulaError):
+            validate_formula("9**9**9**9")
+
+    def test_validate_rejects_large_constant_result(self):
+        with pytest.raises(FormulaError, match="result"):
+            validate_formula("1e50 ** 8")
+
+    def test_validate_accepts_variable_power(self):
+        # Opérandes variables : contrôlables uniquement à l'exécution
+        assert validate_formula("x ** y") == ["x", "y"]
+
+    def test_validate_accepts_small_constant_power(self):
+        assert validate_formula("score ** 2") == ["score"]
+
+
+class TestReservedVariableNames:
+    """
+    Revue #5 : une variable de formule littéralement nommée `_safe_pow`
+    masquait la fonction injectée dans les locals d'eval (LOAD_NAME résout
+    les locals avant les globals), transformant tout `**` en
+    « 'float' object is not callable ». Les noms commençant par `_` sont
+    réservés au moteur.
+    """
+
+    def test_variable_shadowing_safe_pow_is_rejected(self):
+        with pytest.raises(FormulaError, match="reserved"):
+            evaluate_formula("x ** 2", {"x": 3, "_safe_pow": 5})
+
+    def test_underscore_name_in_formula_rejected_at_validation(self):
+        with pytest.raises(FormulaError, match="reserved"):
+            validate_formula("_safe_pow + 1")
+
+    def test_underscore_name_in_formula_rejected_at_evaluation(self):
+        with pytest.raises(FormulaError, match="reserved"):
+            evaluate_formula("_hidden + 1", {"_hidden": 1})
+
+    def test_normal_power_still_works(self):
+        assert evaluate_formula("x ** 2", {"x": 3}) == 9.0

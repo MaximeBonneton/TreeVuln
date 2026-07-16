@@ -8,8 +8,9 @@ Parses formulas into Python AST and only evaluates allowed constructs:
 """
 
 import ast
+import math
 import re
-from typing import Any
+from typing import Any, Iterable
 
 
 class FormulaError(Exception):
@@ -27,12 +28,13 @@ _ALLOWED_FUNCTIONS = {"min", "max", "abs", "round"}
 # calcul qui gèle le worker (CPU) et peut faire OOM le process, pour une
 # seule requête d'un utilisateur authentifié (même rôle operator, via les
 # endpoints preview/diagnose qui contrôlent la formule ET les variables).
-# Les formules métier légitimes (scores de risque : cvss*poids, epss*100,
-# score^2, score^3...) n'utilisent que des exposants petits (<= 8) et des
-# bases raisonnables (<= 1_000_000) : ces seuils sont donc très larges pour
-# l'usage réel tout en empêchant la construction de grands entiers.
+# Le danger n'est PAS une grande base en soi (timestamp ** 1 est inoffensif)
+# mais la magnitude du RÉSULTAT base**exposant : on borne donc l'exposant
+# (les formules métier — score^2, score^3 — restent très en dessous de 8)
+# et la magnitude estimée du résultat via |exposant| × log10(|base|),
+# plafonnée sous la limite du float64 (~1e308).
 _MAX_POWER_EXPONENT = 8
-_MAX_POWER_BASE = 1_000_000
+_MAX_POWER_RESULT_LOG10 = 300
 
 # Regex to convert C-style ternary syntax to Python
 # condition ? val_true : val_false  ->  (val_true if condition else val_false)
@@ -93,19 +95,80 @@ def _safe_pow(base: float, exponent: float) -> float:
     Le bornage doit donc s'appliquer aux VALEURS, au moment du calcul.
 
     Raises:
-        FormulaError: si l'exposant ou la base dépassent les seuils
-            autorisés (empêche la construction d'entiers gigantesques).
+        FormulaError: si l'exposant ou la magnitude estimée du résultat
+            dépassent les seuils autorisés (empêche la construction
+            d'entiers gigantesques).
     """
     if abs(exponent) > _MAX_POWER_EXPONENT:
         raise FormulaError(
             f"Exponent too large ({exponent}): must not exceed "
             f"{_MAX_POWER_EXPONENT} in absolute value"
         )
-    if abs(base) > _MAX_POWER_BASE:
+    # Borne la magnitude du RÉSULTAT, pas la base seule (revue 2026-07-16 #3) :
+    # x**1 sur un timestamp epoch est une formule légitime ; ce qui est
+    # dangereux est |base|**|exposant|. Le garde |base| > 1 évite le domaine
+    # invalide de log10 (base nulle) et exclut les bases inoffensives.
+    if abs(base) > 1 and abs(exponent) * math.log10(abs(base)) > _MAX_POWER_RESULT_LOG10:
         raise FormulaError(
-            f"Base too large ({base}): must not exceed {_MAX_POWER_BASE} in absolute value"
+            f"Power result too large: |{base}| ** |{exponent}| exceeds "
+            f"1e{_MAX_POWER_RESULT_LOG10}"
         )
     return base**exponent
+
+
+def _reject_reserved_names(names: Iterable[str]) -> None:
+    """
+    Rejette les noms de variables commençant par `_` (revue 2026-07-16 #5).
+
+    Ces noms sont réservés au moteur : une variable nommée `_safe_pow`
+    masquerait la fonction injectée dans les locals d'eval (LOAD_NAME
+    résout les locals avant les globals) et casserait tout opérateur `**`.
+    """
+    reserved = sorted({n for n in names if n.startswith("_")})
+    if reserved:
+        raise FormulaError(
+            f"Variable names starting with '_' are reserved for the engine: "
+            f"{', '.join(reserved)}"
+        )
+
+
+def _constant_value(node: ast.AST) -> float | None:
+    """Résout la valeur d'une constante numérique (avec signe unaire), sinon None."""
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+            return None
+        return float(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        inner = _constant_value(node.operand)
+        if inner is None:
+            return None
+        return -inner if isinstance(node.op, ast.USub) else inner
+    return None
+
+
+def _check_constant_powers(tree: ast.AST) -> None:
+    """
+    Applique les bornes de `**` aux opérandes constantes dès la validation
+    (revue 2026-07-16 #4).
+
+    validate_formula est appelée à la sauvegarde de l'arbre : sans ce
+    contrôle, une formule comme `2 ** 999` se sauvegarde sans avertissement
+    puis échoue à CHAQUE évaluation. Les opérandes variables ne peuvent être
+    bornées qu'à l'exécution (cf. _safe_pow).
+    """
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow)):
+            continue
+        base = _constant_value(node.left)
+        exponent = _constant_value(node.right)
+        if exponent is not None and abs(exponent) > _MAX_POWER_EXPONENT:
+            raise FormulaError(
+                f"Exponent too large ({exponent}): must not exceed "
+                f"{_MAX_POWER_EXPONENT} in absolute value"
+            )
+        if base is not None and exponent is not None:
+            # Mêmes bornes qu'à l'exécution (le calcul est borné donc peu coûteux)
+            _safe_pow(base, exponent)
 
 
 class _PowerBoundTransformer(ast.NodeTransformer):
@@ -273,7 +336,13 @@ def validate_formula(formula: str, available_variables: list[str] | None = None)
 
     _validate_node(tree)
 
+    # Revue 2026-07-16 : mêmes bornes qu'à l'évaluation pour les `**`
+    # constants (#4) et noms `_*` réservés au moteur (#5), détectés dès la
+    # sauvegarde plutôt qu'à chaque évaluation.
+    _check_constant_powers(tree)
+
     variables = extract_variables(formula)
+    _reject_reserved_names(variables)
 
     if available_variables is not None:
         unknown = [v for v in variables if v not in available_variables]
@@ -311,6 +380,18 @@ def evaluate_formula(formula: str, variables: dict[str, Any]) -> float:
         raise FormulaError(f"Syntax error in formula: {e}") from e
 
     _validate_node(tree)
+
+    # Revue 2026-07-16 #5 : les noms `_*` sont réservés au moteur, qu'ils
+    # viennent de la formule elle-même ou du dictionnaire de variables
+    # (une entrée `_safe_pow` masquerait la fonction de bornage dans les
+    # locals d'eval). Contrôlé AVANT le transformer, qui injecte lui-même
+    # un ast.Name `_safe_pow` légitime.
+    _reject_reserved_names(
+        node.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id not in _ALLOWED_FUNCTIONS
+    )
+    _reject_reserved_names(variables.keys())
 
     # S-13a : transforme `**` en appel borné `_safe_pow` avant compilation.
     # Appliqué APRÈS la validation statique (qui rejette déjà tout appel
