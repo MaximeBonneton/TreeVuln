@@ -43,6 +43,24 @@ except ImportError:  # pragma: no cover - dépend de l'environnement
     _HAS_TESTCONTAINERS = False
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _encryption_key():
+    """
+    Initialise une clé de chiffrement pour toute la session de test.
+
+    En production c'est le lifespan FastAPI qui appelle set_encryption_key,
+    mais ASGITransport ne déclenche pas le lifespan : sans cette fixture,
+    tout chiffrement (clés API d'ingestion, secrets webhooks) lèverait
+    « Encryption key not initialized ».
+    """
+    from cryptography.fernet import Fernet
+
+    from app.crypto import set_encryption_key
+
+    set_encryption_key(Fernet.generate_key().decode())
+    yield
+
+
 def _to_async_url(sync_url: str) -> str:
     """Convertit l'URL testcontainers (psycopg2) en URL asyncpg."""
     return sync_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://").replace(
