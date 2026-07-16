@@ -9,3 +9,5 @@ export { authApi } from './auth';
 export type { AuthUser, AuthStatus } from './auth';
 export { usersApi } from './users';
 export type { UserResponse } from './users';
+export { settingsApi } from './settings';
+export type { CsafSettings, CsafPublisher, CsafSettingsUpdate } from './settings';

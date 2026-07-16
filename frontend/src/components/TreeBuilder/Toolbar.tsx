@@ -1,4 +1,5 @@
-import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid, Image } from 'lucide-react';
+import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid, Image, FileBadge } from 'lucide-react';
+import { CsafConfigDialog } from '@/components/dialogs/CsafConfigDialog';
 import { useTreeStore } from '@/stores/treeStore';
 import { treeApi } from '@/api';
 import { useState } from 'react';
@@ -32,6 +33,7 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
 
   const [saveComment, setSaveComment] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showCsafDialog, setShowCsafDialog] = useState(false);
 
   // F-1 : recharge l'arbre COURANT (loadTree() sans argument charge l'arbre
   // par défaut) et demande confirmation si des changements seraient perdus.
@@ -247,6 +249,18 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
             )}
           </button>
 
+          {isAdminUser() && (
+            <button
+              onClick={() => setShowCsafDialog(true)}
+              className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              title="CSAF configuration"
+              aria-label="CSAF configuration"
+            >
+              <FileBadge size={18} />
+              <span className="text-sm font-medium">CSAF</span>
+            </button>
+          )}
+
           <button
             onClick={onTest}
             className="flex items-center gap-2 px-3 py-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md"
@@ -276,6 +290,9 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
           )}
         </div>
       </div>
+
+      {/* CSAF configuration dialog (admin) */}
+      {showCsafDialog && <CsafConfigDialog onClose={() => setShowCsafDialog(false)} />}
 
       {/* Save dialog */}
       {showSaveDialog && (
