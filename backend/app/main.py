@@ -12,6 +12,8 @@ from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.api import api_router
 from app.config import settings
@@ -58,34 +60,63 @@ async def run_migrations() -> None:
     """
     Applique les migrations Alembic au démarrage (B-14, remplace create_all).
 
-    Cas particulier des bases legacy (créées par init_db.sql ou par
-    l'ancien create_all, sans historique Alembic) : le schéma existe déjà,
-    donc `upgrade head` échouerait sur la baseline (tables déjà présentes).
+    Privilèges : les migrations créent/altèrent le schéma (dont la table
+    alembic_version) et utilisent donc un rôle privilégié
+    (settings.migration_database_url) — le rôle applicatif (database_url) est
+    restreint au DML et n'a pas le droit de CREATE. env.py sélectionne l'URL.
+
+    Concurrence : avec plusieurs workers uvicorn, run_migrations tourne une
+    fois par worker. Un verrou consultatif PostgreSQL (pg_advisory_lock)
+    sérialise ces exécutions : le premier worker migre, les suivants
+    attendent puis constatent que la base est déjà à head (upgrade = no-op).
+
+    Cas des bases legacy (créées par init_db.sql sans historique Alembic) :
+    le schéma existe déjà, donc `upgrade head` échouerait sur la baseline.
     On détecte ce cas (table trees présente, alembic_version absente) et on
     stampe la baseline 0001 avant d'appliquer les migrations suivantes.
 
     Les commandes Alembic sont synchrones (env.py utilise asyncio.run) :
-    elles doivent s'exécuter hors de la boucle d'événements, d'où
-    asyncio.to_thread.
+    elles s'exécutent hors de la boucle d'événements via asyncio.to_thread.
     """
     from alembic import command
     from alembic.config import Config
 
-    async with engine.connect() as conn:
-        has_alembic = (
-            await conn.execute(text("SELECT to_regclass('public.alembic_version')"))
-        ).scalar() is not None
-        has_trees = (
-            await conn.execute(text("SELECT to_regclass('public.trees')"))
-        ).scalar() is not None
+    # Clé arbitraire mais stable pour le verrou consultatif ("TVLN").
+    _MIGRATION_LOCK_KEY = 0x54564C4E
 
-    cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
-    if has_trees and not has_alembic:
-        logger.info(
-            "Base existante sans historique Alembic détectée : stamp de la baseline 0001."
-        )
-        await asyncio.to_thread(command.stamp, cfg, "0001")
-    await asyncio.to_thread(command.upgrade, cfg, "head")
+    # Connexion privilégiée dédiée aux migrations (schéma). En dev mono-rôle,
+    # migration_database_url est vide -> on réutilise l'engine applicatif.
+    migration_url = settings.migration_database_url or settings.database_url
+    mig_engine = create_async_engine(migration_url, poolclass=NullPool)
+    try:
+        async with mig_engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            # Sérialise les workers concurrents avant toute opération de schéma.
+            await conn.execute(
+                text("SELECT pg_advisory_lock(:k)"), {"k": _MIGRATION_LOCK_KEY}
+            )
+            try:
+                has_alembic = (
+                    await conn.execute(text("SELECT to_regclass('public.alembic_version')"))
+                ).scalar() is not None
+                has_trees = (
+                    await conn.execute(text("SELECT to_regclass('public.trees')"))
+                ).scalar() is not None
+
+                cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+                if has_trees and not has_alembic:
+                    logger.info(
+                        "Base existante sans historique Alembic détectée : "
+                        "stamp de la baseline 0001."
+                    )
+                    await asyncio.to_thread(command.stamp, cfg, "0001")
+                await asyncio.to_thread(command.upgrade, cfg, "head")
+            finally:
+                await conn.execute(
+                    text("SELECT pg_advisory_unlock(:k)"), {"k": _MIGRATION_LOCK_KEY}
+                )
+    finally:
+        await mig_engine.dispose()
 
 
 @asynccontextmanager

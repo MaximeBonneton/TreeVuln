@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # Database
     database_url: str = ""
 
+    # URL de connexion réservée à la gestion de schéma (migrations Alembic).
+    # Le rôle applicatif (database_url) est volontairement restreint au DML
+    # (pas de CREATE/ALTER) : les migrations doivent donc utiliser un rôle
+    # privilégié (superuser). Si vide, on retombe sur database_url (utile en
+    # dev où un seul rôle gère tout).
+    migration_database_url: str = ""
+
     # CORS — accepte JSON array ou CSV
     allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
