@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
 # Copy application code
 COPY app/ app/
 
+# Copy Alembic migrations (appliquées au démarrage, cf. app/main.py)
+COPY alembic.ini ./
+COPY alembic/ alembic/
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

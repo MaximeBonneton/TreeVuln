@@ -2,14 +2,16 @@
 Main entry point for the TreeVuln API.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api import api_router
 from app.config import settings
@@ -21,14 +23,46 @@ from app.models.user import EncryptionKey
 logger = logging.getLogger(__name__)
 
 
+async def run_migrations() -> None:
+    """
+    Applique les migrations Alembic au démarrage (B-14, remplace create_all).
+
+    Cas particulier des bases legacy (créées par init_db.sql ou par
+    l'ancien create_all, sans historique Alembic) : le schéma existe déjà,
+    donc `upgrade head` échouerait sur la baseline (tables déjà présentes).
+    On détecte ce cas (table trees présente, alembic_version absente) et on
+    stampe la baseline 0001 avant d'appliquer les migrations suivantes.
+
+    Les commandes Alembic sont synchrones (env.py utilise asyncio.run) :
+    elles doivent s'exécuter hors de la boucle d'événements, d'où
+    asyncio.to_thread.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    async with engine.connect() as conn:
+        has_alembic = (
+            await conn.execute(text("SELECT to_regclass('public.alembic_version')"))
+        ).scalar() is not None
+        has_trees = (
+            await conn.execute(text("SELECT to_regclass('public.trees')"))
+        ).scalar() is not None
+
+    cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    if has_trees and not has_alembic:
+        logger.info(
+            "Base existante sans historique Alembic détectée : stamp de la baseline 0001."
+        )
+        await asyncio.to_thread(command.stamp, cfg, "0001")
+    await asyncio.to_thread(command.upgrade, cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifecycle management."""
     # Startup
-    # Note: In production, use Alembic for migrations
-    from app.database import Base
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # B-14 : le schéma est géré par Alembic (baseline + migrations).
+    await run_migrations()
 
     # Initialize encryption key
     # Priority: SECRET_KEY env var > existing DB key > auto-generate (with warning)
