@@ -204,6 +204,60 @@ class TestEvaluateBatch:
         assert data["total"] == 0
 
 
+class TestEvaluateBatchErrorIsolation:
+    """B-12: une ligne invalide (JSON ou CSV) ne fait pas échouer tout le batch."""
+
+    @pytest.mark.asyncio
+    async def test_evaluate_batch_json_isolates_invalid_rows(self, client: AsyncClient):
+        """Batch JSON de 3 lignes (1 bonne, 2 invalides) -> 200, pas de 500."""
+        response = await client.post(
+            "/api/v1/evaluate",
+            json={
+                "vulnerabilities": [
+                    {"id": "v1", "cvss_score": 9.5},
+                    {"id": "v2", "cvss_score": 11},  # hors [0, 10]
+                    {"id": "v3", "cvss_score": "N/A"},  # non convertible
+                ],
+                "include_path": False,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 3
+        assert data["success_count"] == 1
+        assert data["error_count"] == 2
+
+        decisions = [r["decision"] for r in data["results"]]
+        assert decisions == ["Act", "Error", "Error"]
+        assert data["results"][1]["vuln_id"] == "v2"
+        assert data["results"][1]["error"] is not None
+        assert data["results"][2]["vuln_id"] == "v3"
+        assert data["results"][2]["error"] is not None
+
+    @pytest.mark.asyncio
+    async def test_evaluate_csv_isolates_invalid_rows(self, client: AsyncClient):
+        """Batch CSV de 3 lignes (1 bonne, 2 invalides) -> 200, pas de 500."""
+        csv_content = "id,cvss_score\nv1,9.5\nv2,11\nv3,N/A\n"
+        response = await client.post(
+            "/api/v1/evaluate/csv",
+            files={"file": ("test.csv", csv_content, "text/csv")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 3
+        assert data["success_count"] == 1
+        assert data["error_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_evaluate_csv_malformed_returns_400(self, client: AsyncClient):
+        """CSV totalement illisible -> 400 (pas 500)."""
+        response = await client.post(
+            "/api/v1/evaluate/csv",
+            files={"file": ("test.csv", b"", "text/csv")},
+        )
+        assert response.status_code == 400
+
+
 class TestEvaluateNoTree:
     """Tests when no tree is configured."""
 

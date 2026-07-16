@@ -2,6 +2,8 @@
 Tests for batch processing.
 """
 
+from typing import Any
+
 import pytest
 
 from app.engine.batch import BatchProcessor
@@ -98,6 +100,34 @@ class TestBatchProcessor:
         assert decisions["v2"] == "Attend"
         assert decisions["v3"] == "Track"
 
+    @pytest.mark.asyncio
+    async def test_process_batch_isolates_invalid_raw_rows(
+        self, simple_tree_structure: TreeStructure
+    ):
+        """B-12: une ligne brute invalide (dict) ne fait pas échouer tout le batch."""
+        processor = BatchProcessor(simple_tree_structure, chunk_size=10)
+
+        rows: list[dict[str, Any]] = [
+            {"id": "v1", "cvss_score": 9.5},  # OK -> Act
+            {"id": "v2", "cvss_score": 11},  # hors [0, 10] -> Error
+            {"id": "v3", "cvss_score": "N/A"},  # non convertible -> Error
+        ]
+
+        response = await processor.process_batch(rows)
+
+        assert response.total == 3
+        assert response.success_count == 1
+        assert response.error_count == 2
+
+        decisions = [r.decision for r in response.results]
+        assert decisions == ["Act", "Error", "Error"]
+
+        assert response.results[0].vuln_id == "v1"
+        assert response.results[1].vuln_id == "v2"
+        assert response.results[1].error is not None
+        assert response.results[2].vuln_id == "v3"
+        assert response.results[2].error is not None
+
 
 class TestBatchProcessorDataLoading:
     """Tests for data loading."""
@@ -127,3 +157,8 @@ v3,4.0,CVE-2024-0003"""
         assert len(df) == 3
         assert df["cvss_score"][0] == 9.0
         assert df["cve_id"][1] == "CVE-2024-0002"
+
+    def test_from_csv_malformed_raises_value_error(self):
+        """B-12: un CSV totalement illisible lève ValueError (et non une exception Polars brute)."""
+        with pytest.raises(ValueError):
+            BatchProcessor.from_csv(b"")

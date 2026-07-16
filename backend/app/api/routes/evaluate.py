@@ -24,7 +24,6 @@ from app.schemas.evaluation import (
     SingleEvaluationRequest,
 )
 from app.schemas.tree import TreeStructure
-from app.schemas.vulnerability import VulnerabilityInput
 from app.services.webhook_dispatch import schedule_webhook_dispatch
 
 router = APIRouter()
@@ -172,10 +171,10 @@ async def evaluate_batch(
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Extract all asset_ids for lookup
+    # Extract all asset_ids for lookup (lignes brutes non encore validées, B-12)
     asset_ids = [
-        v.asset_id for v in request.vulnerabilities
-        if v.asset_id is not None
+        v["asset_id"] for v in request.vulnerabilities
+        if v.get("asset_id") is not None
     ]
 
     # Prepare lookups (filtered by tree)
@@ -233,8 +232,14 @@ async def evaluate_csv(
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Parse CSV with Polars
-    df = BatchProcessor.from_csv(content)
+    # Parse CSV with Polars (B-12: fichier illisible -> 400, pas 500)
+    try:
+        df = BatchProcessor.from_csv(content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
     if len(df) > settings.max_batch_size:
         raise HTTPException(
@@ -242,21 +247,20 @@ async def evaluate_csv(
             detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
-    # Convert to list of VulnerabilityInput
-    vulnerabilities = []
-    for row in df.iter_rows(named=True):
-        vuln = _row_to_vuln(row)
-        vulnerabilities.append(vuln)
+    # B-12: on garde les lignes brutes ; la conversion + validation est
+    # isolée par ligne dans BatchProcessor.process_batch (exécuté hors
+    # event loop via asyncio.to_thread, cf. B-13).
+    rows = list(df.iter_rows(named=True))
 
     # Prepare lookups (filtered by tree)
-    asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+    asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
     if "assets" in processor.engine.get_lookup_tables():
         lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
 
     response = await processor.process_batch(
-        vulnerabilities,
+        rows,
         lookups,
         include_path,
     )
@@ -309,22 +313,29 @@ async def evaluate_preview_csv(
             detail=f"Invalid tree structure: {e}",
         )
 
-    df = BatchProcessor.from_csv(content)
+    try:
+        df = BatchProcessor.from_csv(content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
     if len(df) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
-    vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
+    # B-12: lignes brutes, conversion/validation isolée dans process_batch
+    rows = list(df.iter_rows(named=True))
 
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
     if tree_id and "assets" in processor.engine.get_lookup_tables():
-        asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+        asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
         lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
 
-    return await processor.process_batch(vulnerabilities, lookups, include_path)
+    return await processor.process_batch(rows, lookups, include_path)
 
 
 @router.post("/preview/export/csv")
@@ -358,22 +369,29 @@ async def export_preview_csv(
             detail=f"Invalid tree structure: {e}",
         )
 
-    df = BatchProcessor.from_csv(content)
+    try:
+        df = BatchProcessor.from_csv(content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
     if len(df) > settings.max_batch_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
-    vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
+    # B-12: lignes brutes, conversion/validation isolée dans process_batch
+    rows = list(df.iter_rows(named=True))
 
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
     if tree_id and "assets" in processor.engine.get_lookup_tables():
-        asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+        asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
         lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
 
-    response = await processor.process_batch(vulnerabilities, lookups, True)
+    response = await processor.process_batch(rows, lookups, True)
 
     return _build_export_response(response, format)
 
@@ -433,7 +451,7 @@ async def export_batch(
 
     structure = tree_service.get_tree_structure(tree)
 
-    asset_ids = [v.asset_id for v in request.vulnerabilities if v.asset_id is not None]
+    asset_ids = [v["asset_id"] for v in request.vulnerabilities if v.get("asset_id") is not None]
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
     if "assets" in processor.engine.get_lookup_tables():
@@ -475,7 +493,13 @@ async def export_csv_file(
         )
 
     structure = tree_service.get_tree_structure(tree)
-    df = BatchProcessor.from_csv(content)
+    try:
+        df = BatchProcessor.from_csv(content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
     if len(df) > settings.max_batch_size:
         raise HTTPException(
@@ -483,15 +507,16 @@ async def export_csv_file(
             detail=f"File too large ({len(df)} rows). Maximum: {settings.max_batch_size}",
         )
 
-    vulnerabilities = [_row_to_vuln(row) for row in df.iter_rows(named=True)]
+    # B-12: lignes brutes, conversion/validation isolée dans process_batch
+    rows = list(df.iter_rows(named=True))
 
-    asset_ids = [v.asset_id for v in vulnerabilities if v.asset_id]
+    asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
     lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
     if "assets" in processor.engine.get_lookup_tables():
         lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
 
-    response = await processor.process_batch(vulnerabilities, lookups, True)
+    response = await processor.process_batch(rows, lookups, True)
 
     return _build_export_response(response, format, tree.name)
 
@@ -573,10 +598,10 @@ async def evaluate_batch_by_slug(
 
     structure = tree_service.get_tree_structure(tree)
 
-    # Extract all asset_ids for lookup
+    # Extract all asset_ids for lookup (lignes brutes non encore validées, B-12)
     asset_ids = [
-        v.asset_id for v in request.vulnerabilities
-        if v.asset_id is not None
+        v["asset_id"] for v in request.vulnerabilities
+        if v.get("asset_id") is not None
     ]
 
     # Prepare lookups (filtered by tree)
@@ -602,15 +627,3 @@ async def evaluate_batch_by_slug(
     schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
     return response
-
-
-def _row_to_vuln(row: dict[str, Any]) -> VulnerabilityInput:
-    """Convert a DataFrame row to VulnerabilityInput."""
-    standard_fields = {
-        "id", "cve_id", "cvss_score", "cvss_vector",
-        "epss_score", "epss_percentile", "kev",
-        "asset_id", "hostname", "ip_address",
-    }
-    standard_data = {k: v for k, v in row.items() if k in standard_fields}
-    extra_data = {k: v for k, v in row.items() if k not in standard_fields}
-    return VulnerabilityInput(**standard_data, extra=extra_data)

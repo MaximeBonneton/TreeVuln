@@ -55,10 +55,16 @@ class SingleEvaluationRequest(BaseModel):
 class EvaluationRequest(BaseModel):
     """
     Request to evaluate a batch of vulnerabilities.
+
+    Les entrées sont volontairement non typées (dict brut) : la conversion
+    en VulnerabilityInput et sa validation se font ligne par ligne côté
+    moteur (BatchProcessor), afin qu'une ligne invalide ne fasse pas
+    échouer tout le batch (B-12) — elle produit un EvaluationResult
+    "Error" au lieu de rejeter la requête entière.
     """
 
-    vulnerabilities: list[VulnerabilityInput] = Field(
-        description="List of vulnerabilities to evaluate",
+    vulnerabilities: list[dict[str, Any]] = Field(
+        description="List of vulnerabilities to evaluate (raw fields)",
     )
     include_path: bool = Field(
         default=True,
