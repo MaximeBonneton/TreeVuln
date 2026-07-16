@@ -4,8 +4,10 @@ Tests for outbound webhooks.
 - HMAC-SHA256 signature
 - Payload construction
 - Non-blocking dispatch (errors captured)
+- Fire-and-forget task reference retention (C-6)
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -300,3 +302,51 @@ class TestWebhookTestResult:
         )
         assert result.success is False
         assert result.status_code is None
+
+
+# --- C-6: background task reference retention ---
+
+
+class TestScheduleWebhookDispatchTaskRetention:
+    """schedule_webhook_dispatch() must keep a strong reference to the task
+    until it completes, otherwise CPython's asyncio can garbage-collect it
+    mid-flight (only a weak reference is held internally)."""
+
+    @pytest.mark.asyncio
+    async def test_task_is_retained_while_running_and_discarded_after(self):
+        """The task must be present in _background_tasks while running,
+        then removed once it completes (via the done callback)."""
+        from app.services import webhook_dispatch
+
+        release = asyncio.Event()
+
+        async def fake_dispatch(tree_id, event, payload):
+            # Bloque jusqu'à ce que le test autorise la fin de la task
+            await release.wait()
+
+        with patch.object(webhook_dispatch, "dispatch_webhooks", side_effect=fake_dispatch):
+            task = webhook_dispatch.schedule_webhook_dispatch(
+                1, "on_act", {"test": True}
+            )
+
+            # Laisse la task démarrer et acquérir le sémaphore
+            await asyncio.sleep(0)
+            assert task in webhook_dispatch._background_tasks
+
+            release.set()
+            await task
+
+            assert task not in webhook_dispatch._background_tasks
+
+    @pytest.mark.asyncio
+    async def test_returns_the_created_task(self):
+        """schedule_webhook_dispatch must still return the asyncio.Task."""
+        from app.services import webhook_dispatch
+
+        with patch.object(webhook_dispatch, "dispatch_webhooks", new=AsyncMock()):
+            task = webhook_dispatch.schedule_webhook_dispatch(
+                1, "on_act", {"test": True}
+            )
+            assert isinstance(task, asyncio.Task)
+            await task
+

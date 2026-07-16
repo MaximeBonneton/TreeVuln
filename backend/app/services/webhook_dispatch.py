@@ -27,6 +27,12 @@ RETRY_DELAYS = [1, 5, 15]  # seconds between retries
 _MAX_CONCURRENT_DISPATCHES = 20
 _semaphore = asyncio.Semaphore(_MAX_CONCURRENT_DISPATCHES)
 
+# CPython ne garde qu'une référence FAIBLE aux tasks créées par create_task.
+# Sans référence forte conservée ailleurs, une task peut être garbage-collectée
+# en plein vol (webhook perdu aléatoirement). On conserve donc une référence
+# forte ici jusqu'à la fin de la task (retirée via le done_callback).
+_background_tasks: set[asyncio.Task[None]] = set()
+
 
 def schedule_webhook_dispatch(
     tree_id: int,
@@ -37,8 +43,13 @@ def schedule_webhook_dispatch(
 
     Replaces direct usage of asyncio.create_task(dispatch_webhooks(...)).
     The semaphore limits to _MAX_CONCURRENT_DISPATCHES simultaneous tasks.
+    La task est référencée dans _background_tasks pour éviter qu'elle soit
+    garbage-collectée avant la fin de son exécution.
     """
-    return asyncio.create_task(_bounded_dispatch(tree_id, event, payload))
+    task = asyncio.create_task(_bounded_dispatch(tree_id, event, payload))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
 
 
 async def _bounded_dispatch(
