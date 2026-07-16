@@ -121,7 +121,12 @@ class InferenceEngine:
                 # B-12(c): toute exception inattendue (pas seulement
                 # NodeEvaluationError) doit être convertie en résultat
                 # d'erreur métier, jamais remonter en 500 non géré.
-                logger.warning("Node %s evaluation failed: %s", current_node_id, e)
+                # exc_info=True : conserve la stack trace pour distinguer un
+                # vrai bug de programmation (à corriger) d'une erreur métier
+                # attendue, sans quoi elle est avalée silencieusement.
+                logger.warning(
+                    "Node %s evaluation failed: %s", current_node_id, e, exc_info=True
+                )
                 return EvaluationResult(
                     vuln_id=vuln_id,
                     decision="Error",
