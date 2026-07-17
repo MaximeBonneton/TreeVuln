@@ -1,0 +1,10 @@
+cve_id,asset_id,analysis_done,component_present,code_in_execute_path,fix_deployed,kev,epss_score
+CVE-2025-0001,srv-vex-001,true,true,true,false,true,0.9
+CVE-2025-0002,srv-vex-001,true,true,true,false,false,0.45
+CVE-2025-0003,srv-vex-002,true,true,true,false,false,0.03
+CVE-2025-0004,srv-vex-002,true,false,,,,
+CVE-2025-0005,srv-vex-001,true,true,false,,,
+CVE-2025-0006,srv-vex-003,true,true,true,true,,
+CVE-2025-0007,srv-vex-003,false,,,,,
+CVE-2025-0008,srv-inconnu,true,true,true,false,true,0.8
+GHSA-abcd-1234,srv-vex-001,true,true,true,false,true,0.8

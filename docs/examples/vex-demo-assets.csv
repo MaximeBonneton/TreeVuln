@@ -1,0 +1,4 @@
+asset_id,name,criticality
+srv-vex-001,Demo Web Server,Critical
+srv-vex-002,Demo API Gateway,High
+srv-vex-003,Demo Batch Worker,Medium

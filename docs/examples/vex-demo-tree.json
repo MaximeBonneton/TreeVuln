@@ -1,0 +1,181 @@
+{
+  "format": "treevuln-decision-tree",
+  "version": 1,
+  "exported_at": "2026-07-17T08:00:00Z",
+  "tree": {
+    "name": "VEX Demo - Product Impact Assessment",
+    "description": "Arbre de démonstration VEX : évalue si un produit est réellement affecté par une CVE (analyse faite ? composant présent ? code atteignable ? correctif déployé ? exploitation active ?) et mappe chaque sortie sur un statut CSAF VEX normalisé. À utiliser avec docs/examples/vex-demo-vulns.csv et vex-demo-assets.csv.",
+    "structure": {
+      "nodes": [
+        {
+          "id": "n-analysis",
+          "type": "input",
+          "label": "Analysis done?",
+          "position": { "x": 0, "y": 320 },
+          "config": { "field": "analysis_done" },
+          "conditions": [
+            { "label": "Yes", "operator": "eq", "value": true },
+            { "label": "No / unknown", "operator": "neq", "value": true }
+          ]
+        },
+        {
+          "id": "n-present",
+          "type": "input",
+          "label": "Component present?",
+          "position": { "x": 280, "y": 240 },
+          "config": { "field": "component_present" },
+          "conditions": [
+            { "label": "Present", "operator": "eq", "value": true },
+            { "label": "Absent", "operator": "neq", "value": true }
+          ]
+        },
+        {
+          "id": "n-reach",
+          "type": "input",
+          "label": "Code in execute path?",
+          "position": { "x": 560, "y": 160 },
+          "config": { "field": "code_in_execute_path" },
+          "conditions": [
+            { "label": "Reachable", "operator": "eq", "value": true },
+            { "label": "Not reachable", "operator": "neq", "value": true }
+          ]
+        },
+        {
+          "id": "n-fixed",
+          "type": "input",
+          "label": "Fix deployed?",
+          "position": { "x": 840, "y": 80 },
+          "config": { "field": "fix_deployed" },
+          "conditions": [
+            { "label": "Deployed", "operator": "eq", "value": true },
+            { "label": "Not deployed", "operator": "neq", "value": true }
+          ]
+        },
+        {
+          "id": "n-kev",
+          "type": "input",
+          "label": "Known exploited (KEV)?",
+          "position": { "x": 1120, "y": 160 },
+          "config": { "field": "kev" },
+          "conditions": [
+            { "label": "In KEV", "operator": "eq", "value": true },
+            { "label": "Not in KEV", "operator": "neq", "value": true }
+          ]
+        },
+        {
+          "id": "n-epss",
+          "type": "input",
+          "label": "EPSS score",
+          "position": { "x": 1400, "y": 240 },
+          "config": { "field": "epss_score" },
+          "conditions": [
+            { "label": "Automatable (>= 0.2)", "operator": "gte", "value": 0.2 },
+            { "label": "Low probability (< 0.2)", "operator": "lt", "value": 0.2 }
+          ]
+        },
+        {
+          "id": "out-triage",
+          "type": "output",
+          "label": "In triage",
+          "position": { "x": 280, "y": 480 },
+          "config": {
+            "decision": "Track",
+            "color": "#22c55e",
+            "vex_status": "under_investigation"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-na-absent",
+          "type": "output",
+          "label": "Not affected (absent)",
+          "position": { "x": 560, "y": 400 },
+          "config": {
+            "decision": "Track",
+            "color": "#22c55e",
+            "vex_status": "not_affected",
+            "vex_justification": "component_not_present"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-na-unreach",
+          "type": "output",
+          "label": "Not affected (unreachable)",
+          "position": { "x": 840, "y": 320 },
+          "config": {
+            "decision": "Track",
+            "color": "#22c55e",
+            "vex_status": "not_affected",
+            "vex_justification": "vulnerable_code_not_in_execute_path"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-fixed",
+          "type": "output",
+          "label": "Fixed",
+          "position": { "x": 1120, "y": 0 },
+          "config": {
+            "decision": "Track",
+            "color": "#22c55e",
+            "vex_status": "fixed"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-act",
+          "type": "output",
+          "label": "Act (exploited)",
+          "position": { "x": 1400, "y": 80 },
+          "config": {
+            "decision": "Act",
+            "color": "#dc2626",
+            "vex_status": "affected"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-attend",
+          "type": "output",
+          "label": "Attend (automatable)",
+          "position": { "x": 1680, "y": 160 },
+          "config": {
+            "decision": "Attend",
+            "color": "#f97316",
+            "vex_status": "affected"
+          },
+          "conditions": []
+        },
+        {
+          "id": "out-trackstar",
+          "type": "output",
+          "label": "Track* (affected, low risk)",
+          "position": { "x": 1680, "y": 320 },
+          "config": {
+            "decision": "Track*",
+            "color": "#eab308",
+            "vex_status": "affected"
+          },
+          "conditions": []
+        }
+      ],
+      "edges": [
+        { "id": "e-analysis-present", "source": "n-analysis", "target": "n-present", "source_handle": "handle-0", "target_handle": null, "label": "Yes" },
+        { "id": "e-analysis-triage", "source": "n-analysis", "target": "out-triage", "source_handle": "handle-1", "target_handle": null, "label": "No / unknown" },
+        { "id": "e-present-reach", "source": "n-present", "target": "n-reach", "source_handle": "handle-0", "target_handle": null, "label": "Present" },
+        { "id": "e-present-na", "source": "n-present", "target": "out-na-absent", "source_handle": "handle-1", "target_handle": null, "label": "Absent" },
+        { "id": "e-reach-fixed", "source": "n-reach", "target": "n-fixed", "source_handle": "handle-0", "target_handle": null, "label": "Reachable" },
+        { "id": "e-reach-na", "source": "n-reach", "target": "out-na-unreach", "source_handle": "handle-1", "target_handle": null, "label": "Not reachable" },
+        { "id": "e-fixed-out", "source": "n-fixed", "target": "out-fixed", "source_handle": "handle-0", "target_handle": null, "label": "Deployed" },
+        { "id": "e-fixed-kev", "source": "n-fixed", "target": "n-kev", "source_handle": "handle-1", "target_handle": null, "label": "Not deployed" },
+        { "id": "e-kev-act", "source": "n-kev", "target": "out-act", "source_handle": "handle-0", "target_handle": null, "label": "In KEV" },
+        { "id": "e-kev-epss", "source": "n-kev", "target": "n-epss", "source_handle": "handle-1", "target_handle": null, "label": "Not in KEV" },
+        { "id": "e-epss-attend", "source": "n-epss", "target": "out-attend", "source_handle": "handle-0", "target_handle": null, "label": "Automatable" },
+        { "id": "e-epss-track", "source": "n-epss", "target": "out-trackstar", "source_handle": "handle-1", "target_handle": null, "label": "Low probability" }
+      ],
+      "metadata": {}
+    },
+    "field_mapping": null
+  }
+}
