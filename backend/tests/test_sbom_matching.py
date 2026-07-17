@@ -99,6 +99,12 @@ class TestComputeSbomFields:
         fields = compute_sbom_fields({"purl": "pkg:npm/lodash@4.17.21"}, [])
         assert fields["sbom_component_present"] is False
 
+    def test_purl_non_parsable_sans_nom_donne_null(self):
+        # Identifiant inexploitable = information indisponible : tout null,
+        # jamais un faux « absent » (invariant VEX de la spec)
+        fields = compute_sbom_fields({"purl": "cpe:2.3:a:lodash:lodash"}, COMPONENTS)
+        assert all(fields[f] is None for f in SBOM_FIELDS)
+
 
 class TestIsSbomField:
     def test_champs_reconnus(self):

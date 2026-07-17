@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.engine.sbom import ParsedSbom
+from app.engine.sbom import ComponentIndex, ParsedSbom, build_component_index
 from app.models.asset import Asset
 from app.models.sbom import Sbom, SbomComponent
 
@@ -74,11 +74,14 @@ class SbomService:
 
     async def get_components_cache(
         self, tree_id: int, asset_ids: list[str] | None
-    ) -> dict[str, list[dict[str, Any]]]:
-        """Cache {asset_id métier: [composants]} pour le moteur d'inférence.
+    ) -> dict[str, ComponentIndex]:
+        """Cache {asset_id métier: ComponentIndex} pour le moteur d'inférence.
 
-        Un asset avec SBOM mais sans composant apparaît avec une liste vide
-        (réponse ferme False), un asset sans SBOM n'apparaît pas (None -> null).
+        Les composants sont pré-indexés une fois par asset (purls normalisés
+        + versions par nom) pour que le matching en engine soit O(1) par
+        vulnérabilité au lieu de re-normaliser chaque purl à chaque appel.
+        Un asset avec SBOM mais sans composant apparaît avec un ComponentIndex
+        vide (réponse ferme False), un asset sans SBOM n'apparaît pas (None -> null).
         """
         stmt = (
             select(Asset.asset_id, SbomComponent.purl, SbomComponent.name,
@@ -91,12 +94,15 @@ class SbomService:
             stmt = stmt.where(Asset.asset_id.in_(asset_ids))
         result = await self.db.execute(stmt)
 
-        cache: dict[str, list[dict[str, Any]]] = {}
+        raw: dict[str, list[dict[str, Any]]] = {}
         for business_id, purl, name, version in result:
-            bucket = cache.setdefault(business_id, [])
+            bucket = raw.setdefault(business_id, [])
             if name is not None:  # ligne du outer join sans composant
                 bucket.append({"purl": purl, "name": name, "version": version})
-        return cache
+        return {
+            business_id: build_component_index(components)
+            for business_id, components in raw.items()
+        }
 
     async def get_tree_summary(self, tree_id: int) -> list[dict[str, Any]]:
         """Assets de l'arbre ayant un SBOM (pour les badges de l'UI)."""

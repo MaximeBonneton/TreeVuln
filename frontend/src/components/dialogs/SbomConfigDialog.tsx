@@ -225,6 +225,13 @@ export function SbomConfigDialog({ treeId, treeName, onClose }: SbomConfigDialog
 
                 {detail ? (
                   <>
+                    {detail.components.length < detail.total_components && (
+                      <p className="mx-3 mt-3 text-sm text-amber-700 bg-amber-50 rounded p-2">
+                        Showing first {detail.components.length} of{' '}
+                        {detail.total_components} components — the filter only
+                        searches loaded components.
+                      </p>
+                    )}
                     <div className="p-3 border-b">
                       <div className="relative">
                         <Search

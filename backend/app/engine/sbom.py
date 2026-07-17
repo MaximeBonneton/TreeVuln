@@ -145,16 +145,43 @@ def _vuln_get(vuln: dict[str, Any], field: str) -> Any:
     return value
 
 
+@dataclass
+class ComponentIndex:
+    """Index de matching pré-calculé pour les composants d'un SBOM.
+
+    Construit une fois par asset (au chargement du cache) pour éviter de
+    re-normaliser chaque purl à chaque évaluation : le matching devient O(1)
+    par vulnérabilité au lieu de O(nb composants).
+    """
+
+    purls: set[str]                       # purls normalisés
+    versions_by_name: dict[str, list[str | None]]  # nom lowercase -> versions
+
+
+def build_component_index(components: list[dict]) -> ComponentIndex:
+    """Construit l'index de matching depuis les composants normalisés."""
+    purls: set[str] = set()
+    versions_by_name: dict[str, list[str | None]] = {}
+    for comp in components:
+        if comp.get("purl"):
+            purls.add(normalize_purl(str(comp["purl"])))
+        name_lc = str(comp.get("name") or "").strip().lower()
+        if name_lc:
+            versions_by_name.setdefault(name_lc, []).append(comp.get("version"))
+    return ComponentIndex(purls=purls, versions_by_name=versions_by_name)
+
+
 def compute_sbom_fields(
     vuln_fields: dict[str, Any],
-    components: list[dict] | None,
+    components: list[dict] | ComponentIndex | None,
 ) -> dict[str, Any]:
     """Calcule les 4 champs virtuels sbom_* pour une vulnérabilité.
 
     Args:
         vuln_fields: la vuln sérialisée (purl / component_name /
             component_version, en champ direct ou dans extra).
-        components: composants du SBOM de l'asset ; None = pas de SBOM
+        components: composants du SBOM de l'asset (liste brute ou
+            ComponentIndex déjà pré-calculé) ; None = pas de SBOM
             (tous les champs valent alors None — information indisponible,
             à distinguer d'un SBOM présent sans le composant -> False).
     """
@@ -162,17 +189,30 @@ def compute_sbom_fields(
     if components is None:
         return empty
 
+    # Rétrocompatibilité : une liste brute est indexée à la volée.
+    index = (
+        components
+        if isinstance(components, ComponentIndex)
+        else build_component_index(components)
+    )
+
     purl = _vuln_get(vuln_fields, "purl")
     name = _vuln_get(vuln_fields, "component_name")
     version = _vuln_get(vuln_fields, "component_version")
 
     # Sans component_name, le nom/version se déduisent du purl
+    purl_parsable = True
     if purl and (name is None or version is None):
         purl_name, purl_version = parse_purl(str(purl))
+        purl_parsable = purl_name is not None
         name = name if name is not None else purl_name
         version = version if version is not None else purl_version
 
+    # Identifiant inexploitable (purl non parsable et aucun nom fourni par
+    # ailleurs) = information indisponible : jamais un faux « absent ».
     if purl is None and name is None:
+        return empty
+    if purl and not purl_parsable and name is None:
         return empty
 
     present = False
@@ -180,17 +220,11 @@ def compute_sbom_fields(
 
     if purl:
         target = normalize_purl(str(purl))
-        for comp in components:
-            if comp.get("purl") and normalize_purl(str(comp["purl"])) == target:
-                present, match_type = True, "purl"
-                break
+        if target in index.purls:
+            present, match_type = True, "purl"
 
     name_lc = str(name).strip().lower() if name is not None else None
-    versions_for_name = [
-        comp.get("version")
-        for comp in components
-        if name_lc is not None and str(comp.get("name") or "").strip().lower() == name_lc
-    ]
+    versions_for_name = index.versions_by_name.get(name_lc, []) if name_lc is not None else []
     name_present: bool | None = bool(versions_for_name) if name_lc is not None else None
 
     if not present and name_lc is not None and version is not None:

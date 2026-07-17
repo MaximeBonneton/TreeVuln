@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { SbomConfigDialog } from '../SbomConfigDialog';
+import { sbomApi } from '@/api';
 
 vi.mock('@/api', () => ({
   assetsApi: {
@@ -52,5 +53,35 @@ describe('SbomConfigDialog', () => {
       expect(screen.getByText(/SBOM/, { selector: 'h2' })).toBeInTheDocument()
     );
     expect(screen.getByText(/Mon arbre/)).toBeInTheDocument();
+  });
+
+  it('affiche un bandeau d’avertissement si des composants ne sont pas chargés', async () => {
+    vi.mocked(sbomApi.getSbom).mockResolvedValue({
+      format: 'cyclonedx',
+      spec_version: '1.5',
+      filename: 'sbom.json',
+      component_count: 1500,
+      imported_at: '2026-07-17T10:00:00Z',
+      warnings: [],
+      total_components: 1500,
+      components: [
+        { purl: 'pkg:npm/lodash@4.17.21', name: 'lodash', version: '4.17.21',
+          component_type: 'library' },
+        { purl: 'pkg:npm/left-pad@1.3.0', name: 'left-pad', version: '1.3.0',
+          component_type: 'library' },
+      ],
+    });
+
+    render(
+      <SbomConfigDialog treeId={1} treeName="Test" onClose={vi.fn()} />
+    );
+    await waitFor(() => expect(screen.getByText('srv-001')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('srv-001'));
+
+    await waitFor(() => expect(sbomApi.getSbom).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText(/Showing first/)).toBeInTheDocument()
+    );
   });
 });
