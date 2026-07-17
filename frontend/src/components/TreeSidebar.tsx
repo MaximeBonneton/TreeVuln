@@ -17,6 +17,7 @@ import {
   LogOut,
   KeyRound,
   Users,
+  Package,
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -32,9 +33,10 @@ interface TreeSidebarProps {
   onOpenAssetImport?: () => void;
   onOpenWebhookConfig?: () => void;
   onOpenIngestConfig?: () => void;
+  onOpenSbomConfig?: () => void;
 }
 
-export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetImport, onOpenWebhookConfig, onOpenIngestConfig }: TreeSidebarProps) {
+export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetImport, onOpenWebhookConfig, onOpenIngestConfig, onOpenSbomConfig }: TreeSidebarProps) {
   const {
     trees,
     treeId,
@@ -265,6 +267,15 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                         title="Import assets"
                       >
                         <Upload size={16} className="text-gray-500" />
+                      </button>
+                    )}
+                    {onOpenSbomConfig && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenSbomConfig(); }}
+                        className="p-1.5 hover:bg-purple-50 rounded-md"
+                        title="SBOM"
+                      >
+                        <Package size={16} className="text-gray-500" />
                       </button>
                     )}
                     {onOpenWebhookConfig && (

@@ -11,3 +11,5 @@ export { usersApi } from './users';
 export type { UserResponse } from './users';
 export { settingsApi } from './settings';
 export type { CsafSettings, CsafPublisher, CsafSettingsUpdate } from './settings';
+export { sbomApi } from './sbom';
+export type { SbomMeta, SbomDetail, SbomComponent, SbomSummaryItem } from './sbom';
