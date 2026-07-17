@@ -7,6 +7,9 @@ Module pur, sans I/O (même philosophie que app/engine/cvss.py) :
 """
 import json
 from dataclasses import dataclass, field
+from typing import Any
+
+from app.schemas.field_mapping import FieldDefinition, FieldType
 
 
 @dataclass
@@ -92,3 +95,151 @@ def _parse_spdx(data: dict) -> ParsedSbom:
         components=components,
         warnings=warnings,
     )
+
+
+# Champs virtuels exposés aux arbres (calculés à l'évaluation)
+SBOM_FIELDS: tuple[str, ...] = (
+    "sbom_component_present",
+    "sbom_name_present",
+    "sbom_component_version",
+    "sbom_match_type",
+)
+
+
+def is_sbom_field(field: str) -> bool:
+    """Le champ est-il un champ virtuel SBOM ?"""
+    return field in SBOM_FIELDS
+
+
+def parse_purl(purl: str) -> tuple[str | None, str | None]:
+    """Extrait (name, version) d'un purl. (None, None) si non parsable.
+
+    Format : pkg:type/namespace/name@version?qualifiers#subpath
+    """
+    if not purl.startswith("pkg:"):
+        return None, None
+    body = purl[4:].split("#", 1)[0].split("?", 1)[0]
+    version: str | None = None
+    if "@" in body:
+        body, version = body.rsplit("@", 1)
+    name = body.rstrip("/").rsplit("/", 1)[-1]
+    return (name or None), (version or None)
+
+
+def normalize_purl(purl: str) -> str:
+    """Forme canonique pour comparaison : sans qualifiers/subpath,
+    tout en minuscules sauf la version (sensible à la casse)."""
+    base = purl.strip().split("#", 1)[0].split("?", 1)[0]
+    if "@" in base:
+        head, version = base.rsplit("@", 1)
+        return f"{head.lower()}@{version}"
+    return base.lower()
+
+
+def _vuln_get(vuln: dict[str, Any], field: str) -> Any:
+    """Lit un champ de la vuln (champs standards puis extra)."""
+    value = vuln.get(field)
+    if value is None:
+        extra = vuln.get("extra") or {}
+        value = extra.get(field)
+    return value
+
+
+def compute_sbom_fields(
+    vuln_fields: dict[str, Any],
+    components: list[dict] | None,
+) -> dict[str, Any]:
+    """Calcule les 4 champs virtuels sbom_* pour une vulnérabilité.
+
+    Args:
+        vuln_fields: la vuln sérialisée (purl / component_name /
+            component_version, en champ direct ou dans extra).
+        components: composants du SBOM de l'asset ; None = pas de SBOM
+            (tous les champs valent alors None — information indisponible,
+            à distinguer d'un SBOM présent sans le composant -> False).
+    """
+    empty: dict[str, Any] = {f: None for f in SBOM_FIELDS}
+    if components is None:
+        return empty
+
+    purl = _vuln_get(vuln_fields, "purl")
+    name = _vuln_get(vuln_fields, "component_name")
+    version = _vuln_get(vuln_fields, "component_version")
+
+    # Sans component_name, le nom/version se déduisent du purl
+    if purl and (name is None or version is None):
+        purl_name, purl_version = parse_purl(str(purl))
+        name = name if name is not None else purl_name
+        version = version if version is not None else purl_version
+
+    if purl is None and name is None:
+        return empty
+
+    present = False
+    match_type = "none"
+
+    if purl:
+        target = normalize_purl(str(purl))
+        for comp in components:
+            if comp.get("purl") and normalize_purl(str(comp["purl"])) == target:
+                present, match_type = True, "purl"
+                break
+
+    name_lc = str(name).strip().lower() if name is not None else None
+    versions_for_name = [
+        comp.get("version")
+        for comp in components
+        if name_lc is not None and str(comp.get("name") or "").strip().lower() == name_lc
+    ]
+    name_present: bool | None = bool(versions_for_name) if name_lc is not None else None
+
+    if not present and name_lc is not None and version is not None:
+        if any(v == str(version) for v in versions_for_name if v is not None):
+            present, match_type = True, "name_version"
+
+    versions_str = ", ".join(sorted({str(v) for v in versions_for_name if v})) or None
+
+    return {
+        "sbom_component_present": present,
+        "sbom_name_present": name_present,
+        "sbom_component_version": versions_str,
+        "sbom_match_type": match_type,
+    }
+
+
+def get_sbom_field_definitions() -> list[FieldDefinition]:
+    """Définitions des champs virtuels SBOM pour l'UI de field mapping."""
+    return [
+        FieldDefinition(
+            name="sbom_component_present",
+            label="SBOM: Component Present",
+            type=FieldType.BOOLEAN,
+            description="Le composant (purl ou nom+version) est présent dans "
+            "le SBOM de l'asset. Null si pas de SBOM ou pas "
+            "d'identifiant de composant.",
+            examples=[True, False],
+        ),
+        FieldDefinition(
+            name="sbom_name_present",
+            label="SBOM: Name Present (any version)",
+            type=FieldType.BOOLEAN,
+            description="Le nom du composant existe dans le SBOM, toute "
+            "version confondue.",
+            examples=[True, False],
+        ),
+        FieldDefinition(
+            name="sbom_component_version",
+            label="SBOM: Version(s) in SBOM",
+            type=FieldType.STRING,
+            description="Version(s) du composant trouvées dans le SBOM "
+            "(jointes par des virgules).",
+            examples=["4.17.21"],
+        ),
+        FieldDefinition(
+            name="sbom_match_type",
+            label="SBOM: Match Type",
+            type=FieldType.STRING,
+            description="Mode de correspondance : purl, name_version ou none.",
+            examples=["purl", "name_version", "none"],
+        ),
+    ]
