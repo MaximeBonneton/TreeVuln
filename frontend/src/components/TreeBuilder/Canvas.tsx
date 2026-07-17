@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -37,11 +37,25 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
   } = useTreeStore();
 
   const isAdminUser = useTreeStore((s) => s.isAdmin());
+  const treeId = useTreeStore((s) => s.treeId);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onInit = useCallback((instance: any) => {
     reactFlowInstance.current = instance;
   }, []);
+
+  // À l'arrivée sur un arbre (sélection dans la sidebar, import...), recentre
+  // la vue sur l'ensemble des nœuds. Le prop fitView de ReactFlow ne joue
+  // qu'au montage initial : sans cet effet, changer d'arbre conserve le
+  // viewport de l'arbre précédent. rAF laisse ReactFlow mesurer les nouveaux
+  // nœuds avant le cadrage.
+  useEffect(() => {
+    if (treeId === null) return;
+    const frame = requestAnimationFrame(() => {
+      reactFlowInstance.current?.fitView({ padding: 0.15, duration: 300 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [treeId]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
