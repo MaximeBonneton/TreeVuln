@@ -88,12 +88,18 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 - **Inbound webhooks**: real-time ingestion with field mapping and API key
 - **Import/Export**: assets in CSV/JSON, results with audit trail
 
+### Compliance & Reporting
+
+- **CSAF 2.0 VEX export**: turn batch results into a standard CSAF document (validated against the official OASIS schema), with VEX statuses and justifications mapped on output nodes
+- **Justified decisions**: each VEX statement embeds the full TreeVuln decision path as evidence
+- **OpenPGP signing**: detached signature plus SHA-256/512 checksums, delivered as a ZIP bundle ready for regulators and coordinators (CRA, ENISA reporting ecosystem)
+
 ## Use Cases
 
 | Domain | Example | Typical Decisions |
 |--------|---------|-------------------|
 | **Vulnerabilities** | Prioritization based on KEV, EPSS, CVSS, and asset criticality | Act, Attend, Track |
-| **VEX** | Actual exploitability of a CVE in the product context | Not Affected, Exploitable, In Triage |
+| **VEX** | Actual exploitability of a CVE in the product context, exported as signed CSAF 2.0 | not_affected, affected, fixed, under_investigation |
 | **Cloud** | Excessive IAM permissions, open security groups, exposed buckets | Remediate, Accept, Investigate |
 | **Containers** | Docker images with CVEs, root execution, plaintext secrets | Block, Alert, Ignore |
 | **Compliance** | ISO 27001, SOC2, PCI-DSS controls | Compliant, Non-compliant, Exception |
@@ -154,7 +160,7 @@ The API documentation (Swagger UI) is available at [http://localhost:8000/docs](
 ## Development
 
 ```bash
-# Backend
+# Backend (CSAF signing requires the gpg binary: apt install gnupg)
 cd backend && pip install -e . && uvicorn app.main:app --reload --port 8000
 
 # Frontend
