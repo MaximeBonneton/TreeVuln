@@ -12,6 +12,7 @@
 
 import Dagre from '@dagrejs/dagre';
 import type { TreeNode, TreeEdge } from '@/types';
+import { getInputCount, parseInputHandle, parseSourceHandle } from './handles';
 
 /** Fallback node dimensions (px) — utilisées si le nœud n'a pas encore été
  * mesuré par React Flow (premier rendu, tests). Les nœuds rendus portent
@@ -25,35 +26,36 @@ const NODE_HEIGHT = 120;
 const RANK_SEP = 120; // horizontal (between columns)
 const NODE_SEP = 40;  // vertical (between nodes in the same column)
 
-/** Position relative (0..1) d'un handle de sortie dans la hauteur du nœud. */
+/** Position relative (0..1) d'un handle de sortie dans la hauteur du nœud.
+ * Aligné sur le rendu mono-input de TreeNode ((index + 0.5) / total) ; pour
+ * le multi-input (géométrie en pixels dans TreeNode), la répartition
+ * uniforme par rang de bande reste une approximation : elle préserve l'ordre
+ * et un centrage approché, seuls besoins du layout. */
 function sourceHandleFraction(node: TreeNode | undefined, handle: string | null | undefined): number {
   if (!node || !handle) return 0.5;
+  const parsed = parseSourceHandle(handle);
+  if (!parsed) return 0.5;
   const conditions = Math.max(1, node.data.conditions?.length ?? 0);
-  const config = node.data.config as { input_count?: number };
-  const inputCount = Math.max(1, Number(config?.input_count ?? 1) || 1);
-
-  const parts = handle.replace(/^handle-/, '').split('-').map(Number);
-  let rank: number;
-  let total: number;
-  if (parts.length === 2 && inputCount > 1) {
-    // Multi-input : handle-{input}-{cond} -> les bandes se suivent verticalement
-    rank = parts[0] * conditions + parts[1];
-    total = inputCount * conditions;
-  } else {
-    rank = parts[parts.length - 1] || 0;
-    total = conditions;
-  }
-  return (rank + 1) / (total + 1);
+  const total = getInputCount(node.data) * conditions;
+  const rank = Math.min(parsed.inputIndex * conditions + parsed.conditionIndex, total - 1);
+  return (rank + 0.5) / total;
 }
 
 /** Position relative (0..1) d'un handle d'entrée (input-{i}) dans le nœud cible. */
 function targetHandleFraction(node: TreeNode | undefined, handle: string | null | undefined): number {
   if (!node || !handle) return 0.5;
-  const config = node.data.config as { input_count?: number };
-  const inputCount = Math.max(1, Number(config?.input_count ?? 1) || 1);
+  const inputCount = getInputCount(node.data);
   if (inputCount <= 1) return 0.5;
-  const idx = Number(handle.replace(/^input-/, '')) || 0;
-  return (idx + 1) / (inputCount + 1);
+  const idx = parseInputHandle(handle);
+  if (idx === null) return 0.5;
+  return (Math.min(idx, inputCount - 1) + 0.5) / inputCount;
+}
+
+/** Ajoute une edge à la liste d'un nœud dans la map (créée au besoin). */
+function appendEdge(map: Map<string, TreeEdge[]>, key: string, edge: TreeEdge): void {
+  const list = map.get(key);
+  if (list) list.push(edge);
+  else map.set(key, [edge]);
 }
 
 /**
@@ -93,9 +95,9 @@ export function getLayoutedNodes(
   const columnsByX = new Map<number, string[]>();
   for (const node of nodes) {
     const x = Math.round(g.node(node.id).x);
-    const column = columnsByX.get(x) ?? [];
-    column.push(node.id);
-    columnsByX.set(x, column);
+    const column = columnsByX.get(x);
+    if (column) column.push(node.id);
+    else columnsByX.set(x, [node.id]);
   }
   const columns = [...columnsByX.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -109,13 +111,13 @@ export function getLayoutedNodes(
   const incoming = new Map<string, TreeEdge[]>();
   const outgoing = new Map<string, TreeEdge[]>();
   for (const edge of edges) {
-    (incoming.get(edge.target) ?? incoming.set(edge.target, []).get(edge.target)!).push(edge);
-    (outgoing.get(edge.source) ?? outgoing.set(edge.source, []).get(edge.source)!).push(edge);
+    appendEdge(incoming, edge.target, edge);
+    appendEdge(outgoing, edge.source, edge);
   }
 
   /** Réordonne une colonne selon des clés, puis réassigne des y espacés. */
   const placeColumn = (ids: string[], keyOf: (id: string) => number) => {
-    const keyed = ids.map((id) => ({ id, key: keyOf(id) }));
+    const keyed = ids.map((id) => ({ id, key: keyOf(id), height: heightOf(id) }));
     // Tri stable : clé, puis y courant, puis id (déterminisme)
     keyed.sort(
       (a, b) =>
@@ -123,39 +125,43 @@ export function getLayoutedNodes(
         centerY.get(a.id)! - centerY.get(b.id)! ||
         a.id.localeCompare(b.id)
     );
-    const totalHeight =
-      keyed.reduce((s, k) => s + heightOf(k.id), 0) + (keyed.length - 1) * NODE_SEP;
-    const meanKey = keyed.reduce((s, k) => s + k.key, 0) / keyed.length;
-    let top = meanKey - totalHeight / 2;
-    for (const { id } of keyed) {
-      centerY.set(id, top + heightOf(id) / 2);
-      top += heightOf(id) + NODE_SEP;
+    let totalHeight = -NODE_SEP;
+    let keySum = 0;
+    for (const k of keyed) {
+      totalHeight += k.height + NODE_SEP;
+      keySum += k.key;
+    }
+    let top = keySum / keyed.length - totalHeight / 2;
+    for (const { id, height } of keyed) {
+      centerY.set(id, top + height / 2);
+      top += height + NODE_SEP;
     }
   };
 
-  /** Clé d'un nœud à partir de ses parents : y du parent + position du handle. */
-  const keyFromParents = (id: string): number => {
-    const parents = incoming.get(id) ?? [];
-    if (parents.length === 0) return centerY.get(id)!;
-    let sum = 0;
-    for (const edge of parents) {
-      const fraction = sourceHandleFraction(nodeById.get(edge.source), edge.sourceHandle);
-      sum += centerY.get(edge.source)! + (fraction - 0.5) * heightOf(edge.source);
-    }
-    return sum / parents.length;
+  /** Point d'ancrage vertical du handle source d'une edge (côté parent). */
+  const parentAnchor = (edge: TreeEdge): number => {
+    const fraction = sourceHandleFraction(nodeById.get(edge.source), edge.sourceHandle);
+    return centerY.get(edge.source)! + (fraction - 0.5) * heightOf(edge.source);
   };
 
-  /** Clé d'un nœud à partir de ses enfants : y de l'enfant + handle d'entrée visé. */
-  const keyFromChildren = (id: string): number => {
-    const children = outgoing.get(id) ?? [];
-    if (children.length === 0) return centerY.get(id)!;
-    let sum = 0;
-    for (const edge of children) {
-      const fraction = targetHandleFraction(nodeById.get(edge.target), edge.targetHandle);
-      sum += centerY.get(edge.target)! + (fraction - 0.5) * heightOf(edge.target);
-    }
-    return sum / children.length;
+  /** Point d'ancrage vertical du handle d'entrée visé par une edge (côté enfant). */
+  const childAnchor = (edge: TreeEdge): number => {
+    const fraction = targetHandleFraction(nodeById.get(edge.target), edge.targetHandle);
+    return centerY.get(edge.target)! + (fraction - 0.5) * heightOf(edge.target);
   };
+
+  /** Clé de tri d'un nœud : moyenne des ancrages de ses edges (ou y courant). */
+  const keyFromEdges = (
+    edgesOf: Map<string, TreeEdge[]>,
+    anchorOf: (edge: TreeEdge) => number,
+  ) => (id: string): number => {
+    const connected = edgesOf.get(id);
+    if (!connected || connected.length === 0) return centerY.get(id)!;
+    return connected.reduce((sum, edge) => sum + anchorOf(edge), 0) / connected.length;
+  };
+
+  const keyFromParents = keyFromEdges(incoming, parentAnchor);
+  const keyFromChildren = keyFromEdges(outgoing, childAnchor);
 
   // 1. Balayage avant : chaque colonne suit l'ordre des handles de ses parents
   for (let c = 1; c < columns.length; c++) placeColumn(columns[c], keyFromParents);

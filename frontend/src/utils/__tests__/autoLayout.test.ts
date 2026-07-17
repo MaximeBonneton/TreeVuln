@@ -40,6 +40,11 @@ function multiInputNode(id: string, inputCount: number, conditionCount: number):
   return node;
 }
 
+function withMeasured(node: TreeNode, width: number, height: number): TreeNode {
+  (node as { measured?: { width: number; height: number } }).measured = { width, height };
+  return node;
+}
+
 function edge(
   id: string,
   source: string,
@@ -161,11 +166,7 @@ describe('getLayoutedNodes — ordre vertical aligné sur les handles', () => {
   it('respecte la largeur mesurée : un nœud large (equation) ne colle pas ses cibles', () => {
     // Un nœud equation rendu à 420px de large : ses sorties doivent rester
     // à au moins ~RANK_SEP de son bord droit, pas de son centre théorique.
-    const root = inputNode('eq', 2);
-    (root as { measured?: { width: number; height: number } }).measured = {
-      width: 420,
-      height: 120,
-    };
+    const root = withMeasured(inputNode('eq', 2), 420, 120);
     const nodes = [root, outputNode('A'), outputNode('B')];
     const edges = [
       edge('e0', 'eq', 'A', 'handle-0'),
@@ -178,11 +179,7 @@ describe('getLayoutedNodes — ordre vertical aligné sur les handles', () => {
   });
 
   it('respecte la hauteur mesurée : pas de chevauchement avec un nœud haut', () => {
-    const tall = outputNode('tall');
-    (tall as { measured?: { width: number; height: number } }).measured = {
-      width: 220,
-      height: 320,
-    };
+    const tall = withMeasured(outputNode('tall'), 220, 320);
     const nodes = [inputNode('root', 2), tall, outputNode('B')];
     const edges = [
       edge('e0', 'root', 'tall', 'handle-0'),

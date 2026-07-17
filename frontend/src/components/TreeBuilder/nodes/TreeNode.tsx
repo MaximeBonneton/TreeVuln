@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { Database, GitBranch, Flag, Calculator } from 'lucide-react';
-import type { TreeNodeData, InputNodeConfig, LookupNodeConfig } from '@/types';
+import type { TreeNodeData } from '@/types';
 import { useTreeStore } from '@/stores/treeStore';
+import { getInputCount } from '@/utils/handles';
 import { getHandleColor } from '../edges';
 
 type TreeNodeProps = NodeProps & {
@@ -36,13 +37,6 @@ const nodeStyles = {
     icon: Flag,
   },
 };
-
-/** Get input_count from node config (defaults to 1) */
-function getInputCount(data: TreeNodeData): number {
-  if (data.nodeType === 'output' || data.nodeType === 'equation') return 1;
-  const config = data.config as InputNodeConfig | LookupNodeConfig;
-  return config.input_count ?? 1;
-}
 
 function TreeNodeComponent({ id, data, selected }: TreeNodeProps) {
   const selectNode = useTreeStore((state) => state.selectNode);

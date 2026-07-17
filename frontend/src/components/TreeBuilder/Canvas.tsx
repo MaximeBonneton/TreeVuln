@@ -37,25 +37,25 @@ export function Canvas({ onNodeClick, onEdgeClick }: CanvasProps) {
   } = useTreeStore();
 
   const isAdminUser = useTreeStore((s) => s.isAdmin());
-  const treeId = useTreeStore((s) => s.treeId);
+  const fitViewNonce = useTreeStore((s) => s.fitViewNonce);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onInit = useCallback((instance: any) => {
     reactFlowInstance.current = instance;
   }, []);
 
-  // À l'arrivée sur un arbre (sélection dans la sidebar, import...), recentre
-  // la vue sur l'ensemble des nœuds. Le prop fitView de ReactFlow ne joue
-  // qu'au montage initial : sans cet effet, changer d'arbre conserve le
-  // viewport de l'arbre précédent. rAF laisse ReactFlow mesurer les nouveaux
-  // nœuds avant le cadrage.
+  // Recentre la vue sur l'ensemble des nœuds quand le store signale que la
+  // scène a été remplacée ou réarrangée (sélection d'arbre, création,
+  // duplication, auto-layout — cf. fitViewNonce dans treeStore). Le prop
+  // fitView de ReactFlow ne joue qu'au montage initial. rAF laisse ReactFlow
+  // mesurer les nouveaux nœuds avant le cadrage.
   useEffect(() => {
-    if (treeId === null) return;
+    if (fitViewNonce === 0) return; // montage initial : le prop fitView suffit
     const frame = requestAnimationFrame(() => {
       reactFlowInstance.current?.fitView({ padding: 0.15, duration: 300 });
     });
     return () => cancelAnimationFrame(frame);
-  }, [treeId]);
+  }, [fitViewNonce]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();

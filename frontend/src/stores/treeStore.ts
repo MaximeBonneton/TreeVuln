@@ -58,6 +58,11 @@ interface TreeState {
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
   hoveredInputIndex: number | null; // For multi-input nodes
+  // Incrémenté par les actions qui remplacent ou réarrangent la scène
+  // (sélection d'arbre, création, duplication, auto-layout) : le Canvas
+  // recadre la vue (fitView) quand il change. Un reload du même arbre ne
+  // l'incrémente pas — la position de l'utilisateur est conservée.
+  fitViewNonce: number;
   isLoading: boolean;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
@@ -188,6 +193,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   selectedNodeId: null,
   hoveredNodeId: null,
   hoveredInputIndex: null,
+  fitViewNonce: 0,
   isLoading: false,
   isSaving: false,
   treeWarnings: [],
@@ -626,6 +632,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       redoStack: [],
       error: null,
     });
+    set((state) => ({ fitViewNonce: state.fitViewNonce + 1 }));
   },
 
   // --- Multi-tree ---
@@ -645,6 +652,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     await get().loadTree(treeId);
     // Reload the list to reflect changes
     await get().loadTrees();
+    set((state) => ({ fitViewNonce: state.fitViewNonce + 1 }));
   },
 
   // Duplicate a tree
@@ -655,6 +663,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       // Reload the list and select the new tree
       await get().loadTrees();
       await get().loadTree(newTree.id);
+      set((state) => ({ fitViewNonce: state.fitViewNonce + 1 }));
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Duplication error' });
       throw err;
@@ -726,7 +735,12 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     if (nodes.length === 0) return;
     get().pushUndoState();
     const layouted = getLayoutedNodes(nodes, edges);
-    set({ nodes: layouted, hasUnsavedChanges: true });
+    set((state) => ({
+      nodes: layouted,
+      hasUnsavedChanges: true,
+      // L'arbre vient d'être réorganisé : recadrer la vue dessus
+      fitViewNonce: state.fitViewNonce + 1,
+    }));
   },
 
   // Convert to API format
