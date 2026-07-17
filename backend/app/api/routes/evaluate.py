@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.deps import (
     AssetServiceDep,
+    SbomServiceDep,
     SettingsServiceDep,
     TreeServiceDep,
     read_upload_with_limit,
@@ -29,28 +30,56 @@ from app.schemas.evaluation import (
     SingleEvaluationRequest,
 )
 from app.schemas.tree import TreeStructure
+from app.services.asset_service import AssetService
 from app.services.csaf_export import (
     CsafExportConfigError,
     CsafSigningKeyMissingError,
     build_csaf_export,
 )
+from app.services.sbom_service import SbomService
 from app.services.webhook_dispatch import schedule_webhook_dispatch
 
 router = APIRouter()
 
 
+async def _build_lookups(
+    engine: InferenceEngine,
+    tree_id: int | None,
+    asset_service: AssetService,
+    sbom_service: SbomService,
+    asset_ids: list[str] | None,
+) -> dict[str, Any]:
+    """Construit les caches de lookup requis par l'arbre (assets, SBOM).
+
+    Chargement paresseux : chaque cache n'est requêté que si la structure
+    de l'arbre l'utilise réellement.
+    """
+    lookups: dict[str, Any] = {}
+    if tree_id is None:
+        return lookups
+    if "assets" in engine.get_lookup_tables():
+        lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+    if engine.uses_sbom_fields():
+        lookups["sbom_components"] = await sbom_service.get_components_cache(
+            tree_id, asset_ids or None
+        )
+    return lookups
+
+
 async def _get_engine_and_lookups(
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
     tree_id: int | None = None,
     asset_ids: list[str] | None = None,
-) -> tuple[InferenceEngine, dict[str, dict[str, dict[str, Any]]], int]:
+) -> tuple[InferenceEngine, dict[str, Any], int]:
     """
     Helper to get the engine and lookups.
 
     Args:
         tree_service: Tree service
         asset_service: Asset service
+        sbom_service: SBOM service
         tree_id: Specific tree ID (default if not provided)
         asset_ids: List of asset_ids to load
 
@@ -67,10 +96,7 @@ async def _get_engine_and_lookups(
     structure = tree_service.get_tree_structure(tree)
     engine = InferenceEngine(structure)
 
-    # Prepare lookup cache for assets (filtered by tree)
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
-    if "assets" in engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids)
+    lookups = await _build_lookups(engine, tree.id, asset_service, sbom_service, asset_ids)
 
     return engine, lookups, tree.id
 
@@ -79,15 +105,14 @@ async def _get_engine_for_tree(
     tree: Tree,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
     asset_ids: list[str] | None = None,
-) -> tuple[InferenceEngine, dict[str, dict[str, dict[str, Any]]]]:
+) -> tuple[InferenceEngine, dict[str, Any]]:
     """Helper to get the engine for a specific tree."""
     structure = tree_service.get_tree_structure(tree)
     engine = InferenceEngine(structure)
 
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
-    if "assets" in engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids)
+    lookups = await _build_lookups(engine, tree.id, asset_service, sbom_service, asset_ids)
 
     return engine, lookups
 
@@ -97,6 +122,7 @@ async def evaluate_single(
     request: SingleEvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a single vulnerability (real-time).
@@ -109,7 +135,7 @@ async def evaluate_single(
         asset_ids.append(request.vulnerability.asset_id)
 
     engine, lookups, tree_id = await _get_engine_and_lookups(
-        tree_service, asset_service, asset_ids=asset_ids
+        tree_service, asset_service, sbom_service, asset_ids=asset_ids
     )
 
     result = engine.evaluate(
@@ -135,6 +161,7 @@ async def evaluate_single(
 async def evaluate_preview(
     request: PreviewEvaluationRequest,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a vulnerability against an unsaved tree (preview).
@@ -142,15 +169,13 @@ async def evaluate_preview(
     """
     engine = InferenceEngine(request.structure)
 
-    # Load asset lookups if tree_id provided
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
-    if request.tree_id and "assets" in engine.get_lookup_tables():
-        asset_ids = []
-        if request.vulnerability.asset_id:
-            asset_ids.append(request.vulnerability.asset_id)
-        lookups["assets"] = await asset_service.get_lookup_cache(
-            request.tree_id, asset_ids or None
-        )
+    # Load lookups (assets/SBOM) si tree_id fourni
+    asset_ids = []
+    if request.vulnerability.asset_id:
+        asset_ids.append(request.vulnerability.asset_id)
+    lookups = await _build_lookups(
+        engine, request.tree_id, asset_service, sbom_service, asset_ids or None
+    )
 
     return engine.evaluate(request.vulnerability, lookups, request.include_path)
 
@@ -160,6 +185,7 @@ async def evaluate_batch(
     request: EvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a batch of vulnerabilities.
@@ -187,11 +213,10 @@ async def evaluate_batch(
         if v.get("asset_id") is not None
     ]
 
-    # Prepare lookups (filtered by tree)
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
-    if "assets" in processor.engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
+    lookups = await _build_lookups(
+        processor.engine, tree.id, asset_service, sbom_service, asset_ids
+    )
 
     response = await processor.process_batch(
         request.vulnerabilities,
@@ -217,6 +242,7 @@ async def evaluate_csv(
     file: UploadFile,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
     include_path: bool = False,
 ):
     """
@@ -264,10 +290,10 @@ async def evaluate_csv(
 
     # Prepare lookups (filtered by tree)
     asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
-    if "assets" in processor.engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
+    lookups = await _build_lookups(
+        processor.engine, tree.id, asset_service, sbom_service, asset_ids or None
+    )
 
     response = await processor.process_batch(
         rows,
@@ -295,6 +321,7 @@ async def evaluate_csv(
 async def evaluate_preview_csv(
     file: UploadFile,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
     structure: str = Form(...),
     tree_id: int | None = Form(None),
     include_path: bool = Form(True),
@@ -339,11 +366,11 @@ async def evaluate_preview_csv(
     # B-12: lignes brutes, conversion/validation isolée dans process_batch
     rows = list(df.iter_rows(named=True))
 
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
-    if tree_id and "assets" in processor.engine.get_lookup_tables():
-        asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
-        lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+    asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
+    lookups = await _build_lookups(
+        processor.engine, tree_id, asset_service, sbom_service, asset_ids or None
+    )
 
     return await processor.process_batch(rows, lookups, include_path)
 
@@ -353,6 +380,7 @@ async def export_preview_csv(
     file: UploadFile,
     asset_service: AssetServiceDep,
     settings_service: SettingsServiceDep,
+    sbom_service: SbomServiceDep,
     structure: str = Form(...),
     format: str = Form("csv"),
     tree_id: int | None = Form(None),
@@ -397,11 +425,11 @@ async def export_preview_csv(
     # B-12: lignes brutes, conversion/validation isolée dans process_batch
     rows = list(df.iter_rows(named=True))
 
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(tree_structure, settings.batch_chunk_size)
-    if tree_id and "assets" in processor.engine.get_lookup_tables():
-        asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
-        lookups["assets"] = await asset_service.get_lookup_cache(tree_id, asset_ids or None)
+    asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
+    lookups = await _build_lookups(
+        processor.engine, tree_id, asset_service, sbom_service, asset_ids or None
+    )
 
     response = await processor.process_batch(rows, lookups, True)
 
@@ -491,6 +519,7 @@ async def export_batch(
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
     settings_service: SettingsServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a batch of vulnerabilities and return a downloadable CSV or JSON file.
@@ -511,10 +540,10 @@ async def export_batch(
     structure = tree_service.get_tree_structure(tree)
 
     asset_ids = [v["asset_id"] for v in request.vulnerabilities if v.get("asset_id") is not None]
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
-    if "assets" in processor.engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
+    lookups = await _build_lookups(
+        processor.engine, tree.id, asset_service, sbom_service, asset_ids or None
+    )
 
     response = await processor.process_batch(
         request.vulnerabilities,
@@ -541,6 +570,7 @@ async def export_csv_file(
     file: UploadFile,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
     format: Literal["csv", "json"] = Query(default="csv"),
 ):
     """
@@ -581,10 +611,10 @@ async def export_csv_file(
     rows = list(df.iter_rows(named=True))
 
     asset_ids = [row["asset_id"] for row in rows if row.get("asset_id")]
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
-    if "assets" in processor.engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
+    lookups = await _build_lookups(
+        processor.engine, tree.id, asset_service, sbom_service, asset_ids or None
+    )
 
     response = await processor.process_batch(rows, lookups, True)
 
@@ -600,6 +630,7 @@ async def evaluate_by_slug(
     request: SingleEvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a vulnerability with a specific tree identified by its slug.
@@ -619,7 +650,7 @@ async def evaluate_by_slug(
         asset_ids.append(request.vulnerability.asset_id)
 
     engine, lookups = await _get_engine_for_tree(
-        tree, tree_service, asset_service, asset_ids
+        tree, tree_service, asset_service, sbom_service, asset_ids
     )
 
     result = engine.evaluate(
@@ -647,6 +678,7 @@ async def evaluate_batch_by_slug(
     request: EvaluationRequest,
     tree_service: TreeServiceDep,
     asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
 ):
     """
     Evaluate a batch of vulnerabilities with a specific tree identified by its slug.
@@ -675,10 +707,10 @@ async def evaluate_batch_by_slug(
     ]
 
     # Prepare lookups (filtered by tree)
-    lookups: dict[str, dict[str, dict[str, Any]]] = {}
     processor = BatchProcessor(structure, settings.batch_chunk_size)
-    if "assets" in processor.engine.get_lookup_tables():
-        lookups["assets"] = await asset_service.get_lookup_cache(tree.id, asset_ids or None)
+    lookups = await _build_lookups(
+        processor.engine, tree.id, asset_service, sbom_service, asset_ids or None
+    )
 
     response = await processor.process_batch(
         request.vulnerabilities,
