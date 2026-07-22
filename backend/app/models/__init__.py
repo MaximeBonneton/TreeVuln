@@ -1,4 +1,5 @@
 from app.models.asset import Asset
+from app.models.enisa import EnisaEvent
 from app.models.ingest import IngestEndpoint, IngestLog
 from app.models.sbom import Sbom, SbomComponent
 from app.models.settings import AppSetting
@@ -14,4 +15,5 @@ __all__ = [
     "Sbom", "SbomComponent",
     "User", "UserSession", "EncryptionKey",
     "AppSetting",
+    "EnisaEvent",
 ]
