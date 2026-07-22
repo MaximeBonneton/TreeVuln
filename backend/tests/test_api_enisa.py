@@ -158,3 +158,68 @@ class TestEnisaRoutes:
     async def test_non_authentifie_401(self, client, db_session, sample_tree):
         resp = await client.get(f"/api/v1/enisa/events?tree_id={sample_tree.id}")
         assert resp.status_code == 401
+
+    async def test_reopen(self, admin_client, db_session, sample_tree):
+        event = await _create_event(
+            db_session, sample_tree.id, "CVE-14",
+            status="dismissed",
+            dismissed_at=datetime.now(timezone.utc),
+            dismissed_by="admin",
+            dismiss_reason="faux positif",
+        )
+        resp = await admin_client.post(f"/api/v1/enisa/events/{event.id}/reopen")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "candidate"
+        await db_session.refresh(event)
+        assert event.status == "candidate"
+        assert event.dismissed_at is None
+        assert event.dismiss_reason is None
+        assert event.dismissed_by is None
+
+    async def test_reopen_statut_invalide_409(self, admin_client, db_session, sample_tree):
+        event = await _create_event(db_session, sample_tree.id, "CVE-15")  # candidate
+        resp = await admin_client.post(f"/api/v1/enisa/events/{event.id}/reopen")
+        assert resp.status_code == 409
+        event2 = await _create_event(
+            db_session, sample_tree.id, "CVE-16",
+            status="confirmed", confirmed_at=datetime.now(timezone.utc),
+        )
+        resp = await admin_client.post(f"/api/v1/enisa/events/{event2.id}/reopen")
+        assert resp.status_code == 409
+
+    async def test_close_avec_jalons_soumis_sans_motif(
+        self, admin_client, db_session, sample_tree
+    ):
+        now = datetime.now(timezone.utc)
+        event = await _create_event(
+            db_session, sample_tree.id, "CVE-17",
+            status="confirmed", confirmed_at=now,
+            early_warning_submitted_at=now, early_warning_submitted_by="admin",
+            notification_submitted_at=now, notification_submitted_by="admin",
+            final_report_submitted_at=now, final_report_submitted_by="admin",
+        )
+        resp = await admin_client.post(f"/api/v1/enisa/events/{event.id}/close", json={})
+        assert resp.status_code == 200
+        await db_session.refresh(event)
+        assert event.status == "closed"
+        assert event.close_reason is None
+
+
+class TestEnisaOperatorAccess:
+    async def test_operator_peut_lister_et_confirmer(
+        self, client, admin_client, db_session, sample_tree
+    ):
+        from tests.test_api_settings import _make_operator_client
+
+        event = await _create_event(db_session, sample_tree.id, "CVE-18")
+        operator = await _make_operator_client(client, admin_client)
+
+        resp = await operator.get(f"/api/v1/enisa/events?tree_id={sample_tree.id}")
+        assert resp.status_code == 200
+        assert [e["cve_id"] for e in resp.json()["events"]] == ["CVE-18"]
+
+        resp = await operator.post(f"/api/v1/enisa/events/{event.id}/confirm")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "confirmed"
+        await db_session.refresh(event)
+        assert event.confirmed_by == "operator1"
