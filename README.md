@@ -86,6 +86,7 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 
 - **Outbound webhooks**: HMAC-SHA256 notifications to ticketing/SIEM systems
 - **Inbound webhooks**: real-time ingestion with field mapping and API key
+- **SBOM ingestion**: attach a CycloneDX or SPDX SBOM per asset, with `sbom_*` virtual fields (component presence, version, count, match type) usable directly in decision trees
 - **Import/Export**: assets in CSV/JSON, results with audit trail
 
 ### Compliance & Reporting
@@ -93,6 +94,7 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 - **CSAF 2.0 VEX export**: turn batch results into a standard CSAF document (validated against the official OASIS schema), with VEX statuses and justifications mapped on output nodes
 - **Justified decisions**: each VEX statement embeds the full TreeVuln decision path as evidence
 - **OpenPGP signing**: detached signature plus SHA-256/512 checksums, delivered as a ZIP bundle ready for regulators and coordinators (CRA, ENISA reporting ecosystem)
+- **ENISA deadline tracking**: flag output nodes as notifiable so evaluations create notification candidates, track the 24h / 72h / 14-day CRA deadlines, prefill each milestone's content (JSON/Markdown export), and get webhook reminders as deadlines approach
 
 ## Use Cases
 
