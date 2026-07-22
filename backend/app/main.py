@@ -151,8 +151,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.enterprise import init_enterprise
     init_enterprise()
 
+    # Tâche de rappel des échéances ENISA (Phase 3 CRA)
+    from app.services.enisa_reminders import start_reminder_loop
+    reminder_task = start_reminder_loop()
+
     yield
     # Shutdown
+    reminder_task.cancel()
+    try:
+        await reminder_task
+    except asyncio.CancelledError:
+        pass
     await engine.dispose()
 
 

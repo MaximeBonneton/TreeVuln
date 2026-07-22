@@ -34,6 +34,13 @@ _semaphore = asyncio.Semaphore(_MAX_CONCURRENT_DISPATCHES)
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
+def _event_matches(event: str, subscribed: list[str]) -> bool:
+    """Le wildcard n'inclut pas les événements enisa_* (opt-in explicite)."""
+    if event in subscribed:
+        return True
+    return "*" in subscribed and not event.startswith("enisa_")
+
+
 def schedule_webhook_dispatch(
     tree_id: int,
     event: str,
@@ -87,7 +94,7 @@ async def dispatch_webhooks(
         # Parallel sending — each webhook has its own session for retries
         tasks = []
         for webhook in webhooks:
-            if event in webhook.events or "*" in webhook.events:
+            if _event_matches(event, webhook.events):
                 tasks.append(_send_with_retry(webhook, event, payload))
 
         if tasks:
