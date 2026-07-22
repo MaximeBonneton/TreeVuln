@@ -38,6 +38,10 @@ class EvaluationResult(BaseModel):
         description="Complete decision path (audit trail)",
     )
     error: str | None = Field(default=None, description="Error if evaluation failed")
+    output_node_id: str | None = Field(
+        default=None,
+        description="ID du nœud Output atteint (null si erreur)",
+    )
 
 
 class SingleEvaluationRequest(BaseModel):
