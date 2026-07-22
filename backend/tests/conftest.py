@@ -208,6 +208,19 @@ async def admin_client(client):
     return client
 
 
+@pytest_asyncio.fixture
+async def sample_tree(db_session):
+    """Arbre minimal persisté en base, pour les tests de services nécessitant
+    une FK tree_id valide (ex: EnisaEvent)."""
+    from app.models.tree import Tree
+
+    tree = Tree(name="Sample Tree", structure={"nodes": [], "edges": []})
+    db_session.add(tree)
+    await db_session.commit()
+    await db_session.refresh(tree)
+    return tree
+
+
 @pytest.fixture
 def simple_tree_structure() -> TreeStructure:
     """

@@ -13,6 +13,7 @@ from app.api.deps import AssetServiceDep, IngestServiceDep, TreeServiceDep, Webh
 from app.config import settings
 from app.crypto import decrypt_secret
 from app.engine import InferenceEngine
+from app.schemas.evaluation import EvaluationResult
 from app.schemas.ingest import (
     IngestEndpointCreate,
     IngestEndpointResponse,
@@ -21,6 +22,8 @@ from app.schemas.ingest import (
     IngestLogResponse,
     IngestResult,
 )
+from app.services.enisa_service import record_candidates
+from app.services.ingest_service import transform_payload
 
 # Public route (authenticated via X-API-Key)
 public_router = APIRouter()
@@ -114,6 +117,21 @@ async def ingest_vulnerabilities(
         schedule_webhook_dispatch(
             endpoint.tree_id, "on_batch_complete", summary_payload
         )
+
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse). On
+    # reconstruit les paires (résultat, vuln mappée) à partir du payload
+    # brut et du mapping de l'endpoint : _ingest_entries_sync ne renvoie
+    # que des dicts (compatibilité de l'API d'ingestion), pas d'objets
+    # EvaluationResult ni les vulns mappées.
+    if endpoint.auto_evaluate:
+        evaluated: list[tuple[EvaluationResult, dict[str, Any]]] = []
+        for entry, result_dict in zip(payload, result.results):
+            if "decision" not in result_dict:
+                continue  # entrée en erreur avant évaluation
+            mapped = transform_payload(entry, endpoint.field_mapping)
+            evaluated.append((EvaluationResult.model_validate(result_dict), mapped))
+        if evaluated:
+            await record_candidates(endpoint.tree_id, structure.model_dump(), evaluated)
 
     return result
 

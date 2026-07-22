@@ -7,6 +7,10 @@ CSV/JSON avec inférence de types, champs CVSS virtuels.
 """
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.models.enisa import EnisaEvent
 
 pytestmark = pytest.mark.asyncio
 
@@ -103,6 +107,79 @@ class TestIngestEndpoint:
             headers={"X-API-Key": "whatever"},
         )
         assert resp.status_code == 404
+
+
+class TestIngestEnisaWiring:
+    """Vérifie le hook record_candidates branché sur l'auto-évaluation
+    d'ingestion (Task 4), y compris la reconstruction des vulns mappées
+    (transform_payload) que _ingest_entries_sync ne renvoie pas telles
+    quelles dans IngestResult (compatibilité API)."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_session_maker(self, db_engine, monkeypatch):
+        import app.services.enisa_service as svc
+
+        maker = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+        monkeypatch.setattr(svc, "async_session_maker", maker)
+
+    def _notifiable_structure(self) -> dict:
+        structure = _tree_structure()
+        structure["nodes"][1]["config"]["enisa_notifiable"] = True  # out-act
+        return structure
+
+    async def test_ingest_auto_evaluate_cree_candidat_enisa(self, admin_client, db_session):
+        resp = await admin_client.post(
+            "/api/v1/tree", json={"name": "Enisa Ingest Tree", "structure": self._notifiable_structure()}
+        )
+        assert resp.status_code == 201, resp.text
+        tree_id = resp.json()["id"]
+
+        created = await admin_client.post(
+            f"/api/v1/tree/{tree_id}/ingest-endpoints",
+            json={
+                "name": "SIEM",
+                "slug": "siem-enisa",
+                # Mapping depuis des noms de champs sources vers les champs TreeVuln
+                "field_mapping": {"vulnId": "cve_id", "score": "cvss_score", "assetRef": "asset_id"},
+                "auto_evaluate": True,
+            },
+        )
+        assert created.status_code == 201, created.text
+        api_key = created.json()["api_key"]
+
+        resp = await admin_client.post(
+            "/api/v1/ingest/siem-enisa",
+            json=[{"vulnId": "CVE-2026-9001", "score": 9.9, "assetRef": "srv-prod-001"}],
+            headers={"X-API-Key": api_key},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["evaluated"] == 1
+
+        events = (await db_session.execute(select(EnisaEvent))).scalars().all()
+        assert len(events) == 1
+        assert events[0].cve_id == "CVE-2026-9001"
+        assert events[0].tree_id == tree_id
+        assert events[0].affected_assets == [{"asset_id": "srv-prod-001"}]
+        assert events[0].evaluation_context["cvss_score"] == 9.9
+
+    async def test_ingest_sans_flag_enisa_ne_cree_rien(self, admin_client, db_session):
+        """Un arbre sans nœud enisa_notifiable ne doit créer aucun événement."""
+        tree_id = await _create_tree(admin_client)
+        created = await admin_client.post(
+            f"/api/v1/tree/{tree_id}/ingest-endpoints",
+            json={"name": "SIEM", "slug": "siem-no-flag", "field_mapping": {}, "auto_evaluate": True},
+        )
+        api_key = created.json()["api_key"]
+
+        resp = await admin_client.post(
+            "/api/v1/ingest/siem-no-flag",
+            json=[{"cve_id": "CVE-2026-9002", "cvss_score": 9.9}],
+            headers={"X-API-Key": api_key},
+        )
+        assert resp.status_code == 200, resp.text
+
+        events = (await db_session.execute(select(EnisaEvent))).scalars().all()
+        assert events == []
 
 
 class TestFieldMappingScan:

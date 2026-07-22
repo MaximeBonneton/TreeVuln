@@ -36,6 +36,7 @@ from app.services.csaf_export import (
     CsafSigningKeyMissingError,
     build_csaf_export,
 )
+from app.services.enisa_service import record_candidates
 from app.services.sbom_service import SbomService
 from app.services.webhook_dispatch import schedule_webhook_dispatch
 
@@ -72,7 +73,7 @@ async def _get_engine_and_lookups(
     sbom_service: SbomServiceDep,
     tree_id: int | None = None,
     asset_ids: list[str] | None = None,
-) -> tuple[InferenceEngine, dict[str, Any], int]:
+) -> tuple[InferenceEngine, dict[str, Any], int, TreeStructure]:
     """
     Helper to get the engine and lookups.
 
@@ -84,7 +85,7 @@ async def _get_engine_and_lookups(
         asset_ids: List of asset_ids to load
 
     Returns:
-        Tuple (engine, lookups, tree_id)
+        Tuple (engine, lookups, tree_id, structure)
     """
     tree = await tree_service.get_tree(tree_id)
     if not tree:
@@ -98,7 +99,7 @@ async def _get_engine_and_lookups(
 
     lookups = await _build_lookups(engine, tree.id, asset_service, sbom_service, asset_ids)
 
-    return engine, lookups, tree.id
+    return engine, lookups, tree.id, structure
 
 
 async def _get_engine_for_tree(
@@ -107,14 +108,14 @@ async def _get_engine_for_tree(
     asset_service: AssetServiceDep,
     sbom_service: SbomServiceDep,
     asset_ids: list[str] | None = None,
-) -> tuple[InferenceEngine, dict[str, Any]]:
+) -> tuple[InferenceEngine, dict[str, Any], TreeStructure]:
     """Helper to get the engine for a specific tree."""
     structure = tree_service.get_tree_structure(tree)
     engine = InferenceEngine(structure)
 
     lookups = await _build_lookups(engine, tree.id, asset_service, sbom_service, asset_ids)
 
-    return engine, lookups
+    return engine, lookups, structure
 
 
 @router.post("/single", response_model=EvaluationResult)
@@ -134,7 +135,7 @@ async def evaluate_single(
     if request.vulnerability.asset_id:
         asset_ids.append(request.vulnerability.asset_id)
 
-    engine, lookups, tree_id = await _get_engine_and_lookups(
+    engine, lookups, tree_id, structure = await _get_engine_and_lookups(
         tree_service, asset_service, sbom_service, asset_ids=asset_ids
     )
 
@@ -153,6 +154,12 @@ async def evaluate_single(
         "decision_color": result.decision_color,
     }
     schedule_webhook_dispatch(tree_id, event, payload)
+
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse)
+    await record_candidates(
+        tree_id, structure.model_dump(),
+        [(result, request.vulnerability.model_dump())],
+    )
 
     return result
 
@@ -234,6 +241,12 @@ async def evaluate_batch(
     }
     schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
 
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse)
+    await record_candidates(
+        tree.id, structure.model_dump(),
+        list(zip(response.results, request.vulnerabilities)),
+    )
+
     return response
 
 
@@ -310,6 +323,11 @@ async def evaluate_csv(
         "decision_summary": response.decision_summary,
     }
     schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
+
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse)
+    await record_candidates(
+        tree.id, structure.model_dump(), list(zip(response.results, rows))
+    )
 
     return response
 
@@ -649,7 +667,7 @@ async def evaluate_by_slug(
     if request.vulnerability.asset_id:
         asset_ids.append(request.vulnerability.asset_id)
 
-    engine, lookups = await _get_engine_for_tree(
+    engine, lookups, structure = await _get_engine_for_tree(
         tree, tree_service, asset_service, sbom_service, asset_ids
     )
 
@@ -668,6 +686,12 @@ async def evaluate_by_slug(
         "decision_color": result.decision_color,
     }
     schedule_webhook_dispatch(tree.id, event, payload)
+
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse)
+    await record_candidates(
+        tree.id, structure.model_dump(),
+        [(result, request.vulnerability.model_dump())],
+    )
 
     return result
 
@@ -727,5 +751,11 @@ async def evaluate_batch_by_slug(
         "decision_summary": response.decision_summary,
     }
     schedule_webhook_dispatch(tree.id, "on_batch_complete", payload)
+
+    # Candidats ENISA (indépendant, n'affecte jamais la réponse)
+    await record_candidates(
+        tree.id, structure.model_dump(),
+        list(zip(response.results, request.vulnerabilities)),
+    )
 
     return response
