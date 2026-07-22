@@ -102,6 +102,8 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 |--------|---------|-------------------|
 | **Vulnerabilities** | Prioritization based on KEV, EPSS, CVSS, and asset criticality | Act, Attend, Track |
 | **VEX** | Actual exploitability of a CVE in the product context, exported as signed CSAF 2.0 | not_affected, affected, fixed, under_investigation |
+| **SBOM / Supply chain** | Prioritize only CVEs whose affected component is actually present in the asset's SBOM | Act, Attend, Track |
+| **CRA notification** | Track regulatory deadlines for actively-exploited vulnerabilities flagged as notifiable | Early warning (24h), Notification (72h), Final report (14d) |
 | **Cloud** | Excessive IAM permissions, open security groups, exposed buckets | Remediate, Accept, Investigate |
 | **Containers** | Docker images with CVEs, root execution, plaintext secrets | Block, Alert, Ignore |
 | **Compliance** | ISO 27001, SOC2, PCI-DSS controls | Compliant, Non-compliant, Exception |
