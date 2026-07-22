@@ -76,8 +76,17 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
   const [correctiveDate, setCorrectiveDate] = useState('');
 
   // Formulaire de jalon en cours d'édition
+  // draftFields : uniquement les champs scalaires (string/number/boolean),
+  // seuls modifiables sans risque. structuredFields : champs objet/array
+  // (severity, affected_assets, sbom_components, timeline, audit_trail,
+  // manufacturer…), affichés en lecture seule pour ne jamais être
+  // ré-sérialisés en chaîne (corromprait l'export JSON/Markdown).
+  // originalDraftFields sert de référence pour ne renvoyer au save que les
+  // clés réellement modifiées par l'utilisateur.
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [draftFields, setDraftFields] = useState<Record<string, string>>({});
+  const [originalDraftFields, setOriginalDraftFields] = useState<Record<string, string>>({});
+  const [structuredFields, setStructuredFields] = useState<Record<string, unknown>>({});
   const [draftLoading, setDraftLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -201,17 +210,29 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
     setEditingMilestone(milestone);
     setDraftLoading(true);
     try {
-      // Pré-remplissage fusionné (contenu calculé + brouillon existant)
+      // Pré-remplissage fusionné (contenu calculé + brouillon existant).
+      // Seuls les champs scalaires (string/number/boolean) sont éditables ;
+      // les champs structurés (objet/array) restent en lecture seule pour
+      // ne jamais être figés en JSON stringifié lors d'un save.
       const raw = await exportEnisaMilestone(eventId, milestone, 'json');
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const asStrings: Record<string, string> = {};
+      const editable: Record<string, string> = {};
+      const structured: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(parsed)) {
-        asStrings[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        if (value !== null && typeof value === 'object') {
+          structured[key] = value;
+        } else {
+          editable[key] = value === null ? '' : String(value);
+        }
       }
-      setDraftFields(asStrings);
+      setDraftFields(editable);
+      setOriginalDraftFields(editable);
+      setStructuredFields(structured);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Export failed');
       setDraftFields({});
+      setOriginalDraftFields({});
+      setStructuredFields({});
     } finally {
       setDraftLoading(false);
     }
@@ -219,9 +240,22 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
 
   const handleSaveDraft = async () => {
     if (!editingMilestone) return;
+    // Ne renvoie que les clés effectivement modifiées par l'utilisateur,
+    // fusionnées avec le brouillon déjà persisté (le PUT remplace tout le
+    // brouillon côté backend : sans cette fusion, un save partiel effacerait
+    // les modifications d'une session d'édition précédente).
+    const edited: Record<string, string> = {};
+    for (const [key, value] of Object.entries(draftFields)) {
+      if (originalDraftFields[key] !== value) {
+        edited[key] = value;
+      }
+    }
+    const existingDraft = detail?.drafts?.[editingMilestone] ?? {};
+    const payload = { ...existingDraft, ...edited };
+
     setBusy(true);
     try {
-      afterMutation(await saveEnisaDraft(eventId, editingMilestone, draftFields));
+      afterMutation(await saveEnisaDraft(eventId, editingMilestone, payload));
       setEditingMilestone(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -502,6 +536,23 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
                       />
                     </div>
                   ))}
+                  {Object.keys(structuredFields).length > 0 && (
+                    <div className="pt-1 space-y-1">
+                      <p className="text-xs text-gray-400 italic">
+                        Champs structurés (lecture seule, calculés depuis l'évaluation) :
+                      </p>
+                      {Object.entries(structuredFields).map(([key, value]) => (
+                        <div key={key} className="space-y-0.5">
+                          <label className="text-xs text-gray-500 truncate block" title={key}>
+                            {key}
+                          </label>
+                          <pre className="text-xs bg-gray-50 border rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                            {JSON.stringify(value, null, 2)}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={handleSaveDraft}

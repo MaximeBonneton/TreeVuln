@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   EnisaEventDetail,
@@ -63,6 +63,15 @@ function buildDetail(overrides: Partial<EnisaEventDetailData> = {}): EnisaEventD
     close_reason: null,
     ...overrides,
   };
+}
+
+// Localise l'input d'un champ de brouillon par son libellé (attribut title)
+// plutôt que par valeur affichée : plusieurs champs (dont le "Correctif
+// disponible le" du cycle de vie) peuvent partager une valeur vide et
+// rendraient findByDisplayValue('') ambigu.
+function getDraftFieldInput(key: string): HTMLInputElement {
+  const label = screen.getByTitle(key);
+  return within(label.parentElement as HTMLElement).getByRole('textbox') as HTMLInputElement;
 }
 
 describe('EnisaEventDetail — helpers datetime-local <-> ISO', () => {
@@ -250,6 +259,103 @@ describe('EnisaEventDetail — formulaire de jalon', () => {
     await waitFor(() => {
       expect(saveEnisaDraftMock).toHaveBeenCalledWith(5, 'early_warning', {
         summary: 'Résumé édité',
+      });
+    });
+  });
+
+  it('préserve les champs structurés (jamais stringifiés) et ne renvoie que la clé éditée', async () => {
+    const user = userEvent.setup();
+    getEnisaEventMock.mockResolvedValue(
+      buildDetail({
+        status: 'confirmed',
+        milestones: {
+          notification: {
+            due_at: '2026-07-25T10:00:00Z',
+            remaining_seconds: 200000,
+            overdue: false,
+            submitted_at: null,
+          },
+        },
+      })
+    );
+    exportEnisaMilestoneMock.mockResolvedValue(
+      JSON.stringify({
+        corrective_measures: '',
+        severity: { cvss_score: 9.8, epss_score: 0.7 },
+        affected_assets: [{ asset_id: 'srv-prod-001' }],
+      })
+    );
+    saveEnisaDraftMock.mockResolvedValue(buildDetail({ status: 'confirmed' }));
+
+    render(<EnisaEventDetail eventId={6} onClose={vi.fn()} onChanged={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getAllByText('Éditer le formulaire')[1]).toBeInTheDocument()
+    );
+    // Index 1 = jalon "notification" (ordre MILESTONES : early_warning, notification, final_report)
+    fireEvent.click(screen.getAllByText('Éditer le formulaire')[1]);
+
+    await waitFor(() => expect(screen.getByTitle('corrective_measures')).toBeInTheDocument());
+    const field = getDraftFieldInput('corrective_measures');
+    await user.type(field, 'Correctif appliqué le 2026-07-22');
+
+    // Les champs structurés ne doivent jamais apparaître comme des <input>
+    // éditables (ce qui les figerait en JSON stringifié au save) : ils sont
+    // affichés en lecture seule.
+    expect(screen.queryByDisplayValue(/"cvss_score"/)).not.toBeInTheDocument();
+    expect(screen.getByText(/"cvss_score": 9.8/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Enregistrer le brouillon'));
+
+    await waitFor(() => {
+      expect(saveEnisaDraftMock).toHaveBeenCalledWith(6, 'notification', {
+        corrective_measures: 'Correctif appliqué le 2026-07-22',
+      });
+    });
+  });
+
+  it('fusionne avec le brouillon déjà persisté au lieu de l\'écraser lors d\'un save partiel', async () => {
+    const user = userEvent.setup();
+    getEnisaEventMock.mockResolvedValue(
+      buildDetail({
+        status: 'confirmed',
+        drafts: { notification: { corrective_measures: 'Mesure déjà enregistrée' } },
+        milestones: {
+          notification: {
+            due_at: '2026-07-25T10:00:00Z',
+            remaining_seconds: 200000,
+            overdue: false,
+            submitted_at: null,
+          },
+        },
+      })
+    );
+    // L'export reflète déjà la fusion prefill + brouillon existant côté backend
+    exportEnisaMilestoneMock.mockResolvedValue(
+      JSON.stringify({
+        corrective_measures: 'Mesure déjà enregistrée',
+        exploitation_active: false,
+      })
+    );
+    saveEnisaDraftMock.mockResolvedValue(buildDetail({ status: 'confirmed' }));
+
+    render(<EnisaEventDetail eventId={7} onClose={vi.fn()} onChanged={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getAllByText('Éditer le formulaire')[1]).toBeInTheDocument()
+    );
+    // Index 1 = jalon "notification" (ordre MILESTONES : early_warning, notification, final_report)
+    fireEvent.click(screen.getAllByText('Éditer le formulaire')[1]);
+
+    await waitFor(() => expect(screen.getByTitle('exploitation_active')).toBeInTheDocument());
+    const field = getDraftFieldInput('exploitation_active');
+    await user.clear(field);
+    await user.type(field, 'true');
+
+    fireEvent.click(screen.getByText('Enregistrer le brouillon'));
+
+    await waitFor(() => {
+      expect(saveEnisaDraftMock).toHaveBeenCalledWith(7, 'notification', {
+        corrective_measures: 'Mesure déjà enregistrée',
+        exploitation_active: 'true',
       });
     });
   });
