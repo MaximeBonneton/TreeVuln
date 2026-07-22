@@ -13,3 +13,24 @@ export { settingsApi } from './settings';
 export type { CsafSettings, CsafPublisher, CsafSettingsUpdate } from './settings';
 export { sbomApi } from './sbom';
 export type { SbomMeta, SbomDetail, SbomComponent, SbomSummaryItem } from './sbom';
+export {
+  listEnisaEvents,
+  getEnisaEvent,
+  confirmEnisaEvent,
+  dismissEnisaEvent,
+  reopenEnisaEvent,
+  closeEnisaEvent,
+  submitEnisaMilestone,
+  saveEnisaDraft,
+  setEnisaCorrectiveDate,
+  exportEnisaMilestone,
+  getEnisaSummary,
+} from './enisa';
+export type {
+  Milestone,
+  EnisaStatus,
+  MilestoneState,
+  EnisaEventSummary,
+  EnisaEventDetail,
+  EnisaSummary,
+} from './enisa';

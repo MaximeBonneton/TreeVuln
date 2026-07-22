@@ -124,6 +124,32 @@ export function OutputConfig({
           </div>
         )}
       </div>
+
+      {/* ENISA : marque ce nœud comme créant un candidat à notification (CRA art. 14) */}
+      <div className="pt-3 border-t">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="enisa-notifiable"
+            checked={config.enisa_notifiable === true}
+            onChange={(e) => {
+              const next = { ...config };
+              if (e.target.checked) {
+                next.enisa_notifiable = true;
+              } else {
+                delete next.enisa_notifiable;
+              }
+              onChange(next);
+            }}
+          />
+          <label htmlFor="enisa-notifiable" className="text-sm">
+            Notifiable ENISA
+            <span className="block text-xs text-gray-500">
+              Les évaluations atteignant cette décision créent un candidat à notification (CRA art. 14)
+            </span>
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

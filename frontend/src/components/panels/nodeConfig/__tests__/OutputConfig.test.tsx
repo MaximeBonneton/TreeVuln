@@ -74,3 +74,32 @@ describe('OutputConfig — section VEX / CSAF', () => {
     expect(onChange).toHaveBeenCalledWith(baseConfig);
   });
 });
+
+describe('OutputConfig — flag ENISA', () => {
+  const baseConfig = { decision: 'Act', color: '#dc2626' };
+
+  it('affiche la case Notifiable ENISA décochée par défaut', () => {
+    render(<OutputConfig config={baseConfig} onChange={vi.fn()} />);
+    const checkbox = screen.getByLabelText(/notifiable enisa/i);
+    expect(checkbox).not.toBeChecked();
+  });
+
+  it('coche -> onChange avec enisa_notifiable: true', () => {
+    const onChange = vi.fn();
+    render(<OutputConfig config={baseConfig} onChange={onChange} />);
+    fireEvent.click(screen.getByLabelText(/notifiable enisa/i));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ enisa_notifiable: true })
+    );
+  });
+
+  it('décoche -> le flag est retiré de la config (pas false)', () => {
+    const onChange = vi.fn();
+    render(
+      <OutputConfig config={{ ...baseConfig, enisa_notifiable: true }} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByLabelText(/notifiable enisa/i));
+    const arg = onChange.mock.calls[0][0];
+    expect('enisa_notifiable' in arg).toBe(false);
+  });
+});
