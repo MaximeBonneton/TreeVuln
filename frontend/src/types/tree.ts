@@ -77,6 +77,8 @@ export interface OutputNodeConfig {
   color: string;
   vex_status?: string;
   vex_justification?: string;
+  /** Marque ce nœud de sortie comme créant un candidat à notification ENISA (CRA art. 14) */
+  enisa_notifiable?: boolean;
 }
 
 export interface ValueMapEntry {

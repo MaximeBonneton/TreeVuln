@@ -15,6 +15,7 @@ import { AssetImportDialog } from '../dialogs/AssetImportDialog';
 import { WebhookConfigDialog } from '../dialogs/WebhookConfigDialog';
 import { IngestConfigDialog } from '../dialogs/IngestConfigDialog';
 import { SbomConfigDialog } from '../dialogs/SbomConfigDialog';
+import { EnisaPanel } from '../panels/EnisaPanel';
 import { useTreeStore } from '@/stores/treeStore';
 import type { NodeType, TreeNode, TreeEdge } from '@/types';
 
@@ -29,6 +30,7 @@ export function TreeBuilder() {
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const [showIngestConfig, setShowIngestConfig] = useState(false);
   const [showSbomConfig, setShowSbomConfig] = useState(false);
+  const [showEnisaPanel, setShowEnisaPanel] = useState(false);
 
   const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName, error: storeError } = useTreeStore();
   const treeWarnings = useTreeStore((state) => state.treeWarnings);
@@ -210,6 +212,7 @@ export function TreeBuilder() {
             onOpenWebhookConfig={() => setShowWebhookConfig(true)}
             onOpenIngestConfig={() => setShowIngestConfig(true)}
             onOpenSbomConfig={() => setShowSbomConfig(true)}
+            onOpenEnisaPanel={() => setShowEnisaPanel(true)}
           />
 
           {/* Left palette */}
@@ -299,6 +302,15 @@ export function TreeBuilder() {
             treeId={treeId}
             treeName={treeName}
             onClose={() => setShowSbomConfig(false)}
+          />
+        )}
+
+        {/* ENISA notifications panel */}
+        {treeId && (
+          <EnisaPanel
+            open={showEnisaPanel}
+            onClose={() => setShowEnisaPanel(false)}
+            treeId={treeId}
           />
         )}
       </div>

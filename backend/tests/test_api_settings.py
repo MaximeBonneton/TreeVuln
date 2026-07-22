@@ -141,3 +141,65 @@ class TestPutCsafSettings:
         assert body["has_signing_key"] is False
         # Le publisher est conservé (mise à jour partielle)
         assert body["publisher"]["name"] == "ACME Medical"
+
+
+VALID_MANUFACTURER = {
+    "name": "ACME Medical",
+    "contact": "security@acme-medical.example.com",
+    "product_identifiers": ["acme-pump-v2"],
+}
+
+
+class TestGetEnisaSettings:
+    async def test_get_sans_auth_401(self, client):
+        resp = await client.get("/api/v1/settings/enisa")
+        assert resp.status_code == 401
+
+    async def test_get_valeurs_par_defaut(self, admin_client):
+        resp = await admin_client.get("/api/v1/settings/enisa")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["manufacturer"] is None
+        assert body["reminder_thresholds"] == ["T-12h", "T-2h", "overdue"]
+
+    async def test_get_accessible_operator(self, client, admin_client):
+        operator = await _make_operator_client(client, admin_client)
+        resp = await operator.get("/api/v1/settings/enisa")
+        assert resp.status_code == 200
+
+
+class TestPutEnisaSettings:
+    async def test_put_manufacturer_admin(self, admin_client):
+        resp = await admin_client.put(
+            "/api/v1/settings/enisa", json={"manufacturer": VALID_MANUFACTURER}
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["manufacturer"]["name"] == "ACME Medical"
+
+    async def test_put_interdit_operator(self, client, admin_client):
+        operator = await _make_operator_client(client, admin_client)
+        resp = await operator.put(
+            "/api/v1/settings/enisa", json={"manufacturer": VALID_MANUFACTURER}
+        )
+        assert resp.status_code == 403
+
+    async def test_put_seuil_invalide_400(self, admin_client):
+        resp = await admin_client.put(
+            "/api/v1/settings/enisa",
+            json={"reminder_thresholds": ["T-12h", "pas-un-seuil"]},
+        )
+        assert resp.status_code == 400
+
+    async def test_put_seuils_partiel_conserve_manufacturer(self, admin_client):
+        await admin_client.put(
+            "/api/v1/settings/enisa", json={"manufacturer": VALID_MANUFACTURER}
+        )
+        resp = await admin_client.put(
+            "/api/v1/settings/enisa",
+            json={"reminder_thresholds": ["overdue"]},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["reminder_thresholds"] == ["overdue"]
+        assert body["manufacturer"]["name"] == "ACME Medical"

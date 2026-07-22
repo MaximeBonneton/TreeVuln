@@ -161,6 +161,7 @@ class InferenceEngine:
                     decision=str(value),
                     decision_color=node.config.get("color"),
                     path=path if include_path else [],
+                    output_node_id=node.id,
                 )
 
             # Check if this is a multi-input node

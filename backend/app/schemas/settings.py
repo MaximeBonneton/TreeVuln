@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from app.services.enisa_reminders import DEFAULT_THRESHOLDS
+
 
 class CsafPublisher(BaseModel):
     """Identité éditeur CSAF (document.publisher)."""
@@ -42,3 +44,27 @@ class CsafSettingsResponse(BaseModel):
     publisher: CsafPublisher | None = None
     has_signing_key: bool = False
     signing_key_fingerprint: str | None = None
+
+
+class EnisaManufacturer(BaseModel):
+    """Identité fabricant pour le pré-remplissage des jalons ENISA."""
+
+    name: str = ""
+    contact: str = ""
+    product_identifiers: list[str] = Field(default_factory=list)
+
+
+class EnisaSettingsResponse(BaseModel):
+    """Settings ENISA courants (identité fabricant + seuils de rappel)."""
+
+    manufacturer: EnisaManufacturer | None = None
+    reminder_thresholds: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_THRESHOLDS)
+    )
+
+
+class EnisaSettingsUpdate(BaseModel):
+    """Mise à jour partielle des settings ENISA (PUT)."""
+
+    manufacturer: EnisaManufacturer | None = None
+    reminder_thresholds: list[str] | None = None

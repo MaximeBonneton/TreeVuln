@@ -179,6 +179,22 @@ class NodeSchema(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_enisa_notifiable(self) -> "NodeSchema":
+        """Flag ENISA (Phase 3) : booléen, autorisé uniquement sur les Output."""
+        if not isinstance(self.config, dict) or "enisa_notifiable" not in self.config:
+            return self
+        flag = self.config["enisa_notifiable"]
+        if self.type != NodeType.OUTPUT:
+            raise ValueError(
+                "enisa_notifiable n'est autorisé que sur les nœuds output"
+            )
+        if not isinstance(flag, bool):
+            raise ValueError(
+                f"enisa_notifiable doit être un booléen (reçu : {flag!r})"
+            )
+        return self
+
 
 class EdgeSchema(BaseModel):
     """

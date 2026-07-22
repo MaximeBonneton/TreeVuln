@@ -9,11 +9,17 @@ from app.schemas.settings import (
     CsafPublisher,
     CsafSettingsResponse,
     CsafSettingsUpdate,
+    EnisaManufacturer,
+    EnisaSettingsResponse,
+    EnisaSettingsUpdate,
 )
 from app.services.csaf_signing import SigningError, get_key_fingerprint
-from app.services.settings_service import CSAF_SETTINGS_KEY
+from app.services.enisa_reminders import DEFAULT_THRESHOLDS
+from app.services.settings_service import CSAF_SETTINGS_KEY, ENISA_SETTINGS_KEY
 
 router = APIRouter()
+
+_VALID_THRESHOLDS = set(DEFAULT_THRESHOLDS)
 
 
 def _to_response(stored: dict[str, Any] | None) -> CsafSettingsResponse:
@@ -69,3 +75,40 @@ async def update_csaf_settings(
 
     await settings_service.set_setting(CSAF_SETTINGS_KEY, stored)
     return _to_response(stored)
+
+
+@router.get("/enisa", response_model=EnisaSettingsResponse)
+async def get_enisa_settings(settings_service: SettingsServiceDep):
+    """Settings ENISA courants. Accessible à tout utilisateur authentifié."""
+    stored = await settings_service.get_setting(ENISA_SETTINGS_KEY) or {}
+    return EnisaSettingsResponse(
+        manufacturer=(
+            EnisaManufacturer.model_validate(stored["manufacturer"])
+            if stored.get("manufacturer") else None
+        ),
+        reminder_thresholds=stored.get(
+            "reminder_thresholds", list(DEFAULT_THRESHOLDS)
+        ),
+    )
+
+
+@router.put("/enisa", response_model=EnisaSettingsResponse)
+async def update_enisa_settings(
+    payload: EnisaSettingsUpdate,
+    settings_service: SettingsServiceDep,
+    _=require_role("admin"),
+):
+    """Met à jour partiellement les settings ENISA (admin uniquement)."""
+    stored = await settings_service.get_setting(ENISA_SETTINGS_KEY) or {}
+    if payload.manufacturer is not None:
+        stored["manufacturer"] = payload.manufacturer.model_dump()
+    if payload.reminder_thresholds is not None:
+        invalid = set(payload.reminder_thresholds) - _VALID_THRESHOLDS
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid thresholds: {sorted(invalid)}",
+            )
+        stored["reminder_thresholds"] = payload.reminder_thresholds
+    await settings_service.set_setting(ENISA_SETTINGS_KEY, stored)
+    return await get_enisa_settings(settings_service)

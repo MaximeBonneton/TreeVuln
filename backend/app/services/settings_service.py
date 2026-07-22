@@ -10,6 +10,9 @@ from app.models.settings import AppSetting
 # Clé du bloc de settings CSAF (identité éditeur + clé de signature)
 CSAF_SETTINGS_KEY = "csaf"
 
+# Clé du bloc de settings ENISA (identité fabricant pour le pré-remplissage des jalons)
+ENISA_SETTINGS_KEY = "enisa"
+
 
 class SettingsService:
     def __init__(self, db: AsyncSession) -> None:
