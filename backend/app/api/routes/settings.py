@@ -14,11 +14,12 @@ from app.schemas.settings import (
     EnisaSettingsUpdate,
 )
 from app.services.csaf_signing import SigningError, get_key_fingerprint
+from app.services.enisa_reminders import DEFAULT_THRESHOLDS
 from app.services.settings_service import CSAF_SETTINGS_KEY, ENISA_SETTINGS_KEY
 
 router = APIRouter()
 
-_VALID_THRESHOLDS = {"T-12h", "T-2h", "overdue"}
+_VALID_THRESHOLDS = set(DEFAULT_THRESHOLDS)
 
 
 def _to_response(stored: dict[str, Any] | None) -> CsafSettingsResponse:
@@ -86,7 +87,7 @@ async def get_enisa_settings(settings_service: SettingsServiceDep):
             if stored.get("manufacturer") else None
         ),
         reminder_thresholds=stored.get(
-            "reminder_thresholds", ["T-12h", "T-2h", "overdue"]
+            "reminder_thresholds", list(DEFAULT_THRESHOLDS)
         ),
     )
 

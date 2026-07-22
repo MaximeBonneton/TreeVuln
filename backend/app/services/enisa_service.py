@@ -56,11 +56,22 @@ async def record_candidates(
 
         now = datetime.now(timezone.utc)
         async with async_session_maker() as db:
+            # FOR UPDATE : deux transactions qui découvrent le même CVE déjà
+            # existant en même temps (deux pipelines d'évaluation qui
+            # traitent des lots se recoupant) doivent se sérialiser sur la
+            # ligne, sinon un incrément de redetection_count ou une fusion
+            # d'assets peut être perdu (la deuxième transaction écrase avec
+            # sa propre vue, lue avant le commit de la première). Sans
+            # incidence sur le chemin de création (SAVEPOINT ci-dessous) :
+            # ce verrou ne porte que sur les lignes déjà existantes au moment
+            # du SELECT.
             existing_rows = await db.execute(
-                select(EnisaEvent).where(
+                select(EnisaEvent)
+                .where(
                     EnisaEvent.tree_id == tree_id,
                     EnisaEvent.cve_id.in_(by_cve.keys()),
                 )
+                .with_for_update()
             )
             existing = {e.cve_id: e for e in existing_rows.scalars().all()}
 

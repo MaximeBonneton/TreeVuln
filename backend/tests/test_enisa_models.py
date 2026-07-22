@@ -1,5 +1,4 @@
 """Tests d'introspection du modèle EnisaEvent (Phase 3 CRA)."""
-import pytest
 from sqlalchemy import inspect
 
 from app.models.enisa import EnisaEvent

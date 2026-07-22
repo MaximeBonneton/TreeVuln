@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from app.services.enisa_reminders import DEFAULT_THRESHOLDS
+
 
 class CsafPublisher(BaseModel):
     """Identité éditeur CSAF (document.publisher)."""
@@ -57,7 +59,7 @@ class EnisaSettingsResponse(BaseModel):
 
     manufacturer: EnisaManufacturer | None = None
     reminder_thresholds: list[str] = Field(
-        default_factory=lambda: ["T-12h", "T-2h", "overdue"]
+        default_factory=lambda: list(DEFAULT_THRESHOLDS)
     )
 
 
