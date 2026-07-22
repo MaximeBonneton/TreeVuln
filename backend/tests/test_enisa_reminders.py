@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.enisa import EnisaEvent
@@ -66,6 +67,24 @@ class TestCheckReminders:
         # à 30h : T-12h, T-2h et overdue sont tous franchis, mais un seul
         # rappel est émis (le plus sévère : overdue), les autres marqués envoyés
         assert thresholds == {"overdue"}
+
+    async def test_t12_et_t2_simultanes_sans_overdue_priorite_t2(self, db_session, sample_tree):
+        # confirmé il y a 23h -> early_warning due dans 1h : T-12h ET T-2h
+        # franchis au même cycle, mais pas overdue. Le seuil le plus urgent
+        # (T-2h, marge la plus petite) doit être annoncé, pas T-12h.
+        await _confirmed_event(db_session, sample_tree.id, "CVE-R5", 23)
+        with patch("app.services.enisa_reminders.schedule_webhook_dispatch") as mock:
+            await check_reminders(NOW, THRESHOLDS)
+        calls = [c for c in mock.call_args_list
+                 if c.args[1] == "enisa_deadline" and c.args[2]["milestone"] == "early_warning"]
+        assert len(calls) == 1
+        assert calls[0].args[2]["threshold"] == "T-2h"
+
+        rows = await db_session.execute(
+            select(EnisaEvent).where(EnisaEvent.cve_id == "CVE-R5")
+        )
+        event = rows.scalar_one()
+        assert set(event.reminders_sent["early_warning"]) == {"T-12h", "T-2h"}
 
     async def test_jalon_soumis_pas_de_rappel(self, db_session, sample_tree):
         event = await _confirmed_event(db_session, sample_tree.id, "CVE-R4", 30)

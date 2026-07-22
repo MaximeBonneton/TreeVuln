@@ -24,6 +24,11 @@ DEFAULT_THRESHOLDS = ["T-12h", "T-2h", "overdue"]
 # "T-12h" -> marge avant échéance ; "overdue" -> échéance dépassée
 _THRESHOLD_MARGINS = {"T-12h": timedelta(hours=12), "T-2h": timedelta(hours=2)}
 
+# Ordre de sévérité explicite (le plus urgent d'abord), indépendant de l'ordre
+# d'insertion de _THRESHOLD_MARGINS : overdue > T-2h > T-12h (marge la plus
+# petite = le plus urgent).
+_SEVERITY_ORDER = ["overdue", "T-2h", "T-12h"]
+
 
 def _crossed_thresholds(
     milestone_state: dict, now: datetime, thresholds: list[str]
@@ -33,10 +38,13 @@ def _crossed_thresholds(
     if due_at is None or milestone_state["submitted_at"] is not None:
         return []
     crossed = []
-    if "overdue" in thresholds and now > due_at:
-        crossed.append("overdue")
-    for name, margin in _THRESHOLD_MARGINS.items():
-        if name in thresholds and now >= due_at - margin:
+    for name in _SEVERITY_ORDER:
+        if name not in thresholds:
+            continue
+        if name == "overdue":
+            if now > due_at:
+                crossed.append(name)
+        elif now >= due_at - _THRESHOLD_MARGINS[name]:
             crossed.append(name)
     return crossed
 
