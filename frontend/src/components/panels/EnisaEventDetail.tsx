@@ -15,7 +15,7 @@ import {
 } from '@/api/enisa';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { MilestoneCountdown } from './EnisaPanel';
+import { MILESTONE_LABELS, STATUS_LABELS, MilestoneCountdown } from './enisaShared';
 
 interface EnisaEventDetailProps {
   eventId: number;
@@ -25,14 +25,10 @@ interface EnisaEventDetailProps {
 
 const MILESTONES: Milestone[] = ['early_warning', 'notification', 'final_report'];
 
-const MILESTONE_LABELS: Record<Milestone, string> = {
-  early_warning: 'Alerte précoce',
-  notification: 'Notification',
-  final_report: 'Rapport final',
-};
-
 // datetime-local (heure locale, sans fuseau) <-> ISO 8601 UTC
-function isoToDatetimeLocal(iso: string | null): string {
+// Exportées (nommées) pour être testées isolément : régression silencieuse
+// sinon en cas d'erreur de fuseau/format.
+export function isoToDatetimeLocal(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -40,7 +36,7 @@ function isoToDatetimeLocal(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function datetimeLocalToIso(value: string): string | null {
+export function datetimeLocalToIso(value: string): string | null {
   if (!value) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
@@ -264,13 +260,19 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
     ([key]) => key !== 'audit_trail'
   );
 
+  // Clôture possible librement si les 3 jalons sont soumis, sinon motif requis
+  const allMilestonesSubmitted = MILESTONES.every(
+    (m) => detail.milestones[m]?.submitted_at != null
+  );
+  const closeBlocked = !allMilestonesSubmitted && !closeReason.trim();
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
       <div className="bg-white rounded-lg shadow-xl w-[640px] max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <h2 className="font-bold text-gray-800 font-mono">{detail.cve_id}</h2>
-            <span className="text-xs text-gray-500">{detail.status}</span>
+            <span className="text-xs text-gray-500">{STATUS_LABELS[detail.status]}</span>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X size={20} />
@@ -387,7 +389,8 @@ export function EnisaEventDetail({ eventId, onClose, onChanged }: EnisaEventDeta
                     />
                     <button
                       onClick={handleCloseSubmit}
-                      disabled={busy}
+                      disabled={busy || closeBlocked}
+                      title={closeBlocked ? 'Motif requis : des jalons ne sont pas soumis' : undefined}
                       className="px-2 py-1 text-sm bg-gray-700 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
                     >
                       Confirmer la clôture
