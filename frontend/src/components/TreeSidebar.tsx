@@ -18,11 +18,13 @@ import {
   KeyRound,
   Users,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTreeStore } from '@/stores/treeStore';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { authApi } from '@/api/auth';
+import { getEnisaSummary, type EnisaSummary } from '@/api/enisa';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { UsersPanel } from '@/components/panels/UsersPanel';
 import type { TreeListItem } from '@/types';
@@ -34,9 +36,10 @@ interface TreeSidebarProps {
   onOpenWebhookConfig?: () => void;
   onOpenIngestConfig?: () => void;
   onOpenSbomConfig?: () => void;
+  onOpenEnisaPanel?: () => void;
 }
 
-export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetImport, onOpenWebhookConfig, onOpenIngestConfig, onOpenSbomConfig }: TreeSidebarProps) {
+export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetImport, onOpenWebhookConfig, onOpenIngestConfig, onOpenSbomConfig, onOpenEnisaPanel }: TreeSidebarProps) {
   const {
     trees,
     treeId,
@@ -58,6 +61,26 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
   const [duplicateName, setDuplicateName] = useState('');
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showUsersPanel, setShowUsersPanel] = useState(false);
+  const [enisaSummary, setEnisaSummary] = useState<EnisaSummary | null>(null);
+
+  // Badge ENISA : compteurs de l'arbre courant uniquement
+  useEffect(() => {
+    if (!treeId) {
+      setEnisaSummary(null);
+      return;
+    }
+    let cancelled = false;
+    getEnisaSummary(treeId)
+      .then((summary) => {
+        if (!cancelled) setEnisaSummary(summary);
+      })
+      .catch(() => {
+        if (!cancelled) setEnisaSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [treeId]);
 
   // Logout
   const handleLogout = async () => {
@@ -276,6 +299,24 @@ export function TreeSidebar({ onOpenCreateDialog, onOpenApiConfig, onOpenAssetIm
                         title="SBOM"
                       >
                         <Package size={16} className="text-gray-500" />
+                      </button>
+                    )}
+                    {onOpenEnisaPanel && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenEnisaPanel(); }}
+                        className="relative p-1.5 hover:bg-amber-50 rounded-md"
+                        title="ENISA notifications"
+                      >
+                        <AlertTriangle size={16} className="text-gray-500" />
+                        {enisaSummary && enisaSummary.candidates + enisaSummary.overdue_milestones > 0 && (
+                          <span
+                            className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[10px] font-medium text-white ${
+                              enisaSummary.overdue_milestones > 0 ? 'bg-red-500' : 'bg-gray-400'
+                            }`}
+                          >
+                            {enisaSummary.candidates + enisaSummary.overdue_milestones}
+                          </span>
+                        )}
                       </button>
                     )}
                     {onOpenWebhookConfig && (
