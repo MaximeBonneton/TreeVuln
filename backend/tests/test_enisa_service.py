@@ -1,4 +1,6 @@
 """Upsert des candidats ENISA : dédup, agrégation, redétection, isolation."""
+import asyncio
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -94,6 +96,47 @@ class TestRecordCandidates:
         await db_session.refresh(events[0])
         assert events[0].status == "dismissed"  # PAS de réouverture auto
         assert events[0].redetection_count == 1
+
+    async def test_conflit_insertion_concurrente_ne_perd_pas_le_lot(self, db_session, sample_tree):
+        """Deux appels concurrents découvrant le même nouveau CVE ne doivent
+        perdre aucun candidat, y compris les CVE sans rapport avec la
+        collision présents dans chaque lot.
+
+        record_candidates ouvre sa propre session par appel (comme
+        webhook_dispatch) : exécuter deux appels réels via asyncio.gather
+        reproduit fidèlement la race SELECT-puis-INSERT sur deux connexions
+        Postgres distinctes (le second INSERT bloque jusqu'au commit du
+        premier, puis lève IntegrityError sur uq_enisa_events_tree_cve —
+        exactement le scénario décrit par la revue)."""
+        shared_cve = "CVE-2026-0006"
+        pair_a = [
+            (_result(shared_cve), _vuln(shared_cve, "asset-a")),
+            (_result("CVE-2026-0007"), _vuln("CVE-2026-0007", "asset-x")),
+        ]
+        pair_b = [
+            (_result(shared_cve), _vuln(shared_cve, "asset-b")),
+            (_result("CVE-2026-0008"), _vuln("CVE-2026-0008", "asset-y")),
+        ]
+
+        await asyncio.gather(
+            record_candidates(sample_tree.id, STRUCTURE, pair_a),
+            record_candidates(sample_tree.id, STRUCTURE, pair_b),
+        )
+
+        events = await self._fetch_all(db_session)
+        by_cve = {e.cve_id: e for e in events}
+
+        # Aucun candidat perdu : les 3 CVE distincts du lot combiné sont présents.
+        assert set(by_cve.keys()) == {shared_cve, "CVE-2026-0007", "CVE-2026-0008"}
+
+        # Le CVE en collision a bien agrégé les assets des deux appels
+        # concurrents (pas juste celui du "gagnant" de la course).
+        shared_assets = sorted(a["asset_id"] for a in by_cve[shared_cve].affected_assets)
+        assert shared_assets == ["asset-a", "asset-b"]
+
+        # Les CVE non concurrents de chaque lot ne sont pas affectés.
+        assert by_cve["CVE-2026-0007"].affected_assets == [{"asset_id": "asset-x"}]
+        assert by_cve["CVE-2026-0008"].affected_assets == [{"asset_id": "asset-y"}]
 
     async def test_isolation_des_erreurs(self, db_session, sample_tree, monkeypatch):
         """Une panne interne ne doit jamais remonter à l'appelant."""
