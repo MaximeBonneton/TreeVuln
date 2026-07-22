@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import require_auth
-from app.api.routes import assets, auth, evaluate, field_mapping, ingest, license, tree, users, webhooks
+from app.api.routes import assets, auth, enisa, evaluate, field_mapping, ingest, license, tree, users, webhooks
 from app.api.routes import settings as settings_routes
 from app.enterprise.license import is_enterprise
 
@@ -24,6 +24,7 @@ api_router.include_router(ingest.admin_router, tags=["Ingest"], dependencies=Req
 api_router.include_router(
     settings_routes.router, prefix="/settings", tags=["Settings"], dependencies=RequireAuth
 )
+api_router.include_router(enisa.router, prefix="/enisa", tags=["ENISA"], dependencies=RequireAuth)
 
 # --- User management (admin via per-route checks) ---
 api_router.include_router(users.router, tags=["Users"], dependencies=RequireAuth)
