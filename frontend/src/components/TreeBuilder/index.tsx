@@ -14,6 +14,7 @@ import { CreateTreeDialog } from '../dialogs/CreateTreeDialog';
 import { AssetImportDialog } from '../dialogs/AssetImportDialog';
 import { WebhookConfigDialog } from '../dialogs/WebhookConfigDialog';
 import { IngestConfigDialog } from '../dialogs/IngestConfigDialog';
+import { SbomConfigDialog } from '../dialogs/SbomConfigDialog';
 import { useTreeStore } from '@/stores/treeStore';
 import type { NodeType, TreeNode, TreeEdge } from '@/types';
 
@@ -27,6 +28,7 @@ export function TreeBuilder() {
   const [showAssetImport, setShowAssetImport] = useState(false);
   const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const [showIngestConfig, setShowIngestConfig] = useState(false);
+  const [showSbomConfig, setShowSbomConfig] = useState(false);
 
   const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName, error: storeError } = useTreeStore();
   const treeWarnings = useTreeStore((state) => state.treeWarnings);
@@ -207,6 +209,7 @@ export function TreeBuilder() {
             onOpenAssetImport={() => setShowAssetImport(true)}
             onOpenWebhookConfig={() => setShowWebhookConfig(true)}
             onOpenIngestConfig={() => setShowIngestConfig(true)}
+            onOpenSbomConfig={() => setShowSbomConfig(true)}
           />
 
           {/* Left palette */}
@@ -287,6 +290,15 @@ export function TreeBuilder() {
             treeId={treeId}
             treeName={treeName}
             onClose={() => setShowIngestConfig(false)}
+          />
+        )}
+
+        {/* SBOM management dialog */}
+        {showSbomConfig && treeId && (
+          <SbomConfigDialog
+            treeId={treeId}
+            treeName={treeName}
+            onClose={() => setShowSbomConfig(false)}
           />
         )}
       </div>

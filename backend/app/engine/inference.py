@@ -315,3 +315,24 @@ class InferenceEngine:
             if hasattr(node, "config") and "lookup_table" in node.config:
                 tables.add(node.config["lookup_table"])
         return tables
+
+    def uses_sbom_fields(self) -> bool:
+        """L'arbre référence-t-il au moins un champ virtuel sbom_* ?
+
+        Sert au chargement paresseux du cache de composants : pas de
+        requête SBOM si aucun nœud n'utilise ces champs.
+        """
+        from app.engine.sbom import is_sbom_field
+
+        for node in self.tree_structure.nodes:
+            field = node.config.get("field")
+            if isinstance(field, str) and is_sbom_field(field):
+                return True
+            for var in node.config.get("variables") or []:
+                if isinstance(var, str) and is_sbom_field(var):
+                    return True
+            for condition in node.conditions:
+                for criterion in condition.criteria or []:
+                    if criterion.field and is_sbom_field(criterion.field):
+                        return True
+        return False

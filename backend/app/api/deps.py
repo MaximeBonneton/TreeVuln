@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models.user import User
 from app.services.asset_service import AssetService
 from app.services.ingest_service import IngestService
+from app.services.sbom_service import SbomService
 from app.services.settings_service import SettingsService
 from app.services.tree_service import TreeService
 from app.services.user_service import UserService
@@ -89,11 +90,17 @@ async def get_settings_service(db: DBSession) -> AsyncGenerator[SettingsService,
     yield SettingsService(db)
 
 
+async def get_sbom_service(db: DBSession) -> AsyncGenerator[SbomService, None]:
+    """Provide a SBOM service instance."""
+    yield SbomService(db)
+
+
 TreeServiceDep = Annotated[TreeService, Depends(get_tree_service)]
 AssetServiceDep = Annotated[AssetService, Depends(get_asset_service)]
 WebhookServiceDep = Annotated[WebhookService, Depends(get_webhook_service)]
 IngestServiceDep = Annotated[IngestService, Depends(get_ingest_service)]
 SettingsServiceDep = Annotated[SettingsService, Depends(get_settings_service)]
+SbomServiceDep = Annotated[SbomService, Depends(get_sbom_service)]
 
 
 # --- Upload helpers ---

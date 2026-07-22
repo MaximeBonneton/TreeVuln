@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from app.api.deps import TreeServiceDep, read_upload_with_limit, require_role
 from app.filename_validation import sanitize_filename
 from app.engine.cvss import get_cvss_field_definitions
+from app.engine.sbom import get_sbom_field_definitions
 from app.schemas.field_mapping import (
     FieldDefinition,
     FieldMapping,
@@ -231,12 +232,10 @@ async def scan_file(
 @global_router.get("/cvss-fields", response_model=list[FieldDefinition])
 async def get_cvss_fields():
     """
-    Return the definitions of virtual CVSS fields.
+    Return the definitions of virtual fields (CVSS + SBOM).
 
-    These fields are automatically extracted from the CVSS vector (cvss_vector)
-    during evaluation. They allow creating conditions on individual
-    metrics (Attack Vector, Attack Complexity, etc.).
-
-    Supports CVSS 3.1 and 4.0.
+    CVSS fields are extracted from cvss_vector during evaluation
+    (CVSS 3.1 and 4.0) ; SBOM fields are computed from the asset's
+    ingested SBOM (component presence matching).
     """
-    return get_cvss_field_definitions()
+    return get_cvss_field_definitions() + get_sbom_field_definitions()

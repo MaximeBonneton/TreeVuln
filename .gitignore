@@ -40,6 +40,7 @@ yarn-error.log*
 dist/
 .npm
 .yarn
+*.tsbuildinfo
 
 # ===========================
 # Environment & Secrets

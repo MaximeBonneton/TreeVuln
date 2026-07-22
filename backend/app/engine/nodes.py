@@ -212,6 +212,23 @@ class BaseNode(ABC):
                     parsed = parse_cvss_vector(cvss_vector)
                     value = parsed.get(field)
 
+        # Champs virtuels SBOM : présence du composant dans le SBOM de l'asset
+        if value is None:
+            from app.engine.sbom import compute_sbom_fields, is_sbom_field
+
+            if is_sbom_field(field):
+                asset_id = vuln_data.get("asset_id")
+                if asset_id is None and "extra" in vuln_data:
+                    asset_id = vuln_data["extra"].get("asset_id")
+                components = None
+                if asset_id is not None:
+                    components = (
+                        context.get("lookups", {})
+                        .get("sbom_components", {})
+                        .get(str(asset_id))
+                    )
+                value = compute_sbom_fields(vuln_data, components).get(field)
+
         return value
 
     def _evaluate_simple(

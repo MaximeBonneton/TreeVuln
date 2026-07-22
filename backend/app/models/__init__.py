@@ -1,5 +1,6 @@
 from app.models.asset import Asset
 from app.models.ingest import IngestEndpoint, IngestLog
+from app.models.sbom import Sbom, SbomComponent
 from app.models.settings import AppSetting
 from app.models.tree import Tree
 from app.models.tree_version import TreeVersion
@@ -10,6 +11,7 @@ __all__ = [
     "Tree", "TreeVersion", "Asset",
     "Webhook", "WebhookLog",
     "IngestEndpoint", "IngestLog",
+    "Sbom", "SbomComponent",
     "User", "UserSession", "EncryptionKey",
     "AppSetting",
 ]

@@ -1,6 +1,9 @@
-import type { AssetImportResult, AssetImportPreview } from '@/types';
+import { api } from './client';
+import type { Asset, AssetImportResult, AssetImportPreview } from '@/types';
 
 export const assetsApi = {
+  listAssets: (treeId: number) => api.get<Asset[]>(`/assets?tree_id=${treeId}`),
+
   previewImport: async (file: File): Promise<AssetImportPreview> => {
     const formData = new FormData();
     formData.append('file', file);

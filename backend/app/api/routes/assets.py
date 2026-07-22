@@ -10,7 +10,8 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
-from app.api.deps import AssetServiceDep, read_upload_with_limit, require_role
+from app.api.deps import AssetServiceDep, SbomServiceDep, read_upload_with_limit, require_role
+from app.engine.sbom import parse_sbom_file
 from app.filename_validation import sanitize_filename
 from app.schemas.asset import (
     AssetBulkCreate,
@@ -20,6 +21,12 @@ from app.schemas.asset import (
     AssetImportResponse,
     AssetResponse,
     AssetUpdate,
+)
+from app.schemas.sbom import (
+    SbomComponentResponse,
+    SbomDetailResponse,
+    SbomResponse,
+    SbomSummaryItem,
 )
 
 router = APIRouter()
@@ -47,6 +54,18 @@ async def list_assets(
     """
     assets = await asset_service.list_assets(tree_id, limit, offset, criticality)
     return assets
+
+
+@router.get("/sbom/summary", response_model=list[SbomSummaryItem])
+async def get_sbom_summary(
+    sbom_service: SbomServiceDep,
+    tree_id: int = Query(
+        description="Tree ID (obligatoire : pas d'accès privé à la résolution "
+        "de l'arbre par défaut depuis cette route).",
+    ),
+):
+    """Assets de l'arbre ayant un SBOM (badges de l'UI)."""
+    return await sbom_service.get_tree_summary(tree_id)
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)
@@ -277,3 +296,103 @@ async def import_assets(
     }
 
     return await asset_service.import_from_rows(rows, column_mapping, tree_id)
+
+
+@router.post(
+    "/{asset_id}/sbom", response_model=SbomResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_sbom(
+    asset_id: str,
+    file: UploadFile,
+    asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
+    tree_id: int | None = Query(default=None),
+    _=require_role("admin"),
+):
+    """Importe (ou remplace) le SBOM d'un asset. CycloneDX/SPDX JSON."""
+    asset = await asset_service.get_asset(asset_id, tree_id)
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset '{asset_id}' not found",
+        )
+
+    content = await read_upload_with_limit(file)
+    try:
+        parsed = parse_sbom_file(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    if not parsed.components:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No usable component found in the SBOM",
+        )
+
+    sbom = await sbom_service.replace_sbom(
+        asset.id, parsed, sanitize_filename(file.filename)
+    )
+    response = SbomResponse.model_validate(sbom)
+    response.warnings = parsed.warnings
+    return response
+
+
+@router.get("/{asset_id}/sbom", response_model=SbomDetailResponse)
+async def get_asset_sbom(
+    asset_id: str,
+    asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
+    tree_id: int | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+):
+    """Méta du SBOM d'un asset + page de composants."""
+    asset = await asset_service.get_asset(asset_id, tree_id)
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset '{asset_id}' not found",
+        )
+    sbom = await sbom_service.get_sbom(asset.id)
+    if not sbom:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset '{asset_id}' has no SBOM",
+        )
+    components, total = await sbom_service.get_components(sbom.id, limit, offset)
+    # Construction explicite (pas de model_validate(sbom) global) : le modèle
+    # ORM Sbom porte une relation "components" paresseuse qui, si on la laisse
+    # être lue par from_attributes, déclenche un lazy-load synchrone hors
+    # contexte async (MissingGreenlet). On ne lit ici que les colonnes scalaires.
+    return SbomDetailResponse(
+        format=sbom.format,
+        spec_version=sbom.spec_version,
+        filename=sbom.filename,
+        component_count=sbom.component_count,
+        imported_at=sbom.imported_at,
+        components=[SbomComponentResponse.model_validate(c) for c in components],
+        total_components=total,
+    )
+
+
+@router.delete("/{asset_id}/sbom", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_asset_sbom(
+    asset_id: str,
+    asset_service: AssetServiceDep,
+    sbom_service: SbomServiceDep,
+    tree_id: int | None = Query(default=None),
+    _=require_role("admin"),
+):
+    """Supprime le SBOM d'un asset."""
+    asset = await asset_service.get_asset(asset_id, tree_id)
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset '{asset_id}' not found",
+        )
+    deleted = await sbom_service.delete_sbom(asset.id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset '{asset_id}' has no SBOM",
+        )
