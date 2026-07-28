@@ -131,3 +131,4 @@ tmp/
 temp/
 *.tmp
 *.bak
+.superpowers/
