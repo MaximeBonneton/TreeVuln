@@ -50,18 +50,18 @@ describe('ConfirmDialog', () => {
   it('uses the danger style by default', () => {
     render(<ConfirmDialog {...defaultProps} />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-red-500');
+    expect(confirmBtn.className).toContain('bg-red-600');
   });
 
   it('applies the warning style', () => {
     render(<ConfirmDialog {...defaultProps} variant="warning" />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-orange-500');
+    expect(confirmBtn.className).toContain('bg-amber-500');
   });
 
   it('applies the info style', () => {
     render(<ConfirmDialog {...defaultProps} variant="info" />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-blue-500');
+    expect(confirmBtn.className).toContain('bg-indigo-600');
   });
 });
