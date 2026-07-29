@@ -15,7 +15,7 @@ const variantClasses = {
   secondary: 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
   ghost: 'text-slate-600 hover:bg-slate-100',
   danger: 'bg-red-600 text-white hover:bg-red-700',
-  warning: 'bg-amber-500 text-white hover:bg-amber-600',
+  warning: 'bg-amber-500 text-slate-900 hover:bg-amber-600',
 };
 
 const sizeClasses = {

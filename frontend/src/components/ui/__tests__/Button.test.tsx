@@ -19,6 +19,13 @@ describe('Button', () => {
     expect(screen.getByRole('button').className).toContain('bg-red-600');
   });
 
+  it('applies the warning variant with dark text (AA contrast on amber)', () => {
+    render(<Button variant="warning">Proceed</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn.className).toContain('bg-amber-500');
+    expect(btn.className).toContain('text-slate-900');
+  });
+
   it('defaults to type="button" (does not submit forms)', () => {
     render(<Button>Save</Button>);
     expect(screen.getByRole('button')).toHaveAttribute('type', 'button');

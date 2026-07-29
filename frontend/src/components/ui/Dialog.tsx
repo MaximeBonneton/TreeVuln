@@ -32,14 +32,18 @@ export function Dialog({ open, onClose, title, children, footer, size = 'md' }: 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={onClose}
+      // Fermeture uniquement si le mousedown démarre ET se termine sur le backdrop :
+      // une sélection de texte commencée dans le panneau et relâchée sur le backdrop
+      // ne doit pas fermer la modale (perte de données pour les futurs formulaires).
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={`w-full ${sizeClasses[size]} rounded-card bg-white shadow-md`}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 className="text-base font-semibold tracking-tight text-slate-900">{title}</h2>

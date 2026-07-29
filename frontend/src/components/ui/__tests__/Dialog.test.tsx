@@ -38,6 +38,13 @@ describe('Dialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('calls onClose when clicking the backdrop', async () => {
+    const onClose = vi.fn();
+    const { container } = render(<Dialog open onClose={onClose} title="Settings">content</Dialog>);
+    await userEvent.click(container.firstChild as HTMLElement);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('renders the footer when provided', () => {
     render(
       <Dialog open onClose={vi.fn()} title="Settings" footer={<button>Save</button>}>

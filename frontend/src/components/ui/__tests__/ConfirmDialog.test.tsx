@@ -64,4 +64,25 @@ describe('ConfirmDialog', () => {
     const confirmBtn = screen.getByText('Confirm');
     expect(confirmBtn.className).toContain('bg-indigo-600');
   });
+
+  it('calls onCancel when pressing Escape', async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.keyboard('{Escape}');
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('calls onCancel when clicking the close button', async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('calls onCancel when clicking the backdrop', async () => {
+    const onCancel = vi.fn();
+    const { container } = render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.click(container.firstChild as HTMLElement);
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
 });
