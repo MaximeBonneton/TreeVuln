@@ -3,14 +3,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.user import User, UserSession
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Durée d'une session serveur, dérivée de la même config que le max_age du
 # cookie (settings.session_max_age) pour éviter deux sources divergentes :
@@ -18,12 +16,24 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SESSION_DURATION = timedelta(seconds=settings.session_max_age)
 
 
+# bcrypt ignore tout au-delà de 72 octets ; on tronque explicitement pour
+# conserver le comportement de passlib (troncature silencieuse) et éviter
+# une ValueError des versions récentes de bcrypt sur les entrées longues.
+_BCRYPT_MAX_BYTES = 72
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    truncated = password.encode("utf-8")[:_BCRYPT_MAX_BYTES]
+    return bcrypt.hashpw(truncated, bcrypt.gensalt()).decode("ascii")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    truncated = plain.encode("utf-8")[:_BCRYPT_MAX_BYTES]
+    try:
+        return bcrypt.checkpw(truncated, hashed.encode("ascii"))
+    except ValueError:
+        # Hash corrompu, vide ou dans un format inconnu : refus sans exception
+        return False
 
 
 class UserService:
