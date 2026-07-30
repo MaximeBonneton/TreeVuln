@@ -50,18 +50,39 @@ describe('ConfirmDialog', () => {
   it('uses the danger style by default', () => {
     render(<ConfirmDialog {...defaultProps} />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-red-500');
+    expect(confirmBtn.className).toContain('bg-red-600');
   });
 
   it('applies the warning style', () => {
     render(<ConfirmDialog {...defaultProps} variant="warning" />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-orange-500');
+    expect(confirmBtn.className).toContain('bg-amber-500');
   });
 
   it('applies the info style', () => {
     render(<ConfirmDialog {...defaultProps} variant="info" />);
     const confirmBtn = screen.getByText('Confirm');
-    expect(confirmBtn.className).toContain('bg-blue-500');
+    expect(confirmBtn.className).toContain('bg-indigo-600');
+  });
+
+  it('calls onCancel when pressing Escape', async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.keyboard('{Escape}');
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('calls onCancel when clicking the close button', async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('calls onCancel when clicking the backdrop', async () => {
+    const onCancel = vi.fn();
+    const { container } = render(<ConfirmDialog {...defaultProps} onCancel={onCancel} />);
+    await userEvent.click(container.firstChild as HTMLElement);
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 });

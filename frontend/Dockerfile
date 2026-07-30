@@ -15,10 +15,12 @@ RUN npm run build
 FROM nginx:1.27-alpine3.21
 
 # Create non-root user
+# La directive "user" du nginx.conf de l'image est inutile en non-root
+# (warning au démarrage) et le pid dans /run n'est pas supprimable par
+# nginx-user à l'arrêt (alert unlink) : on la retire et on déplace le pid.
 RUN adduser -D -H -u 1001 -s /sbin/nologin nginx-user && \
     chown -R nginx-user:nginx-user /var/cache/nginx /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown nginx-user:nginx-user /var/run/nginx.pid
+    sed -i '/^user /d; s|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
