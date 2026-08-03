@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TreeBuilder } from './components/TreeBuilder';
+import { BrowserRouter } from 'react-router-dom';
+import { AppRoutes } from './routes';
 import { Login } from './components/Login';
 import SetupScreen from './components/SetupScreen';
 import ChangePasswordDialog from './components/ChangePasswordDialog';
@@ -48,8 +49,8 @@ function App() {
 
   if (state === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-500">Loading...</div>
       </div>
     );
   }
@@ -66,7 +67,11 @@ function App() {
     return <ChangePasswordDialog forced onComplete={checkAuth} />;
   }
 
-  return <TreeBuilder />;
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }
 
 export default App;
