@@ -8,13 +8,6 @@ interface ConfirmState {
   resolve: ((value: boolean) => void) | null;
 }
 
-interface ConfirmOptions {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  danger?: boolean;
-}
-
 export function useConfirm() {
   const [state, setState] = useState<ConfirmState>({
     open: false,
@@ -25,25 +18,9 @@ export function useConfirm() {
   });
 
   const confirm = useCallback(
-    (titleOrOptions: string | ConfirmOptions, message?: string, variant: 'danger' | 'warning' | 'info' = 'danger'): Promise<boolean> => {
-      let title: string;
-      let resolvedMessage: string;
-      let resolvedVariant: 'danger' | 'warning' | 'info' = variant;
-
-      if (typeof titleOrOptions === 'string') {
-        // Legacy 3-param API: confirm(title, message, variant?)
-        title = titleOrOptions;
-        resolvedMessage = message || '';
-        resolvedVariant = variant;
-      } else {
-        // Object API: confirm({ title, message, confirmLabel?, danger? })
-        title = titleOrOptions.title;
-        resolvedMessage = titleOrOptions.message;
-        resolvedVariant = titleOrOptions.danger ? 'danger' : 'warning';
-      }
-
+    (title: string, message: string, variant: 'danger' | 'warning' | 'info' = 'danger'): Promise<boolean> => {
       return new Promise<boolean>((resolve) => {
-        setState({ open: true, title, message: resolvedMessage, variant: resolvedVariant, resolve });
+        setState({ open: true, title, message, variant, resolve });
       });
     },
     []

@@ -52,28 +52,50 @@ export function TreeSelector() {
   }, [trees, search]);
 
   const handleSelect = async (id: number) => {
-    if (id !== treeId) await selectTree(id);
-    setOpen(false);
-    setSearch('');
+    if (id === treeId) {
+      setOpen(false);
+      setSearch('');
+      return;
+    }
+    if (hasUnsavedChanges) {
+      const ok = await confirm(
+        'Modifications non sauvegardées',
+        'Vous avez des modifications non sauvegardées. Continuer ?',
+        'warning'
+      );
+      if (!ok) return;
+    }
+    try {
+      await selectTree(id);
+      setOpen(false);
+      setSearch('');
+    } catch {
+      // Error handled in store
+    }
   };
 
   const handleDuplicateConfirm = async (id: number) => {
     if (!duplicateName.trim()) return;
-    await duplicateTree(id, { new_name: duplicateName.trim(), include_assets: true });
-    setDuplicating(null);
-    setDuplicateName('');
+    try {
+      await duplicateTree(id, { new_name: duplicateName.trim(), include_assets: true });
+      setDuplicating(null);
+      setDuplicateName('');
+    } catch {
+      // Error handled in store
+    }
   };
 
   const handleDelete = async () => {
-    const ok = await confirm({
-      title: 'Supprimer cet arbre ?',
-      message: `« ${treeName} » et ses assets seront définitivement supprimés.`,
-      confirmLabel: 'Supprimer',
-      danger: true,
-    });
-    if (ok) {
+    const ok = await confirm(
+      'Supprimer cet arbre ?',
+      `« ${treeName} » et ses assets seront définitivement supprimés.`
+    );
+    if (!ok) return;
+    try {
       await deleteCurrentTree();
       setOpen(false);
+    } catch {
+      // Error handled in store
     }
   };
 
@@ -86,7 +108,7 @@ export function TreeSelector() {
         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         <Trees size={16} className="text-indigo-600" aria-hidden="true" />
-        {!open && <span className="max-w-[16rem] truncate">{treeName || 'Aucun arbre'}</span>}
+        <div className="max-w-[16rem] truncate">{treeName || 'Aucun arbre'}</div>
         {hasUnsavedChanges && (
           <span title="Modifications non sauvegardées" className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         )}
@@ -155,7 +177,7 @@ export function TreeSelector() {
                       )}
                     </button>
                     {canEdit && (
-                      <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                      <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex group-focus-within:flex">
                         <button
                           type="button"
                           aria-label={`Dupliquer ${tree.name}`}
@@ -171,7 +193,13 @@ export function TreeSelector() {
                               type="button"
                               aria-label={`Définir ${tree.name} par défaut`}
                               title="Définir par défaut"
-                              onClick={() => setAsDefault()}
+                              onClick={async () => {
+                                try {
+                                  await setAsDefault();
+                                } catch {
+                                  // Error handled in store
+                                }
+                              }}
                               className="rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
                             >
                               <Star size={13} />
