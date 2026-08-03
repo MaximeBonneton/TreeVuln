@@ -19,14 +19,32 @@ export function useTreeUrlSync() {
 
   useEffect(() => {
     const parsed = Number(initialParam.current);
-    if (initialParam.current !== null && Number.isInteger(parsed) && parsed > 0) {
-      // selectTree internally calls loadTree + loadTrees, avoid redundancy
-      selectTree(parsed);
-    } else {
-      // loadTree doesn't call loadTrees, so we need to call both
-      loadTrees();
-      loadTree();
-    }
+    const bootstrap = async () => {
+      if (initialParam.current !== null && Number.isInteger(parsed) && parsed > 0) {
+        // selectTree internally calls loadTree + loadTrees, avoid redundancy
+        await selectTree(parsed);
+        // Repli : si l'arbre référencé par l'URL n'existe plus (404 avalé par
+        // loadTree, qui laisse treeId à null sans lever), on bascule sur
+        // l'arbre par défaut et on retire le paramètre `tree` fautif de
+        // l'URL, sinon un simple refresh reproduirait l'état à l'infini.
+        if (useTreeStore.getState().treeId === null) {
+          await loadTree();
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('tree');
+              return next;
+            },
+            { replace: true }
+          );
+        }
+      } else {
+        // loadTree doesn't call loadTrees, so we need to call both
+        loadTrees();
+        loadTree();
+      }
+    };
+    bootstrap();
     // Bootstrap volontairement exécuté une seule fois au montage du shell
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -23,7 +23,12 @@ function renderShell(initialEntry: string) {
 describe('AppShell', () => {
   const loadTree = vi.fn().mockResolvedValue(undefined);
   const loadTrees = vi.fn().mockResolvedValue(undefined);
-  const selectTree = vi.fn().mockResolvedValue(undefined);
+  // Par défaut, simule le comportement réel de selectTree en cas de succès
+  // (pose treeId) ; le test de repli ci-dessous surcharge ce comportement
+  // pour simuler un 404 (treeId reste null).
+  const selectTree = vi.fn().mockImplementation(async (id: number) => {
+    useTreeStore.setState({ treeId: id });
+  });
 
   beforeEach(() => {
     loadTree.mockClear();
@@ -64,5 +69,14 @@ describe('AppShell', () => {
     renderShell('/builder?tree=abc');
     await waitFor(() => expect(loadTree).toHaveBeenCalledOnce());
     expect(selectTree).not.toHaveBeenCalled();
+  });
+
+  it('replie sur l\'arbre par défaut quand ?tree= pointe sur un arbre inexistant', async () => {
+    // Simule le comportement réel du store sur 404 : selectTree résout
+    // sans jamais poser treeId (loadTree avale l'erreur en interne).
+    selectTree.mockImplementationOnce(async () => {});
+    renderShell('/builder?tree=999');
+    await waitFor(() => expect(selectTree).toHaveBeenCalledWith(999));
+    await waitFor(() => expect(loadTree).toHaveBeenCalledOnce());
   });
 });

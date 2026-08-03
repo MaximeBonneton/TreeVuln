@@ -129,7 +129,7 @@ export function TreeSelector() {
             onChange={(e) => setSearch(e.target.value)}
             className="mb-2"
           />
-          <ul className="max-h-72 overflow-y-auto" role="listbox" aria-label="Arbres">
+          <ul className="max-h-72 overflow-y-auto" aria-label="Arbres">
             {filteredTrees.map((tree) => (
               <li key={tree.id}>
                 {duplicating === tree.id ? (
