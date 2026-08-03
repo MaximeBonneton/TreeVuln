@@ -18,11 +18,13 @@ export function useTreeUrlSync() {
   const initialParam = useRef(searchParams.get('tree'));
 
   useEffect(() => {
-    loadTrees();
     const parsed = Number(initialParam.current);
     if (initialParam.current !== null && Number.isInteger(parsed) && parsed > 0) {
+      // selectTree internally calls loadTree + loadTrees, avoid redundancy
       selectTree(parsed);
     } else {
+      // loadTree doesn't call loadTrees, so we need to call both
+      loadTrees();
       loadTree();
     }
     // Bootstrap volontairement exécuté une seule fois au montage du shell
