@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react';
+import { Trees } from 'lucide-react';
 import { authApi } from '../api/auth';
+import { Alert, Button, Input } from '@/components/ui';
 
 interface SetupScreenProps {
   onComplete: () => void;
@@ -37,60 +39,61 @@ export default function SetupScreen({ onComplete }: SetupScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h1 className="text-2xl font-bold text-white mb-2">TreeVuln</h1>
-        <p className="text-gray-400 mb-6">Initial setup — Create the administrator account</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-md rounded-card border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <Trees size={22} className="text-indigo-600" aria-hidden="true" />
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">TreeVuln</h1>
+            <p className="text-sm text-slate-500">
+              Initial setup — Create the administrator account
+            </p>
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="setup-username" className="mb-1 block text-sm font-medium text-slate-700">
               Username
             </label>
-            <input
+            <Input
+              id="setup-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="admin"
               required
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="setup-password" className="mb-1 block text-sm font-medium text-slate-700">
               Password
             </label>
-            <input
+            <Input
+              id="setup-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="12 characters minimum"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="setup-confirm" className="mb-1 block text-sm font-medium text-slate-700">
               Confirm password
             </label>
-            <input
+            <Input
+              id="setup-confirm"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
-          {error && (
-            <div className="text-red-400 text-sm bg-red-900/30 p-2 rounded">{error}</div>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
-          >
+          {error && <Alert variant="error">{error}</Alert>}
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Creating...' : 'Create administrator account'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

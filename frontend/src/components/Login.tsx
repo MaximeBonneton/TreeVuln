@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Trees } from 'lucide-react';
 import { authApi } from '../api/auth';
+import { Alert, Button, Input } from '@/components/ui';
 
 interface LoginProps {
   onLogin: () => void;
@@ -31,55 +33,50 @@ export function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">TreeVuln</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Sign in to access the application.
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-md rounded-card border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <Trees size={22} className="text-indigo-600" aria-hidden="true" />
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">TreeVuln</h1>
+            <p className="text-sm text-slate-500">Sign in to access the application.</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="login-username" className="mb-1 block text-sm font-medium text-slate-700">
               Username
             </label>
-            <input
+            <Input
+              id="login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Username"
               autoFocus
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-slate-700">
               Password
             </label>
-            <input
+            <Input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Password"
               required
             />
           </div>
 
-          {error && (
-            <div className="text-red-400 text-sm bg-red-900/30 p-2 rounded">{error}</div>
-          )}
+          {error && <Alert variant="error">{error}</Alert>}
 
-          <button
-            type="submit"
-            disabled={loading || !username || !password}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
-          >
+          <Button type="submit" disabled={loading || !username || !password} className="w-full">
             {loading ? 'Signing in...' : 'Sign in'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
