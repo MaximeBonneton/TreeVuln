@@ -1,54 +1,113 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Boxes, Upload } from 'lucide-react';
+import { assetsApi, sbomApi } from '@/api';
+import type { SbomSummaryItem } from '@/api/sbom';
+import type { Asset } from '@/types';
 import { useTreeStore } from '@/stores/treeStore';
-import { Button, Card, EmptyState } from '@/components/ui';
-import { AssetImportDialog } from '@/components/dialogs/AssetImportDialog';
-import { SbomConfigDialog } from '@/components/dialogs/SbomConfigDialog';
+import { Alert, Button, EmptyState } from '@/components/ui';
+import { AssetsTable } from '@/components/assets/AssetsTable';
+import { AssetImportFlow } from '@/components/assets/AssetImportFlow';
+import { SbomDrawer } from '@/components/assets/SbomDrawer';
 
-/** Page Assets & SBOM — Phase 2 : lanceurs vers les dialogs existants (table pleine page en Phase 3). */
+/** Page Assets & SBOM — Phase 3 : table pleine page, import en étape, volet SBOM (spec §3). */
 export function AssetsPage() {
   const treeId = useTreeStore((s) => s.treeId);
-  const treeName = useTreeStore((s) => s.treeName);
-  const [openDialog, setOpenDialog] = useState<'import' | 'sbom' | null>(null);
+  const isAdmin = useTreeStore((s) => s.isAdmin);
 
-  return (
-    <div className="p-6">
-      <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">Assets & SBOM</h1>
-      {treeId ? (
-        <div className="grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
-          <Card title="Référentiel d'assets">
-            <p className="mb-4 text-sm text-slate-500">
-              Importer des assets (criticité, contexte) depuis un fichier CSV pour l'arbre « {treeName} ».
-            </p>
-            <Button variant="secondary" onClick={() => setOpenDialog('import')}>
-              Importer des assets
-            </Button>
-          </Card>
-          <Card title="SBOM par asset">
-            <p className="mb-4 text-sm text-slate-500">
-              Déposer des SBOM CycloneDX/SPDX et consulter les composants détectés.
-            </p>
-            <Button variant="secondary" onClick={() => setOpenDialog('sbom')}>
-              Gérer les SBOM
-            </Button>
-          </Card>
-        </div>
-      ) : (
+  if (!treeId) {
+    return (
+      <div className="p-6">
+        <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">Assets & SBOM</h1>
         <EmptyState
           title="Aucun arbre sélectionné"
           description="Les assets sont rattachés à un arbre. Choisissez un arbre dans le sélecteur en haut de page."
         />
+      </div>
+    );
+  }
+
+  // Keyée par treeId : changer d'arbre remet la vue et le volet à zéro
+  return <AssetsView key={treeId} treeId={treeId} canWrite={isAdmin()} />;
+}
+
+function AssetsView({ treeId, canWrite }: { treeId: number; canWrite: boolean }) {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [summary, setSummary] = useState<Map<string, SbomSummaryItem>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'import'>('list');
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const [list, sboms] = await Promise.all([
+        assetsApi.listAssets(treeId),
+        sbomApi.getSummary(treeId),
+      ]);
+      setAssets(list);
+      setSummary(new Map(sboms.map((s) => [s.asset_id, s])));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de charger les assets.');
+    } finally {
+      setLoading(false);
+    }
+  }, [treeId]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return (
+    <div className="p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">Assets & SBOM</h1>
+        {view === 'list' && canWrite && assets.length > 0 && (
+          <Button variant="secondary" size="sm" onClick={() => setView('import')}>
+            <Upload size={14} aria-hidden="true" /> Importer des assets
+          </Button>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-3">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
-      {openDialog === 'import' && treeId && (
-        <AssetImportDialog
+
+      {view === 'import' ? (
+        <AssetImportFlow
           treeId={treeId}
-          treeName={treeName}
-          onClose={() => setOpenDialog(null)}
-          onImported={() => {}}
+          onDone={() => {
+            setView('list');
+            void reload();
+          }}
+          onCancel={() => setView('list')}
         />
+      ) : loading ? (
+        <p className="text-sm text-slate-500">Chargement…</p>
+      ) : assets.length === 0 ? (
+        <EmptyState
+          icon={Boxes}
+          title="Aucun asset dans cet arbre"
+          description="Importez un fichier CSV ou JSON pour donner un contexte de criticité aux vulnérabilités."
+          action={
+            canWrite ? (
+              <Button onClick={() => setView('import')}>Importer des assets</Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <AssetsTable assets={assets} sbomSummary={summary} onSelect={setSelected} />
       )}
-      {openDialog === 'sbom' && treeId && (
-        <SbomConfigDialog treeId={treeId} treeName={treeName} onClose={() => setOpenDialog(null)} />
-      )}
+
+      <SbomDrawer
+        treeId={treeId}
+        assetId={selected}
+        hasSbom={selected !== null && summary.has(selected)}
+        onClose={() => setSelected(null)}
+        onChanged={reload}
+      />
     </div>
   );
 }

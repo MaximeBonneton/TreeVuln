@@ -21,9 +21,16 @@ export function TableHead({ children, className = '' }: SectionProps) {
   );
 }
 
-export function TableHeaderCell({ children, className = '' }: SectionProps) {
+export function TableHeaderCell({
+  children,
+  className = '',
+  ariaSort,
+}: SectionProps & { ariaSort?: 'none' | 'ascending' | 'descending' }) {
   return (
-    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${className}`}>
+    <th
+      aria-sort={ariaSort}
+      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${className}`}
+    >
       {children}
     </th>
   );
