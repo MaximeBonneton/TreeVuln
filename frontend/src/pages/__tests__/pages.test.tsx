@@ -20,11 +20,11 @@ vi.mock('@/components/evaluation/QuickTest', () => ({
 vi.mock('@/components/evaluation/BatchCampaign', () => ({
   BatchCampaign: () => <div>batch-campaign</div>,
 }));
-vi.mock('@/components/dialogs/WebhookConfigDialog', () => ({
-  WebhookConfigDialog: () => <div>webhook-config-dialog</div>,
+vi.mock('@/components/integrations/WebhooksSection', () => ({
+  WebhooksSection: () => <div>webhooks-section</div>,
 }));
-vi.mock('@/components/dialogs/IngestConfigDialog', () => ({
-  IngestConfigDialog: () => <div>ingest-config-dialog</div>,
+vi.mock('@/components/integrations/IngestSection', () => ({
+  IngestSection: () => <div>ingest-section</div>,
 }));
 vi.mock('@/components/panels/UsersPanel', () => ({
   UsersPanel: () => <div>users-panel</div>,
@@ -63,18 +63,18 @@ describe('Pages hôtes', () => {
     expect(screen.queryByText('quick-test')).not.toBeInTheDocument();
   });
 
-  it('IntegrationsPage ouvre le dialog webhooks depuis son lanceur', async () => {
+  it('IntegrationsPage affiche les deux blocs directement', () => {
     render(<IntegrationsPage />);
     expect(screen.getByRole('heading', { name: 'Intégrations' })).toBeInTheDocument();
-    expect(screen.queryByText('webhook-config-dialog')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Configurer les webhooks sortants/ }));
-    expect(screen.getByText('webhook-config-dialog')).toBeInTheDocument();
+    expect(screen.getByText('webhooks-section')).toBeInTheDocument();
+    expect(screen.getByText('ingest-section')).toBeInTheDocument();
   });
 
-  it("IntegrationsPage ouvre le dialog d'ingestion depuis son lanceur", async () => {
+  it('IntegrationsPage affiche un état vide sans arbre courant', () => {
+    useTreeStore.setState({ treeId: null });
     render(<IntegrationsPage />);
-    await userEvent.click(screen.getByRole('button', { name: /Configurer l'ingestion entrante/ }));
-    expect(screen.getByText('ingest-config-dialog')).toBeInTheDocument();
+    expect(screen.getByText('Aucun arbre sélectionné')).toBeInTheDocument();
+    expect(screen.queryByText('webhooks-section')).not.toBeInTheDocument();
   });
 
   it('AdminUsersPage ouvre le panneau utilisateurs depuis son lanceur', async () => {
