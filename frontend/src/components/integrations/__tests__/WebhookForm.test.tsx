@@ -37,7 +37,7 @@ describe('WebhookForm', () => {
     expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('secret');
   });
 
-  it("pré-remplit en édition et n'envoie pas de secret non modifié", async () => {
+  it('pré-remplit en édition et n\'envoie pas de secret non modifié', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<WebhookForm webhook={existing} onSubmit={onSubmit} onCancel={() => {}} />);
     expect(screen.getByLabelText('Nom')).toHaveValue('SIEM');
@@ -51,7 +51,7 @@ describe('WebhookForm', () => {
     render(<WebhookForm webhook={existing} onSubmit={onSubmit} onCancel={() => {}} />);
     expect(screen.getByDisplayValue('X-Env')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Ajouter un en-tête' }));
-    const keys = screen.getAllByPlaceholderText("Nom de l'en-tête");
+    const keys = screen.getAllByPlaceholderText('Nom de l\'en-tête');
     await userEvent.type(keys[1], 'X-Token');
     const values = screen.getAllByPlaceholderText('Valeur');
     await userEvent.type(values[1], 'abc');

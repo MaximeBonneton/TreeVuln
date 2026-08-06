@@ -77,7 +77,7 @@ export function WebhookForm({ webhook, onSubmit, onCancel }: WebhookFormProps) {
           type="password"
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
-          placeholder={webhook?.has_secret ? "Laisser vide pour garder le secret inchangé" : 'Optionnel'}
+          placeholder={webhook?.has_secret ? 'Laisser vide pour garder le secret inchangé' : 'Optionnel'}
         />
       </div>
 
