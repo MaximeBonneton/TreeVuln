@@ -1,4 +1,4 @@
-import { Save, Upload, Download, RotateCcw, Play, Settings2, PanelLeftClose, PanelLeft, Star, Link, LayoutGrid, Image, FileBadge } from 'lucide-react';
+import { Save, Upload, Download, RotateCcw, Play, Settings2, Star, Link, LayoutGrid, Image, FileBadge } from 'lucide-react';
 import { CsafConfigDialog } from '@/components/dialogs/CsafConfigDialog';
 import { useTreeStore } from '@/stores/treeStore';
 import { treeApi } from '@/api';
@@ -24,8 +24,6 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     isDefault,
     apiEnabled,
     apiSlug,
-    sidebarOpen,
-    setSidebarOpen,
   } = useTreeStore();
 
   const isAdminUser = useTreeStore((s) => s.isAdmin);
@@ -135,15 +133,6 @@ export function Toolbar({ onTest, onOpenMapping }: ToolbarProps) {
     <>
       <div className="bg-white border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {/* Toggle sidebar */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            title={sidebarOpen ? 'Close panel' : 'Open tree panel'}
-          >
-            {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
-          </button>
-
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-gray-800">{treeName}</h1>
             {isDefault && (

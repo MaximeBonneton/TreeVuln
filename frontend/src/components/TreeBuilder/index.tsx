@@ -8,14 +8,6 @@ import { NodeConfigPanel } from '../panels/NodeConfigPanel';
 import { EdgeConfigPanel } from '../panels/EdgeConfigPanel';
 import { TestPanel } from './TestPanel';
 import { FieldMappingPanel } from '../panels/FieldMappingPanel';
-import { TreeSidebar } from '../TreeSidebar';
-import { ApiConfigDialog } from '../dialogs/ApiConfigDialog';
-import { CreateTreeDialog } from '../dialogs/CreateTreeDialog';
-import { AssetImportDialog } from '../dialogs/AssetImportDialog';
-import { WebhookConfigDialog } from '../dialogs/WebhookConfigDialog';
-import { IngestConfigDialog } from '../dialogs/IngestConfigDialog';
-import { SbomConfigDialog } from '../dialogs/SbomConfigDialog';
-import { EnisaPanel } from '../panels/EnisaPanel';
 import { useTreeStore } from '@/stores/treeStore';
 import type { NodeType, TreeNode, TreeEdge } from '@/types';
 
@@ -24,15 +16,8 @@ export function TreeBuilder() {
   const [selectedEdge, setSelectedEdge] = useState<TreeEdge | null>(null);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [showMappingPanel, setShowMappingPanel] = useState(false);
-  const [showApiConfig, setShowApiConfig] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showAssetImport, setShowAssetImport] = useState(false);
-  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
-  const [showIngestConfig, setShowIngestConfig] = useState(false);
-  const [showSbomConfig, setShowSbomConfig] = useState(false);
-  const [showEnisaPanel, setShowEnisaPanel] = useState(false);
 
-  const { nodes, edges, loadTree, loadTrees, selectNode, sidebarOpen, treeId, treeName, error: storeError } = useTreeStore();
+  const { nodes, edges, selectNode, error: storeError } = useTreeStore();
   const treeWarnings = useTreeStore((state) => state.treeWarnings);
 
   const saveTree = useTreeStore((state) => state.saveTree);
@@ -42,12 +27,6 @@ export function TreeBuilder() {
   const isAdminUser = useTreeStore((state) => state.isAdmin);
   const undo = useTreeStore((state) => state.undo);
   const redo = useTreeStore((state) => state.redo);
-
-  // Load tree and list on mount
-  useEffect(() => {
-    loadTree();
-    loadTrees();
-  }, [loadTree, loadTrees]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -164,7 +143,7 @@ export function TreeBuilder() {
 
   return (
     <ReactFlowProvider>
-      <div className="h-screen flex flex-col bg-gray-50">
+      <div className="h-full flex flex-col bg-slate-50">
         <Toolbar
           onTest={() => setShowTestPanel(true)}
           onOpenMapping={() => setShowMappingPanel(true)}
@@ -204,19 +183,8 @@ export function TreeBuilder() {
         )}
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Tree sidebar */}
-          <TreeSidebar
-            onOpenCreateDialog={() => setShowCreateDialog(true)}
-            onOpenApiConfig={() => setShowApiConfig(true)}
-            onOpenAssetImport={() => setShowAssetImport(true)}
-            onOpenWebhookConfig={() => setShowWebhookConfig(true)}
-            onOpenIngestConfig={() => setShowIngestConfig(true)}
-            onOpenSbomConfig={() => setShowSbomConfig(true)}
-            onOpenEnisaPanel={() => setShowEnisaPanel(true)}
-          />
-
           {/* Left palette */}
-          <div className={`p-4 ${sidebarOpen ? '' : 'ml-8'}`}>
+          <div className="p-4">
             <NodePalette onDragStart={handleDragStart} />
           </div>
 
@@ -256,62 +224,6 @@ export function TreeBuilder() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <FieldMappingPanel onClose={() => setShowMappingPanel(false)} />
           </div>
-        )}
-
-        {/* API configuration dialog */}
-        {showApiConfig && (
-          <ApiConfigDialog onClose={() => setShowApiConfig(false)} />
-        )}
-
-        {/* Tree creation dialog */}
-        {showCreateDialog && (
-          <CreateTreeDialog onClose={() => setShowCreateDialog(false)} />
-        )}
-
-        {/* Asset import dialog */}
-        {showAssetImport && treeId && (
-          <AssetImportDialog
-            treeId={treeId}
-            treeName={treeName}
-            onClose={() => setShowAssetImport(false)}
-            onImported={() => {}}
-          />
-        )}
-
-        {/* Outgoing webhooks configuration dialog */}
-        {showWebhookConfig && treeId && (
-          <WebhookConfigDialog
-            treeId={treeId}
-            treeName={treeName}
-            onClose={() => setShowWebhookConfig(false)}
-          />
-        )}
-
-        {/* Incoming webhooks configuration dialog */}
-        {showIngestConfig && treeId && (
-          <IngestConfigDialog
-            treeId={treeId}
-            treeName={treeName}
-            onClose={() => setShowIngestConfig(false)}
-          />
-        )}
-
-        {/* SBOM management dialog */}
-        {showSbomConfig && treeId && (
-          <SbomConfigDialog
-            treeId={treeId}
-            treeName={treeName}
-            onClose={() => setShowSbomConfig(false)}
-          />
-        )}
-
-        {/* ENISA notifications panel */}
-        {treeId && (
-          <EnisaPanel
-            open={showEnisaPanel}
-            onClose={() => setShowEnisaPanel(false)}
-            treeId={treeId}
-          />
         )}
       </div>
     </ReactFlowProvider>
