@@ -53,4 +53,21 @@ describe('BatchResultsTable', () => {
     const rowsDesc = screen.getAllByTestId('result-row');
     expect(within(rowsDesc[0]).getByText('CVE-2024-0002')).toBeInTheDocument();
   });
+
+  it('déplie indépendamment les lignes avec vuln_id dupliqués', async () => {
+    const duplicateResults: EvaluationResult[] = [
+      { vuln_id: 'CVE-2024-0001', decision: 'Act', decision_color: '#dc2626', path: [
+        { node_id: 'n1', node_label: 'Exploitation', node_type: 'input', field_evaluated: 'kev', value_found: true, condition_matched: 'Active' },
+      ], error: null },
+      { vuln_id: 'CVE-2024-0001', decision: 'Track', decision_color: '#22c55e', path: [
+        { node_id: 'n2', node_label: 'Impact', node_type: 'input', field_evaluated: 'cvss_score', value_found: 8.5, condition_matched: 'Partial' },
+      ], error: null },
+    ];
+    render(<BatchResultsTable results={duplicateResults} />);
+    const buttons = screen.getAllByRole('button', { name: /Déplier CVE-2024-0001/ });
+    expect(buttons).toHaveLength(2);
+    await userEvent.click(buttons[0]);
+    expect(screen.getByText('Exploitation')).toBeInTheDocument();
+    expect(screen.queryByText('Impact')).not.toBeInTheDocument();
+  });
 });

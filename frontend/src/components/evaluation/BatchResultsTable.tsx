@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Button, DecisionBadge, EmptyState, Select,
-  Table, TableBody, TableCell, TableHead, TableHeaderCell,
+  Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow,
 } from '@/components/ui';
 import { DecisionTimeline } from './DecisionTimeline';
 import type { EvaluationResult } from '@/types/evaluation';
@@ -12,30 +12,41 @@ const PAGE_SIZE = 100;
 
 type SortKey = 'vuln_id' | 'decision';
 
+type IndexedResult = { result: EvaluationResult; originalIndex: number };
+
 /** Table des résultats : filtre par décision, tri, audit trail dépliable, pagination (spec §3). */
 export function BatchResultsTable({ results }: { results: EvaluationResult[] }) {
   const [decisionFilter, setDecisionFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(0);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  // Pré-calculer les indices pour avoir des clés stables et uniques
+  const indexedResults = useMemo(
+    () => results.map((result, index) => ({ result, originalIndex: index })),
+    [results]
+  );
 
   const decisions = useMemo(
     () => Array.from(new Set(results.map((r) => r.decision))).sort(),
     [results]
   );
 
+  // Filtrer et trier sur les paires (result, originalIndex)
   const visible = useMemo(() => {
-    let rows = decisionFilter ? results.filter((r) => r.decision === decisionFilter) : [...results];
+    let pairs: IndexedResult[] = decisionFilter
+      ? indexedResults.filter((p) => p.result.decision === decisionFilter)
+      : [...indexedResults];
     if (sortKey) {
-      rows.sort((a, b) => {
-        const av = (a[sortKey] ?? '').toString();
-        const bv = (b[sortKey] ?? '').toString();
+      pairs.sort((a, b) => {
+        const av = (a.result[sortKey] ?? '').toString();
+        const bv = (b.result[sortKey] ?? '').toString();
         return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
       });
     }
-    return rows;
-  }, [results, decisionFilter, sortKey, sortAsc]);
+    return pairs;
+  }, [indexedResults, decisionFilter, sortKey, sortAsc]);
 
   const pageRows = visible.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
@@ -46,11 +57,11 @@ export function BatchResultsTable({ results }: { results: EvaluationResult[] }) 
     setPage(0);
   };
 
-  const toggleRow = (resultId: string) => {
+  const toggleRow = (originalIndex: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(resultId)) next.delete(resultId);
-      else next.add(resultId);
+      if (next.has(originalIndex)) next.delete(originalIndex);
+      else next.add(originalIndex);
       return next;
     });
   };
@@ -91,18 +102,18 @@ export function BatchResultsTable({ results }: { results: EvaluationResult[] }) 
           <TableHeaderCell>Erreur</TableHeaderCell>
         </TableHead>
         <TableBody>
-          {pageRows.map((result) => {
-            const resultId = result.vuln_id || '';
-            const isOpen = expanded.has(resultId);
+          {pageRows.map(({ result, originalIndex }) => {
+            const isOpen = expanded.has(originalIndex);
+            const id = result.vuln_id || `ligne ${originalIndex + 1}`;
             return (
-              <Fragment key={resultId || Math.random()}>
+              <Fragment key={originalIndex}>
                 <tr data-testid="result-row" className="hover:bg-slate-50">
                   <TableCell>
                     <button
                       type="button"
-                      aria-label={`${isOpen ? 'Replier' : 'Déplier'} ${resultId}`}
+                      aria-label={`${isOpen ? 'Replier' : 'Déplier'} ${id}`}
                       aria-expanded={isOpen}
-                      onClick={() => toggleRow(resultId)}
+                      onClick={() => toggleRow(originalIndex)}
                       className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                     >
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -113,13 +124,13 @@ export function BatchResultsTable({ results }: { results: EvaluationResult[] }) 
                   <TableCell className="text-xs text-red-600">{result.error ?? ''}</TableCell>
                 </tr>
                 {isOpen && (
-                  <tr className="hover:bg-slate-50">
+                  <TableRow>
                     <td className="bg-slate-50 px-4 py-3 text-slate-700" colSpan={4}>
                       {result.path.length > 0
                         ? <DecisionTimeline path={result.path} />
                         : <span className="text-xs text-slate-500">Pas de chemin de décision disponible.</span>}
                     </td>
-                  </tr>
+                  </TableRow>
                 )}
               </Fragment>
             );
