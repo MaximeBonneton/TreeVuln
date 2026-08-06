@@ -5,14 +5,14 @@ import { evaluateApi } from '@/api/evaluate';
 import { settingsApi, type CsafSettings } from '@/api/settings';
 import { Alert, Button, Tooltip } from '@/components/ui';
 import type { EvaluationResult } from '@/types/evaluation';
-import type { TreeStructure } from '@/types/tree';
+import type { OutputNodeConfig, TreeStructure } from '@/types/tree';
 
 /** Compte les résultats sans erreur dont le dernier nœud du chemin est un Output flaggé ENISA.
  *  Les endpoints preview ne créent pas de candidats côté serveur : le compteur est purement indicatif. */
 export function countNotifiable(structure: TreeStructure, results: EvaluationResult[]): number {
   const notifiable = new Set(
     structure.nodes
-      .filter((n) => n.type === 'output' && (n.config as any)?.enisa_notifiable === true)
+      .filter((n) => n.type === 'output' && (n.config as OutputNodeConfig)?.enisa_notifiable === true)
       .map((n) => n.id)
   );
   if (notifiable.size === 0) return 0;
