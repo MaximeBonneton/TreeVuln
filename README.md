@@ -7,10 +7,10 @@
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg" alt="Python 3.11+"></a>
   <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-009688.svg" alt="FastAPI"></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18-61DAFB.svg" alt="React 18"></a>
-  <a href="docker-compose.yml"><img src="https://img.shields.io/badge/Docker-ready-2496ED.svg" alt="Docker"></a>
+  <a href="docs/deployment.md"><img src="https://img.shields.io/badge/Docker-ready-2496ED.svg" alt="Docker"></a>
 </p>
 
-A visual, auditable security decision engine. Build decision trees graphically and use them to automate the processing of massive volumes of vulnerabilities, non-compliance findings, cloud audits, containers, and more.
+**TreeVuln is a visual, auditable security decision engine.** Design your decision logic as a graphical tree, then let it process massive volumes of security findings — vulnerabilities, cloud misconfigurations, container reports, compliance checks — and tell you exactly **what to act on first, and why**.
 
 ![TreeVuln — Visual decision tree editor](docs/images/tree-editor.png)
 
@@ -18,83 +18,57 @@ A visual, auditable security decision engine. Build decision trees graphically a
 
 Security teams are drowning in alerts. Vulnerability scanners, cloud audits, compliance checks, container reports — every tool produces hundreds of results, but none tells you **what to act on first**.
 
-TreeVuln lets you **design your own decision logic** as a visual tree, then apply it automatically to massive data volumes. Every decision is **transparent** (full audit trail), **auditable** (exportable), and **customizable** (your criteria, your thresholds, your policy).
+TreeVuln turns your prioritization policy into an executable decision tree:
 
-Whether you need to prioritize CVEs using the SSVC methodology, assess vulnerability exploitability (VEX), triage cloud non-compliance findings, or automate audit controls — TreeVuln is the engine that turns your rules into actionable decisions.
+- **Transparent** — every decision comes with its full audit trail: which criteria were evaluated, which values were found, which branch was taken.
+- **Auditable** — decision paths are exportable, and results can be turned into signed, standards-compliant documents (CSAF 2.0 VEX).
+- **Yours** — your criteria, your thresholds, your policy. SSVC out of the box, anything you want beyond it.
 
-## Quick Start
-
-```bash
-git clone <repository-url> && cd TreeVuln
-docker compose up -d
-```
-
-Open http://localhost:3000 — on first launch, you'll be prompted to create your admin account (no default credentials).
-
-| Service | URL |
-|---------|-----|
-| Application | http://localhost:3000 |
-| API | http://localhost:8000 |
-| API Documentation (DEBUG=true) | http://localhost:8000/docs |
-
-<details>
-<summary>More screenshots</summary>
-
-| Node palette & sidebar | Node configuration |
-|:--:|:--:|
-| ![Palette](docs/images/node-palette.png) | ![Config](docs/images/node-config.png) |
-
-| Field mapping | Test & audit trail |
-|:--:|:--:|
-| ![Mapping](docs/images/field-mapping.png) | ![Test](docs/images/test-panel.png) |
-
-</details>
+Whether you prioritize CVEs with SSVC, assess real exploitability in your product context (VEX), triage cloud findings, or automate audit controls — TreeVuln is the engine that turns your rules into decisions at scale.
 
 ## Features
 
-### Visual Editor
+### Design your logic visually
 
-- **Drag & drop**: 4 node types — Input, Lookup, Equation, Output
-- **Compound conditions**: combine multiple criteria with AND/OR on branches
-- **Multi-input nodes**: share logic to optimize complex trees
-- **Auto-layout**: reorganize nodes automatically in one click
-- **Image export**: PNG or SVG for your reports and presentations
+Build trees by drag & drop with four node types — **Input** (read a field), **Lookup** (enrich from a referential, e.g. asset criticality), **Equation** (mathematical scoring with text-to-number mapping) and **Output** (final decision). Branches support simple conditions or compound AND/OR logic across multiple fields, multi-input nodes let several paths share the same logic, and one-click auto-layout keeps large trees readable. Export any tree as PNG/SVG for your reports.
 
-### Inference Engine
+![Node palette and tree sidebar](docs/images/node-palette.png)
 
-- **Single and batch evaluation**: up to 50,000 items per request
-- **CVSS parsing**: automatic extraction of CVSS v3.1 and v4.0 metrics
-- **Equation node**: mathematical formulas with text-to-number mapping
-- **Audit trail**: full decision path for every evaluation
+Each node is configured in place: field to read, operators (=, ≠, >, <, contains, regex, in, is_null…), typed values (text, number, boolean), branch reordering.
 
-### Multi-tree & API
+![Node configuration panel](docs/images/node-config.png)
 
-- **Isolated contexts**: each tree has its own assets, webhooks, and endpoints
-- **Per-tree dedicated API**: configurable endpoint via slug (`/evaluate/tree/my-tree`)
-- **Decision-as-Code**: export/import your trees as JSON to version them in Git
-- **Versioning**: modification history with restore capability
+### Feed it any data
 
-### Authentication & Access Control
+Point TreeVuln at a CSV or JSON file and it scans the columns, infers types, and builds a **field mapping** you can refine and version. CVSS v3.1/v4.0 vectors are parsed automatically into individual metrics (`cvss_av`, `cvss_ac`, …) usable as decision criteria.
 
-- **Multi-user**: username/password accounts with bcrypt hashing
-- **Two roles**: admin (full access) and operator (read + evaluate)
-- **Setup wizard**: first admin account created on initial launch
-- **Server-side sessions**: stored in PostgreSQL, 24h expiry
-- **User management**: create, deactivate, reset password, change role (admin only)
+![Field mapping and file scanning](docs/images/field-mapping.png)
 
-### Integration
+### Decide at scale, with proof
 
-- **Outbound webhooks**: HMAC-SHA256 notifications to ticketing/SIEM systems
-- **Inbound webhooks**: real-time ingestion with field mapping and API key
-- **SBOM ingestion**: attach a CycloneDX or SPDX SBOM per asset, with `sbom_*` virtual fields (component presence, version, count, match type) usable directly in decision trees
-- **Import/Export**: assets in CSV/JSON, results with audit trail
+Evaluate a single finding or batches up to 50,000 items per request (Polars-powered). Every evaluation returns the **complete decision path** — the built-in test panel replays it visually, and batch results export to CSV/JSON with the audit trail included.
 
-### Compliance & Reporting
+![Test panel with audit trail](docs/images/test-panel.png)
 
-- **CSAF 2.0 VEX export**: turn batch results into a standard CSAF document (validated against the official OASIS schema), with VEX statuses and justifications mapped on output nodes
-- **Justified decisions**: each VEX statement embeds the full TreeVuln decision path as evidence
-- **OpenPGP signing**: detached signature plus SHA-256/512 checksums, delivered as a ZIP bundle ready for regulators and coordinators (CRA, ENISA reporting ecosystem)
-- **ENISA deadline tracking**: flag output nodes as notifiable so evaluations create notification candidates, track the 24h / 72h / 14-day CRA deadlines, prefill each milestone's content (JSON/Markdown export), and get webhook reminders as deadlines approach
+### Run several trees, expose them as APIs
+
+Each tree lives in its own context: dedicated assets, webhooks and ingest endpoints. Any tree can expose its own evaluation API via a slug (`/api/v1/evaluate/tree/my-tree`). Trees are versioned (history + restore) and exportable as JSON — **Decision-as-Code**, ready for Git.
+
+### Integrate both ways
+
+- **Inbound**: real-time ingestion endpoints with API keys and per-endpoint field mapping; findings are auto-evaluated on arrival.
+- **Outbound**: HMAC-SHA256 signed webhooks notify your ticketing or SIEM on every decision.
+- **SBOM-aware**: attach a CycloneDX or SPDX SBOM to each asset and use `sbom_*` virtual fields (component present, version, match type) directly in your trees — prioritize only the CVEs whose vulnerable component actually ships in your product.
+
+### Prove compliance
+
+- **CSAF 2.0 VEX export**: batch results become a standard CSAF document (validated against the official OASIS schema), with VEX statuses and justifications carried by output nodes and each statement embedding its TreeVuln decision path as evidence.
+- **OpenPGP signing**: detached signature plus SHA-256/512 checksums, delivered as a ZIP bundle ready for regulators and coordinators.
+- **CRA / ENISA deadline tracking**: flag decisions as notifiable, track the 24h / 72h / 14-day deadlines, prefill each milestone's content (JSON/Markdown) and get webhook reminders before deadlines slip.
+
+### Control who does what
+
+Multi-user authentication (bcrypt, server-side sessions in PostgreSQL) with two roles — **admin** (full access) and **operator** (read + evaluate) — and a first-launch setup wizard: no default credentials, ever.
 
 ## Use Cases
 
@@ -109,9 +83,23 @@ Open http://localhost:3000 — on first launch, you'll be prompted to create you
 | **Compliance** | ISO 27001, SOC2, PCI-DSS controls | Compliant, Non-compliant, Exception |
 | **Audit** | Maturity assessment, remediation plan | Critical, Needs Improvement, Compliant |
 
+Three example trees ship with every install: **SSVC Example** (CVE prioritization), **Equation Example** (formula-based risk scoring) and **CSAF VEX Example** (VEX triage for CSAF export).
+
+## Quick Start
+
+```bash
+git clone <repository-url> && cd TreeVuln
+cp .env.example .env    # set POSTGRES_PASSWORD (see the guide)
+docker compose up -d
+```
+
+Open http://localhost:3000 and create your admin account. That's it.
+
+For configuration, production hardening, local development and troubleshooting, see the **[Deployment Guide](docs/deployment.md)**.
+
 ## API Example
 
-Authenticate first, then evaluate a vulnerability with the default SSVC tree:
+Everything the UI does goes through the REST API. Authenticate, then evaluate:
 
 ```bash
 # Login (stores session cookie)
@@ -119,7 +107,7 @@ curl -c cookies.txt -X POST 'http://localhost:8000/api/v1/auth/login' \
   -H 'Content-Type: application/json' \
   -d '{"username": "admin", "password": "yourpassword"}'
 
-# Evaluate a vulnerability
+# Evaluate a vulnerability against the default SSVC tree
 curl -b cookies.txt -X POST 'http://localhost:8000/api/v1/evaluate/single' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -150,7 +138,7 @@ curl -b cookies.txt -X POST 'http://localhost:8000/api/v1/evaluate/single' \
 }
 ```
 
-The API documentation (Swagger UI) is available at [http://localhost:8000/docs](http://localhost:8000/docs) when `DEBUG=true`.
+Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs` when `DEBUG=true`.
 
 ## Tech Stack
 
@@ -161,36 +149,13 @@ The API documentation (Swagger UI) is available at [http://localhost:8000/docs](
 | Database | PostgreSQL 15 (JSONB) |
 | Deployment | Docker Compose |
 
-## Development
+## Documentation
 
-```bash
-# Backend (CSAF signing requires the gpg binary: apt install gnupg)
-cd backend && pip install -e . && uvicorn app.main:app --reload --port 8000
-
-# Frontend
-cd frontend && npm install && npm run dev
-
-# Tests
-cd backend && python -m pytest tests/ -v
-cd frontend && npm test
-```
-
-<details>
-<summary>Useful Docker commands</summary>
-
-```bash
-docker compose up -d              # Start
-docker compose down               # Stop
-docker compose down -v            # Stop + delete data
-docker compose up -d --build      # Rebuild
-docker compose logs -f backend    # Backend logs
-```
-
-</details>
+- **[Deployment Guide](docs/deployment.md)** — installation, configuration, production notes, local development
 
 ## License
 
-TreeVuln is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+TreeVuln is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE). A [commercial license](LICENSE-COMMERCIAL.md) is available for enterprise use cases not compatible with the AGPL.
 
 ## Contributing
 
