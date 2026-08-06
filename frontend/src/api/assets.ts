@@ -2,7 +2,9 @@ import { api } from './client';
 import type { Asset, AssetImportResult, AssetImportPreview } from '@/types';
 
 export const assetsApi = {
-  listAssets: (treeId: number) => api.get<Asset[]>(`/assets?tree_id=${treeId}`),
+  // limit=1000 : le backend plafonne à 100 par défaut, la page affiche tout l'arbre
+  listAssets: (treeId: number, limit = 1000) =>
+    api.get<Asset[]>(`/assets?tree_id=${treeId}&limit=${limit}`),
 
   previewImport: async (file: File): Promise<AssetImportPreview> => {
     const formData = new FormData();
