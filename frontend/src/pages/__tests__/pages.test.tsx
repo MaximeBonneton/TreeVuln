@@ -1,14 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useTreeStore } from '@/stores/treeStore';
 import { EvaluatePage } from '../EvaluatePage';
 import { IntegrationsPage } from '../IntegrationsPage';
 import { AdminUsersPage } from '../AdminUsersPage';
 
+// Compteur module-level de montages : permet de vérifier qu'un changement d'arbre
+// force bien un unmount/remount de la vue (clé sur treeId) plutôt qu'un simple re-render.
+const quickTestMounts = vi.hoisted(() => ({ count: 0 }));
+
 // Les vues existantes font des appels API : remplacées par des marqueurs
-vi.mock('@/components/TreeBuilder/TestPanel', () => ({
-  TestPanel: () => <div>test-panel</div>,
+vi.mock('@/components/evaluation/QuickTest', () => ({
+  QuickTest: () => {
+    quickTestMounts.count += 1;
+    return <div>quick-test</div>;
+  },
+}));
+vi.mock('@/components/evaluation/BatchCampaign', () => ({
+  BatchCampaign: () => <div>batch-campaign</div>,
 }));
 vi.mock('@/components/dialogs/WebhookConfigDialog', () => ({
   WebhookConfigDialog: () => <div>webhook-config-dialog</div>,
@@ -25,17 +35,32 @@ describe('Pages hôtes', () => {
     useTreeStore.setState({ treeId: 1, treeName: 'SSVC Default' });
   });
 
-  it('EvaluatePage monte le TestPanel existant', () => {
+  it('EvaluatePage affiche le test rapide et bascule sur la campagne batch', async () => {
     render(<EvaluatePage />);
     expect(screen.getByRole('heading', { name: 'Évaluation' })).toBeInTheDocument();
-    expect(screen.getByText('test-panel')).toBeInTheDocument();
+    expect(screen.getByText('quick-test')).toBeInTheDocument();
+    expect(screen.queryByText('batch-campaign')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Campagne batch' }));
+    expect(screen.getByText('batch-campaign')).toBeInTheDocument();
+  });
+
+  it('EvaluatePage remonte les vues au changement d\'arbre', () => {
+    quickTestMounts.count = 0;
+    render(<EvaluatePage />);
+    expect(quickTestMounts.count).toBe(1);
+
+    act(() => {
+      useTreeStore.setState({ treeId: 2 });
+    });
+
+    expect(quickTestMounts.count).toBe(2);
   });
 
   it('EvaluatePage affiche un état vide sans arbre courant', () => {
     useTreeStore.setState({ treeId: null });
     render(<EvaluatePage />);
     expect(screen.getByText('Aucun arbre sélectionné')).toBeInTheDocument();
-    expect(screen.queryByText('test-panel')).not.toBeInTheDocument();
+    expect(screen.queryByText('quick-test')).not.toBeInTheDocument();
   });
 
   it('IntegrationsPage ouvre le dialog webhooks depuis son lanceur', async () => {
