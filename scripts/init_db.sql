@@ -565,9 +565,9 @@ INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structu
         ],
         "edges": [
             {"id": "e-comp-no", "source": "component-present", "target": "output-not-affected-absent", "source_handle": "handle-0"},
-            {"id": "e-comp-yes", "source": "component-present", "target": "fix-deployed", "source_handle": "handle-1", "target_handle": "input-0"},
+            {"id": "e-comp-yes", "source": "component-present", "target": "fix-deployed", "source_handle": "handle-1"},
             {"id": "e-fix-yes", "source": "fix-deployed", "target": "output-fixed", "source_handle": "handle-0"},
-            {"id": "e-fix-no", "source": "fix-deployed", "target": "code-reachable", "source_handle": "handle-1", "target_handle": "input-0"},
+            {"id": "e-fix-no", "source": "fix-deployed", "target": "code-reachable", "source_handle": "handle-1"},
             {"id": "e-reach-yes", "source": "code-reachable", "target": "output-affected", "source_handle": "handle-0"},
             {"id": "e-reach-no", "source": "code-reachable", "target": "output-not-affected-unreachable", "source_handle": "handle-1"},
             {"id": "e-reach-unknown", "source": "code-reachable", "target": "output-under-investigation", "source_handle": "handle-2"}
