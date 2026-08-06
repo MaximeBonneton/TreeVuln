@@ -476,3 +476,115 @@ INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structu
         }
     }'::jsonb
 ) ON CONFLICT DO NOTHING;
+
+-- Insert CSAF VEX Example tree (non-default)
+-- Demonstrates: VEX triage workflow for CSAF 2.0 export - all 4 VEX statuses on output nodes,
+-- mandatory justification when not_affected (two different justifications), is_null for pending analysis
+INSERT INTO trees (name, description, is_default, api_enabled, api_slug, structure) VALUES (
+    'CSAF VEX Example',
+    'VEX triage tree for CSAF 2.0 export - component presence, fix status and code reachability drive the VEX status',
+    FALSE,
+    FALSE,
+    NULL,
+    '{
+        "nodes": [
+            {
+                "id": "component-present",
+                "type": "input",
+                "label": "Component present?",
+                "position": {"x": -465, "y": 300},
+                "config": {"field": "component_present"},
+                "conditions": [
+                    {"operator": "eq", "value": false, "label": "No"},
+                    {"operator": "eq", "value": true, "label": "Yes"}
+                ]
+            },
+            {
+                "id": "fix-deployed",
+                "type": "input",
+                "label": "Fix deployed?",
+                "position": {"x": -120, "y": 390},
+                "config": {"field": "fix_deployed"},
+                "conditions": [
+                    {"operator": "eq", "value": true, "label": "Yes"},
+                    {"operator": "eq", "value": false, "label": "No"}
+                ]
+            },
+            {
+                "id": "code-reachable",
+                "type": "input",
+                "label": "Vulnerable code reachable?",
+                "position": {"x": 225, "y": 480},
+                "config": {"field": "code_reachable"},
+                "conditions": [
+                    {"operator": "eq", "value": true, "label": "Yes"},
+                    {"operator": "eq", "value": false, "label": "No"},
+                    {"operator": "is_null", "value": null, "label": "Unknown"}
+                ]
+            },
+            {
+                "id": "output-not-affected-absent",
+                "type": "output",
+                "label": "Not affected (absent)",
+                "position": {"x": 660, "y": 120},
+                "config": {"decision": "Not affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "component_not_present"},
+                "conditions": []
+            },
+            {
+                "id": "output-fixed",
+                "type": "output",
+                "label": "Fixed",
+                "position": {"x": 660, "y": 300},
+                "config": {"decision": "Fixed", "color": "#6366f1", "vex_status": "fixed"},
+                "conditions": []
+            },
+            {
+                "id": "output-affected",
+                "type": "output",
+                "label": "Affected",
+                "position": {"x": 660, "y": 450},
+                "config": {"decision": "Affected", "color": "#dc2626", "vex_status": "affected"},
+                "conditions": []
+            },
+            {
+                "id": "output-not-affected-unreachable",
+                "type": "output",
+                "label": "Not affected (unreachable)",
+                "position": {"x": 660, "y": 600},
+                "config": {"decision": "Not affected", "color": "#22c55e", "vex_status": "not_affected", "vex_justification": "vulnerable_code_not_in_execute_path"},
+                "conditions": []
+            },
+            {
+                "id": "output-under-investigation",
+                "type": "output",
+                "label": "Under investigation",
+                "position": {"x": 660, "y": 750},
+                "config": {"decision": "Under investigation", "color": "#eab308", "vex_status": "under_investigation"},
+                "conditions": []
+            }
+        ],
+        "edges": [
+            {"id": "e-comp-no", "source": "component-present", "target": "output-not-affected-absent", "source_handle": "handle-0"},
+            {"id": "e-comp-yes", "source": "component-present", "target": "fix-deployed", "source_handle": "handle-1", "target_handle": "input-0"},
+            {"id": "e-fix-yes", "source": "fix-deployed", "target": "output-fixed", "source_handle": "handle-0"},
+            {"id": "e-fix-no", "source": "fix-deployed", "target": "code-reachable", "source_handle": "handle-1", "target_handle": "input-0"},
+            {"id": "e-reach-yes", "source": "code-reachable", "target": "output-affected", "source_handle": "handle-0"},
+            {"id": "e-reach-no", "source": "code-reachable", "target": "output-not-affected-unreachable", "source_handle": "handle-1"},
+            {"id": "e-reach-unknown", "source": "code-reachable", "target": "output-under-investigation", "source_handle": "handle-2"}
+        ],
+        "metadata": {
+            "viewport": {"x": 0, "y": 0, "zoom": 0.8},
+            "field_mapping": {
+                "fields": [
+                    {"name": "cve_id", "label": "CVE ID", "type": "string", "description": "CVE identifier - required by the CSAF export (rows without a valid CVE are excluded)", "examples": ["CVE-2024-1234", "CVE-2023-5678"], "required": true},
+                    {"name": "asset_id", "label": "Asset ID", "type": "string", "description": "Product identifier - required by the CSAF export to build the product tree", "examples": ["srv-prod-001", "ws-admin-001"], "required": true},
+                    {"name": "component_present", "label": "Component Present", "type": "boolean", "description": "Is the vulnerable component present in the product? false = not_affected (component_not_present)", "examples": [true, false], "required": true},
+                    {"name": "fix_deployed", "label": "Fix Deployed", "type": "boolean", "description": "Has the fix been deployed? true = fixed", "examples": [true, false], "required": true},
+                    {"name": "code_reachable", "label": "Code Reachable", "type": "boolean", "description": "Is the vulnerable code reachable? true = affected, false = not_affected (not in execute path), null = under_investigation", "examples": [true, false, null], "required": false}
+                ],
+                "source": "default",
+                "version": 1
+            }
+        }
+    }'::jsonb
+) ON CONFLICT DO NOTHING;
