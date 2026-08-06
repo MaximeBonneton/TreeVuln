@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { DeliverablesBar, countNotifiable } from '../DeliverablesBar';
+import { evaluateApi } from '@/api/evaluate';
 import { settingsApi } from '@/api/settings';
 import type { EvaluationResult } from '@/types/evaluation';
 import type { TreeStructure } from '@/types/tree';
@@ -33,10 +35,12 @@ const results: EvaluationResult[] = [
   ], error: null },
 ];
 
+const file = new File(['x'], 'vulns.csv');
+
 function renderBar() {
   return render(
     <MemoryRouter>
-      <DeliverablesBar file={new File(['x'], 'vulns.csv')} structure={structure} treeId={1} results={results} />
+      <DeliverablesBar file={file} structure={structure} treeId={1} results={results} />
     </MemoryRouter>
   );
 }
@@ -54,6 +58,20 @@ describe('DeliverablesBar', () => {
       has_signing_key: false,
       signing_key_fingerprint: null,
     });
+  });
+
+  it('appelle exportPreviewCsv avec les bons paramètres au clic sur Export CSV', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    renderBar();
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() =>
+      expect(evaluateApi.exportPreviewCsv).toHaveBeenCalledWith(file, structure, 'csv', 1)
+    );
+
+    clickSpy.mockRestore();
   });
 
   it('affiche les exports et la bannière ENISA', async () => {

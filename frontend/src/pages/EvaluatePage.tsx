@@ -22,7 +22,7 @@ export function EvaluatePage() {
         )}
       </div>
       {treeId ? (
-        tab === 'quick' ? <QuickTest /> : <BatchCampaign />
+        tab === 'quick' ? <QuickTest key={treeId} /> : <BatchCampaign key={treeId} />
       ) : (
         <EmptyState
           title="Aucun arbre sélectionné"

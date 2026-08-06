@@ -1,6 +1,6 @@
 import type { DecisionPath } from '@/types/evaluation';
 
-// Couleur de pastille par type de nœud (mêmes familles que le canvas Builder)
+// Couleur de pastille par type de nœud — palette cible du canvas (spec §2, habillage prévu en Phase 4)
 const DOT_COLORS: Record<string, string> = {
   input: 'bg-indigo-500',
   lookup: 'bg-violet-500',
