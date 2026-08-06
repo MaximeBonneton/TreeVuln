@@ -83,7 +83,9 @@ export function IngestForm({ endpoint, onSubmit, onCancel }: IngestFormProps) {
           onChange={(e) => { setSlugTouched(true); setSlug(sanitizeSlugInput(e.target.value)); }}
           placeholder="scanner-nessus"
         />
-        <p className="mt-1 text-xs text-slate-500">URL d'ingestion : POST /api/v1/ingest/{slug || '…'}</p>
+        <p className="mt-1 text-xs text-slate-500">
+          URL d'ingestion : POST /api/v1/ingest/{slug || '…'} — clé à passer dans l'en-tête <code className="font-mono">X-API-Key</code>
+        </p>
       </div>
 
       <div>

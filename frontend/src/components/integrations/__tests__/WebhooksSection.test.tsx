@@ -22,10 +22,16 @@ const webhook: Webhook = {
   is_active: true, created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
 };
 
+const webhook2: Webhook = {
+  id: 2, tree_id: 1, name: 'Ticketing', url: 'https://ticketing.example/hook',
+  has_secret: false, headers: {}, events: ['on_attend'],
+  is_active: true, created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z',
+};
+
 const log: WebhookLog = {
   id: 10, webhook_id: 1, event: 'on_act', status_code: 200,
   request_body: { decision: 'Act' }, response_body: 'ok', success: true,
-  error_message: null, duration_ms: 42, created_at: '2026-08-02T00:00:00Z',
+  error_message: 'Connection timed out', duration_ms: 42, created_at: '2026-08-02T00:00:00Z',
 };
 
 describe('WebhooksSection', () => {
@@ -51,8 +57,17 @@ describe('WebhooksSection', () => {
   it('bascule le statut actif via le switch', async () => {
     render(<WebhooksSection treeId={1} />);
     await screen.findByText('SIEM');
-    await userEvent.click(screen.getByRole('switch', { name: 'Webhook actif' }));
+    await userEvent.click(screen.getByRole('switch', { name: 'SIEM actif' }));
     expect(webhooksApi.update).toHaveBeenCalledWith(1, 1, { is_active: false });
+  });
+
+  it('donne un nom accessible distinct à chaque switch webhook', async () => {
+    vi.mocked(webhooksApi.list).mockResolvedValue([webhook, webhook2]);
+    render(<WebhooksSection treeId={1} />);
+    await screen.findByText('SIEM');
+    await screen.findByText('Ticketing');
+    expect(screen.getByRole('switch', { name: 'SIEM actif' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Ticketing actif' })).toBeInTheDocument();
   });
 
   it('teste le webhook et affiche le résultat', async () => {
@@ -69,6 +84,18 @@ describe('WebhooksSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Historique de SIEM' }));
     expect(await screen.findByText('on_act', { selector: '[data-testid="log-event"]' })).toBeInTheDocument();
     expect(webhooksApi.getLogs).toHaveBeenCalledWith(1, 1);
+
+    // error_message visible directement, sans déplier le détail
+    expect(screen.getByText('Connection timed out')).toBeInTheDocument();
+
+    // le détail (request_body) n'apparaît qu'après avoir déplié la ligne
+    const toggle = screen.getByRole('button', { name: 'Voir le détail' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/"decision": "Act"/)).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/"decision": "Act"/)).toBeInTheDocument();
   });
 
   it('ouvre le drawer de création depuis l’état vide', async () => {

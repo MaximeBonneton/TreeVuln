@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { History, Play, Pencil, Plus, Trash2, Webhook as WebhookIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, Play, Pencil, Plus, Trash2, Webhook as WebhookIcon } from 'lucide-react';
 import { webhooksApi } from '@/api/webhooks';
 import { useConfirm } from '@/hooks/useConfirm';
 import { Alert, Badge, Button, Card, ConfirmDialog, Drawer, EmptyState, Switch } from '@/components/ui';
@@ -16,7 +16,17 @@ export function WebhooksSection({ treeId }: { treeId: number }) {
   const [drawer, setDrawer] = useState<{ open: boolean; webhook: Webhook | null }>({ open: false, webhook: null });
   const [testResults, setTestResults] = useState<Record<number, WebhookTestResult>>({});
   const [openLogs, setOpenLogs] = useState<Record<number, WebhookLog[] | 'loading'>>({});
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
   const { confirm, confirmDialogProps } = useConfirm();
+
+  const toggleLogExpanded = (key: string) => {
+    setExpandedLogs((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -160,7 +170,7 @@ export function WebhooksSection({ treeId }: { treeId: number }) {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Switch checked={webhook.is_active} onChange={() => handleToggle(webhook)} label="Webhook actif" />
+                    <Switch checked={webhook.is_active} onChange={() => handleToggle(webhook)} label={`${webhook.name} actif`} />
                     <button type="button" aria-label={`Tester ${webhook.name}`} title="Tester" onClick={() => handleTest(webhook)}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                       <Play size={14} />
@@ -199,15 +209,51 @@ export function WebhooksSection({ treeId }: { treeId: number }) {
                       <p className="text-sm text-slate-500">Aucun envoi pour l'instant.</p>
                     ) : (
                       <ul className="space-y-1">
-                        {logs.map((entry) => (
-                          <li key={entry.id} className="flex items-center gap-2 text-xs text-slate-600">
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${entry.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                            <span data-testid="log-event" className="font-medium">{entry.event}</span>
-                            <span>{entry.status_code ?? '—'}</span>
-                            {entry.duration_ms != null && <span>{entry.duration_ms} ms</span>}
-                            <span className="ml-auto text-slate-400">{new Date(entry.created_at).toLocaleString()}</span>
-                          </li>
-                        ))}
+                        {logs.map((entry) => {
+                          const key = `${webhook.id}-${entry.id}`;
+                          const expanded = expandedLogs.has(key);
+                          return (
+                            <li key={entry.id} className="text-xs text-slate-600">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  aria-expanded={expanded}
+                                  aria-label={expanded ? 'Réduire le détail' : 'Voir le détail'}
+                                  onClick={() => toggleLogExpanded(key)}
+                                  className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                >
+                                  {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                </button>
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${entry.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                <span data-testid="log-event" className="font-medium">{entry.event}</span>
+                                <span>{entry.status_code ?? '—'}</span>
+                                {entry.duration_ms != null && <span>{entry.duration_ms} ms</span>}
+                                <span className="ml-auto text-slate-400">{new Date(entry.created_at).toLocaleString()}</span>
+                              </div>
+                              {entry.error_message && (
+                                <p className="ml-5 mt-0.5 text-red-600">{entry.error_message}</p>
+                              )}
+                              {expanded && (
+                                <div className="ml-5 mt-1 space-y-1.5">
+                                  <div>
+                                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Requête</p>
+                                    <pre className="max-h-40 overflow-x-auto rounded bg-slate-50 p-1.5 text-[10px] text-slate-700">
+                                      {JSON.stringify(entry.request_body, null, 2)}
+                                    </pre>
+                                  </div>
+                                  {entry.response_body && (
+                                    <div>
+                                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Réponse</p>
+                                      <pre className="max-h-40 overflow-x-auto rounded bg-slate-50 p-1.5 text-[10px] text-slate-700">
+                                        {entry.response_body}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>

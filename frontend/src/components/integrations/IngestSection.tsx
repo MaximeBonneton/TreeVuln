@@ -177,6 +177,9 @@ export function IngestSection({ treeId }: { treeId: number }) {
                         </span>
                       )}
                     </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Authentification : en-tête <code className="font-mono">X-API-Key</code>
+                    </p>
 
                     {Object.keys(endpoint.field_mapping).length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">

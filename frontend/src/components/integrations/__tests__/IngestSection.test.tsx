@@ -46,6 +46,7 @@ describe('IngestSection', () => {
     expect(screen.getByText(/\/api\/v1\/ingest\/nessus/)).toBeInTheDocument();
     expect(screen.getByText('auto-éval')).toBeInTheDocument();
     expect(screen.getByText('Clé chiffrée — copiez-la à la création')).toBeInTheDocument();
+    expect(screen.getByText(/X-API-Key/)).toBeInTheDocument();
   });
 
   it('régénère la clé après confirmation et la révèle masquée', async () => {
