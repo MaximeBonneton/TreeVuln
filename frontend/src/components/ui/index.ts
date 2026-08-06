@@ -7,6 +7,7 @@ export { CopyButton } from './CopyButton';
 export { DecisionBadge } from './DecisionBadge';
 export { Dialog } from './Dialog';
 export { Drawer } from './Drawer';
+export { Dropzone } from './Dropzone';
 export { EmptyState } from './EmptyState';
 export { Input } from './Input';
 export { Select } from './Select';
