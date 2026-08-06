@@ -33,4 +33,15 @@ describe('Table', () => {
     );
     expect((container.firstChild as HTMLElement).className).toContain('overflow-x-auto');
   });
+
+  it('expose aria-sort sur une colonne triable', () => {
+    render(
+      <Table>
+        <TableHead>
+          <TableHeaderCell ariaSort="ascending">Criticité</TableHeaderCell>
+        </TableHead>
+      </Table>
+    );
+    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'ascending');
+  });
 });
