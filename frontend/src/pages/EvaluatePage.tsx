@@ -1,18 +1,28 @@
+import { useState } from 'react';
 import { useTreeStore } from '@/stores/treeStore';
-import { EmptyState } from '@/components/ui';
-import { TestPanel } from '@/components/TreeBuilder/TestPanel';
+import { EmptyState, Tabs } from '@/components/ui';
+import { QuickTest } from '@/components/evaluation/QuickTest';
+import { BatchCampaign } from '@/components/evaluation/BatchCampaign';
 
-/** Page Évaluation — Phase 2 : monte le TestPanel existant tel quel (refonte en Phase 3). */
+/** Page Évaluation — Phase 3 : test rapide (deux cards) et campagne batch pleine page (spec §3). */
 export function EvaluatePage() {
   const treeId = useTreeStore((s) => s.treeId);
+  const [tab, setTab] = useState<'quick' | 'batch'>('quick');
+
   return (
-    <div className="flex h-full flex-col p-6">
-      <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">Évaluation</h1>
+    <div className="p-6">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">Évaluation</h1>
+        {treeId && (
+          <Tabs
+            tabs={[{ id: 'quick', label: 'Test rapide' }, { id: 'batch', label: 'Campagne batch' }]}
+            active={tab}
+            onChange={(id) => setTab(id as 'quick' | 'batch')}
+          />
+        )}
+      </div>
       {treeId ? (
-        <div className="flex min-h-0 flex-1">
-          {/* onClose no-op : la page est la vue, il n'y a rien à fermer */}
-          <TestPanel onClose={() => {}} />
-        </div>
+        tab === 'quick' ? <QuickTest /> : <BatchCampaign />
       ) : (
         <EmptyState
           title="Aucun arbre sélectionné"

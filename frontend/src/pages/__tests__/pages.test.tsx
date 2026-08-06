@@ -7,8 +7,11 @@ import { IntegrationsPage } from '../IntegrationsPage';
 import { AdminUsersPage } from '../AdminUsersPage';
 
 // Les vues existantes font des appels API : remplacées par des marqueurs
-vi.mock('@/components/TreeBuilder/TestPanel', () => ({
-  TestPanel: () => <div>test-panel</div>,
+vi.mock('@/components/evaluation/QuickTest', () => ({
+  QuickTest: () => <div>quick-test</div>,
+}));
+vi.mock('@/components/evaluation/BatchCampaign', () => ({
+  BatchCampaign: () => <div>batch-campaign</div>,
 }));
 vi.mock('@/components/dialogs/WebhookConfigDialog', () => ({
   WebhookConfigDialog: () => <div>webhook-config-dialog</div>,
@@ -25,17 +28,20 @@ describe('Pages hôtes', () => {
     useTreeStore.setState({ treeId: 1, treeName: 'SSVC Default' });
   });
 
-  it('EvaluatePage monte le TestPanel existant', () => {
+  it('EvaluatePage affiche le test rapide et bascule sur la campagne batch', async () => {
     render(<EvaluatePage />);
     expect(screen.getByRole('heading', { name: 'Évaluation' })).toBeInTheDocument();
-    expect(screen.getByText('test-panel')).toBeInTheDocument();
+    expect(screen.getByText('quick-test')).toBeInTheDocument();
+    expect(screen.queryByText('batch-campaign')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Campagne batch' }));
+    expect(screen.getByText('batch-campaign')).toBeInTheDocument();
   });
 
   it('EvaluatePage affiche un état vide sans arbre courant', () => {
     useTreeStore.setState({ treeId: null });
     render(<EvaluatePage />);
     expect(screen.getByText('Aucun arbre sélectionné')).toBeInTheDocument();
-    expect(screen.queryByText('test-panel')).not.toBeInTheDocument();
+    expect(screen.queryByText('quick-test')).not.toBeInTheDocument();
   });
 
   it('IntegrationsPage ouvre le dialog webhooks depuis son lanceur', async () => {
