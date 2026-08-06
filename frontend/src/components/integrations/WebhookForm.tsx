@@ -109,7 +109,7 @@ export function WebhookForm({ webhook, onSubmit, onCancel }: WebhookFormProps) {
           {headers.map((h, i) => (
             <div key={i} className="flex items-center gap-2">
               <Input
-                placeholder="Nom de l'en-tête"
+                placeholder="Nom de l’en-tête"
                 value={h.key}
                 onChange={(e) => setHeaders((prev) => prev.map((p, j) => (j === i ? { ...p, key: e.target.value } : p)))}
               />
@@ -120,7 +120,7 @@ export function WebhookForm({ webhook, onSubmit, onCancel }: WebhookFormProps) {
               />
               <button
                 type="button"
-                aria-label={`Supprimer l'en-tête ${h.key || i + 1}`}
+                aria-label={`Supprimer l’en-tête ${h.key || i + 1}`}
                 onClick={() => setHeaders((prev) => prev.filter((_, j) => j !== i))}
                 className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
               >
