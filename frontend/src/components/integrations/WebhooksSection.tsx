@@ -34,10 +34,19 @@ export function WebhooksSection({ treeId }: { treeId: number }) {
   }, [reload]);
 
   const handleSubmit = async (data: WebhookCreate) => {
-    if (drawer.webhook) await webhooksApi.update(treeId, drawer.webhook.id, data);
-    else await webhooksApi.create(treeId, data);
-    setDrawer({ open: false, webhook: null });
-    await reload();
+    try {
+      if (drawer.webhook) await webhooksApi.update(treeId, drawer.webhook.id, data);
+      else await webhooksApi.create(treeId, data);
+      setDrawer({ open: false, webhook: null });
+      await reload();
+    } catch (e) {
+      // Filet de sécurité : si le drawer a été fermé pendant la sauvegarde, WebhookForm
+      // est démonté et son propre setError devient un no-op — l'Alert de section reste
+      // le seul retour visible. On re-throw pour que le form encore monté (cas normal)
+      // affiche aussi son erreur inline.
+      setError(e instanceof Error ? e.message : 'Échec de la sauvegarde du webhook.');
+      throw e;
+    }
   };
 
   const handleToggle = async (webhook: Webhook) => {

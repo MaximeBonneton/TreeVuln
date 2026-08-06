@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WebhooksSection } from '../WebhooksSection';
 import { webhooksApi } from '@/api/webhooks';
@@ -84,5 +84,35 @@ describe('WebhooksSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Supprimer SIEM' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(webhooksApi.delete).toHaveBeenCalledWith(1, 1));
+  });
+
+  it('affiche une erreur de section si la sauvegarde échoue après fermeture du drawer', async () => {
+    vi.mocked(webhooksApi.list).mockResolvedValue([]);
+    let rejectCreate!: (error: Error) => void;
+    const pending = new Promise<Webhook>((_, reject) => {
+      rejectCreate = reject;
+    });
+    vi.mocked(webhooksApi.create).mockReturnValue(pending);
+
+    render(<WebhooksSection treeId={1} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Créer le premier webhook' }));
+
+    await userEvent.type(screen.getByLabelText('Nom'), 'SIEM');
+    await userEvent.type(screen.getByLabelText('URL'), 'https://siem.example/hook');
+    await userEvent.click(screen.getByRole('button', { name: 'on_act' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await act(async () => {
+      rejectCreate(new Error('Erreur réseau'));
+      await pending.catch(() => {});
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Erreur réseau');
+    });
+    expect(webhooksApi.create).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'SIEM' }));
   });
 });
