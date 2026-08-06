@@ -46,9 +46,9 @@ Point TreeVuln at a CSV or JSON file and it scans the columns, infers types, and
 
 ### Decide at scale, with proof
 
-Evaluate a single finding or batches up to 50,000 items per request (Polars-powered). Every evaluation returns the **complete decision path** — the built-in test panel replays it visually, and batch results export to CSV/JSON with the audit trail included.
+Evaluate a single finding or batches up to 50,000 items per request (Polars-powered). Every evaluation returns the **complete decision path** — expand any result to replay the criteria that were evaluated, the values found and the branch taken. Batch results export to CSV/JSON with the audit trail included.
 
-![Test panel with audit trail](docs/images/test-panel.png)
+![Batch campaign: decision distribution and per-result audit trail](docs/images/evaluate-batch.png)
 
 ### Run several trees, expose them as APIs
 
@@ -59,6 +59,10 @@ Each tree lives in its own context: dedicated assets, webhooks and ingest endpoi
 - **Inbound**: real-time ingestion endpoints with API keys and per-endpoint field mapping; findings are auto-evaluated on arrival.
 - **Outbound**: HMAC-SHA256 signed webhooks notify your ticketing or SIEM on every decision.
 - **SBOM-aware**: attach a CycloneDX or SPDX SBOM to each asset and use `sbom_*` virtual fields (component present, version, match type) directly in your trees — prioritize only the CVEs whose vulnerable component actually ships in your product.
+
+![Outbound webhooks and inbound ingestion endpoints](docs/images/integrations.png)
+
+![Asset referential with criticality and attached SBOMs](docs/images/assets-sbom.png)
 
 ### Prove compliance
 
